@@ -25,6 +25,17 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Cache Rye
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.rye
+            services/agents/.venv
+            services/shared-python/.venv
+          key: rye-${{ runner.os }}-${{ hashFiles('services/agents/pyproject.toml', 'services/shared-python/pyproject.toml') }}
+          restore-keys: |
+            rye-${{ runner.os }}-
+
       - name: Install Rye
         run: |
           curl -sSf https://rye.astral.sh/get | RYE_INSTALL_OPTION="--yes" bash
@@ -61,8 +72,8 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
       - name: Record build end time
         id: build_end
