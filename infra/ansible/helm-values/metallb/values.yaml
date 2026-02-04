@@ -1,0 +1,20 @@
+# MetalLB Helm values
+# Chart: metallb/metallb
+# Docs: https://metallb.universe.tf/
+
+controller:
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+speaker:
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+  frr:
+    enabled: false

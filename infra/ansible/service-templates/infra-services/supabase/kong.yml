@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supabase-kong
+  labels:
+    app: supabase-kong
+    service-type: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supabase-kong
+  template:
+    metadata:
+      labels:
+        app: supabase-kong
+        expose: ingress
+    spec:
+      containers:
+        - name: kong
+          image: kong:3.4
+          ports:
+            - containerPort: 8000
+              name: proxy
+            - containerPort: 8443
+              name: proxy-ssl
+          env:
+            - name: KONG_DATABASE
+              value: "off"
+            - name: KONG_DECLARATIVE_CONFIG
+              value: /usr/local/kong/kong.yml
+            - name: KONG_PROXY_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_ADMIN_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_PROXY_ERROR_LOG
+              value: /dev/stderr
+            - name: KONG_ADMIN_ERROR_LOG
+              value: /dev/stderr
+            - name: KONG_PLUGINS
+              value: "bundled,cors,rate-limiting"
+          volumeMounts:
+            - name: kong-config
+              mountPath: /usr/local/kong
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: kong-config
+          configMap:
+            name: kong-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supabase-kong
+  labels:
+    app: supabase-kong
+spec:
+  selector:
+    app: supabase-kong
+  type: ClusterIP
+  ports:
+    - name: proxy
+      port: 8000
+      targetPort: 8000

@@ -1,0 +1,67 @@
+# Tempo Helm values
+# Chart: grafana/tempo
+# Docs: https://grafana.com/docs/tempo/latest/setup/helm-chart/
+# Note: The grafana/tempo chart is single binary mode by default (no deploymentMode option)
+
+replicas: 1
+
+# Node scheduling
+nodeSelector:
+  node-role: infra
+
+tolerations:
+  - key: node-role
+    operator: Equal
+    value: infra
+    effect: NoSchedule
+
+# Tempo configuration
+tempo:
+  reportingEnabled: false
+
+  metricsGenerator:
+    enabled: false
+
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+        grpc:
+          endpoint: 0.0.0.0:4317
+    jaeger:
+      protocols:
+        thrift_http:
+          endpoint: 0.0.0.0:14268
+        grpc:
+          endpoint: 0.0.0.0:14250
+    zipkin:
+      endpoint: 0.0.0.0:9411
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Persistence
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: ""
+
+# Service configuration
+service:
+  type: ClusterIP
+
+# Monitoring
+serviceMonitor:
+  enabled: true

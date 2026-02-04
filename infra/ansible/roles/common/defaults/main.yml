@@ -1,0 +1,21 @@
+---
+# Common role default variables
+
+# Logging colors (for debug output)
+color_info: "\033[0;34m"
+color_success: "\033[0;32m"
+color_warning: "\033[1;33m"
+color_error: "\033[0;31m"
+color_reset: "\033[0m"
+
+# Validation settings
+validate_urls: true
+validate_yaml: true
+
+# File operations
+backup_suffix: ".bak"
+create_directories_mode: "0755"
+
+# Secret generation
+default_password_length: 32
+default_token_length: 64

@@ -1,0 +1,478 @@
+---
+# Interactive Restore from Backup
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/restore.yml
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/restore.yml --check  # dry-run
+#
+# FEATURES:
+#   - Restore from: server local, Yandex Disk, or controller machine
+#   - Supports full DR (new server with no local backups)
+#
+# LIMITATIONS:
+#   - PVC data restore requires pods to be RUNNING
+#   - Database restore requires database pods to be running
+#   - K3s state restore will restart k3s (downtime)
+
+- name: Interactive Restore from Backup
+  hosts: infra_nodes
+  gather_facts: true
+  vars:
+    backup_base_dir: "/var/backups/kubernetes"
+    age_key_path: "/root/.config/age/backup.key"
+    yandex_disk_remote: "ydisk"
+    team_name: "nirssyan"
+    controller_backup_dir: "{{ lookup('env', 'HOME') }}/backups"
+
+  tasks:
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 1: Find backup sources
+    # ═══════════════════════════════════════════════════════════════════
+    - name: Find local backups (on server)
+      ansible.builtin.find:
+        paths: "{{ backup_base_dir }}"
+        patterns:
+          - "backup-*.tar.zst.age"
+          - "backup-*.tar.zst"
+          - "backup-*.tar.gz.age"
+          - "backup-*.tar.gz"
+        file_type: file
+      register: local_backups
+
+    - name: Find backups on controller machine
+      ansible.builtin.find:
+        paths: "{{ controller_backup_dir }}"
+        patterns:
+          - "backup-*.tar.zst.age"
+          - "backup-*.tar.zst"
+          - "backup-*.tar.gz.age"
+          - "backup-*.tar.gz"
+        file_type: file
+      register: controller_backups
+      delegate_to: localhost
+      failed_when: false
+
+    - name: Check rclone configuration
+      ansible.builtin.command:
+        cmd: rclone listremotes
+      register: rclone_remotes
+      changed_when: false
+      failed_when: false
+
+    - name: List Yandex Disk backups
+      ansible.builtin.shell:
+        cmd: |
+          rclone lsf "{{ yandex_disk_remote }}:/{{ team_name }} Backups" \
+            --include "*.tar.zst.age" --include "*.tar.zst" \
+            -R 2>/dev/null | sort -r | head -10
+        executable: /bin/bash
+      register: ydisk_backups
+      changed_when: false
+      failed_when: false
+      when: rclone_remotes.rc == 0 and yandex_disk_remote in rclone_remotes.stdout
+
+    - name: No backups found anywhere
+      ansible.builtin.fail:
+        msg: |
+          No backups found!
+          - Server ({{ backup_base_dir }}): empty
+          - Controller ({{ controller_backup_dir }}): empty
+          - Yandex Disk: {{ 'not configured' if rclone_remotes.rc != 0 else 'empty' }}
+      when:
+        - local_backups.files | length == 0
+        - (controller_backups.files | default([])) | length == 0
+        - (ydisk_backups.stdout_lines | default([])) | length == 0
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 1.1: Select backup source
+    # ═══════════════════════════════════════════════════════════════════
+    - name: Display backup sources
+      ansible.builtin.debug:
+        msg: |
+          BACKUP SOURCES:
+          ═══════════════════════════════════════════════════════════════
+
+          🖥️  SERVER ({{ backup_base_dir }}):
+          {% if local_backups.files | length > 0 %}
+          {% for f in local_backups.files | sort(attribute='mtime', reverse=true) %}
+            S{{ loop.index }}. {{ f.path | basename }} ({{ (f.size / 1024 / 1024) | round(1) }} MB)
+          {% endfor %}
+          {% else %}
+            (empty)
+          {% endif %}
+
+          💻 CONTROLLER ({{ controller_backup_dir }}):
+          {% if (controller_backups.files | default([])) | length > 0 %}
+          {% for f in controller_backups.files | sort(attribute='mtime', reverse=true) %}
+            C{{ loop.index }}. {{ f.path | basename }} ({{ (f.size / 1024 / 1024) | round(1) }} MB)
+          {% endfor %}
+          {% else %}
+            (empty)
+          {% endif %}
+
+          ☁️  YANDEX DISK (/{{ team_name }} Backups):
+          {% if (ydisk_backups.stdout_lines | default([])) | length > 0 %}
+          {% for f in ydisk_backups.stdout_lines %}
+            Y{{ loop.index }}. {{ f }}
+          {% endfor %}
+          {% else %}
+            (empty or not configured)
+          {% endif %}
+
+          ═══════════════════════════════════════════════════════════════
+
+    - name: Select backup
+      ansible.builtin.pause:
+        prompt: "Enter backup (S1, S2... server, C1, C2... controller, Y1, Y2... Yandex) [S1]"
+      register: backup_selection
+
+    - name: Parse selection
+      ansible.builtin.set_fact:
+        backup_source: >-
+          {{ 'ydisk' if (backup_selection.user_input | default('S1') | upper).startswith('Y')
+             else 'controller' if (backup_selection.user_input | default('S1') | upper).startswith('C')
+             else 'server' }}
+        backup_index: "{{ (backup_selection.user_input | default('S1'))[1:] | default('1') | int - 1 }}"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 1.2: Handle remote backup sources
+    # ═══════════════════════════════════════════════════════════════════
+    - name: Download from Yandex Disk
+      when: backup_source == 'ydisk'
+      block:
+        - name: Set remote backup path
+          ansible.builtin.set_fact:
+            remote_backup_file: "{{ ydisk_backups.stdout_lines[backup_index | int] }}"
+
+        - name: Ensure backup directory exists
+          ansible.builtin.file:
+            path: "{{ backup_base_dir }}"
+            state: directory
+            mode: "0755"
+
+        - name: Download backup from Yandex Disk
+          ansible.builtin.shell:
+            cmd: |
+              echo "Downloading {{ remote_backup_file }}..."
+              rclone copy "{{ yandex_disk_remote }}:/{{ team_name }} Backups/{{ remote_backup_file }}" \
+                "{{ backup_base_dir }}/" \
+                --progress \
+                --stats-one-line \
+                --stats 5s
+              echo "✓ Download complete"
+            executable: /bin/bash
+          register: download_result
+
+        - name: Set selected backup (from Yandex Disk)
+          ansible.builtin.set_fact:
+            selected_backup:
+              path: "{{ backup_base_dir }}/{{ remote_backup_file | basename }}"
+
+    - name: Upload from controller machine
+      when: backup_source == 'controller'
+      block:
+        - name: Set controller backup path
+          ansible.builtin.set_fact:
+            controller_backup_file: "{{ (controller_backups.files | sort(attribute='mtime', reverse=true))[backup_index | int] }}"
+
+        - name: Ensure backup directory exists
+          ansible.builtin.file:
+            path: "{{ backup_base_dir }}"
+            state: directory
+            mode: "0755"
+
+        - name: Upload backup from controller
+          ansible.builtin.copy:
+            src: "{{ controller_backup_file.path }}"
+            dest: "{{ backup_base_dir }}/{{ controller_backup_file.path | basename }}"
+            mode: "0644"
+
+        - name: Set selected backup (from controller)
+          ansible.builtin.set_fact:
+            selected_backup:
+              path: "{{ backup_base_dir }}/{{ controller_backup_file.path | basename }}"
+
+    - name: Set selected backup (server)
+      ansible.builtin.set_fact:
+        selected_backup: "{{ (local_backups.files | sort(attribute='mtime', reverse=true))[backup_index | int] }}"
+      when: backup_source == 'server'
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 2: Select restore mode
+    # ═══════════════════════════════════════════════════════════════════
+    - name: Display restore options
+      ansible.builtin.debug:
+        msg: |
+          Restore options:
+            1. ALL (full disaster recovery)
+            2. INFRA only (infrastructure namespace)
+            3. APPS only (all project namespaces)
+            4. Select specific namespace
+
+    - name: Select option
+      ansible.builtin.pause:
+        prompt: "Select option [1]"
+      register: restore_option
+
+    - name: Set restore target
+      ansible.builtin.set_fact:
+        restore_target: "{{ restore_option.user_input | default('1') }}"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 3: Handle namespace selection (option 4)
+    # ═══════════════════════════════════════════════════════════════════
+    - name: Namespace selection for option 4
+      when: restore_target == '4'
+      block:
+        - name: List namespaces in backup
+          ansible.builtin.shell:
+            cmd: |
+              FILE="{{ selected_backup.path }}"
+              if [[ "$FILE" == *.age ]]; then
+                INNER="${FILE%.age}"
+                if [[ "$INNER" == *.zst ]]; then
+                  age -d -i {{ age_key_path }} "$FILE" 2>/dev/null | zstd -d | tar -tf -
+                else
+                  age -d -i {{ age_key_path }} "$FILE" 2>/dev/null | tar -tzf -
+                fi
+              elif [[ "$FILE" == *.zst ]]; then
+                zstd -d -c "$FILE" | tar -tf -
+              else
+                tar -tzf "$FILE"
+              fi 2>/dev/null | grep -oP '^\d{4}-\d{2}-\d{2}/\K[^/]+' | sort -u
+            executable: /bin/bash
+          register: available_namespaces
+          changed_when: false
+
+        - name: Display namespaces
+          ansible.builtin.debug:
+            msg: |
+              Available namespaces:
+              {% for ns in available_namespaces.stdout_lines %}
+                {{ loop.index }}. {{ ns }}
+              {% endfor %}
+
+        - name: Select namespace
+          ansible.builtin.pause:
+            prompt: "Select namespace number"
+          register: ns_selection
+
+        - name: Set selected namespace
+          ansible.builtin.set_fact:
+            selected_namespace: "{{ available_namespaces.stdout_lines[(ns_selection.user_input | int) - 1] }}"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 4: Confirmation
+    # ═══════════════════════════════════════════════════════════════════
+    - name: Set restore description
+      ansible.builtin.set_fact:
+        restore_desc: >-
+          {{ 'ALL (full DR)' if restore_target == '1'
+             else 'INFRA only' if restore_target == '2'
+             else 'APPS only' if restore_target == '3'
+             else 'NAMESPACE: ' + selected_namespace }}
+
+    - name: Confirm restore
+      ansible.builtin.pause:
+        prompt: |
+
+          ⚠️  This will OVERWRITE existing data!
+
+          Backup: {{ selected_backup.path | basename }}
+          Restore: {{ restore_desc }}
+
+          Continue? [y/N]
+      register: confirm
+
+    - name: Abort if not confirmed
+      ansible.builtin.fail:
+        msg: "Cancelled"
+      when: confirm.user_input | lower != 'y'
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 5: Extract backup
+    # ═══════════════════════════════════════════════════════════════════
+    - name: Dry-run mode
+      ansible.builtin.debug:
+        msg: "DRY-RUN: Would restore {{ restore_desc }} from {{ selected_backup.path | basename }}"
+      when: ansible_check_mode
+
+    - name: Extract and restore
+      when: not ansible_check_mode
+      block:
+        - name: Create temp directory
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: "restore-"
+          register: temp_dir
+
+        - name: Extract backup
+          ansible.builtin.shell:
+            cmd: |
+              set -e
+              FILE="{{ selected_backup.path }}"
+              DEST="{{ temp_dir.path }}"
+
+              echo "Extracting backup..."
+              if [[ "$FILE" == *.age ]]; then
+                INNER="${FILE%.age}"
+                if [[ "$INNER" == *.zst ]]; then
+                  age -d -i {{ age_key_path }} "$FILE" | zstd -d | tar -xf - -C "$DEST"
+                else
+                  age -d -i {{ age_key_path }} "$FILE" | tar -xzf - -C "$DEST"
+                fi
+              elif [[ "$FILE" == *.zst ]]; then
+                zstd -d -c "$FILE" | tar -xf - -C "$DEST"
+              else
+                tar -xzf "$FILE" -C "$DEST"
+              fi
+
+              # Find the date directory
+              find "$DEST" -maxdepth 1 -type d -name "20*" | head -1
+            executable: /bin/bash
+          register: extract_result
+
+        - name: Set extracted path
+          ansible.builtin.set_fact:
+            extracted_path: "{{ extract_result.stdout_lines[-1] }}"
+
+        # ═══════════════════════════════════════════════════════════════════
+        # STEP 6: Perform restore
+        # ═══════════════════════════════════════════════════════════════════
+        - name: Restore K3s state (ALL mode only)
+          ansible.builtin.shell:
+            cmd: |
+              set -e
+              STATE_DIR="{{ extracted_path }}/k3s-state"
+              if [ -d "$STATE_DIR" ] && [ -f "$STATE_DIR/state.db" ]; then
+                echo "Restoring K3s SQLite state..."
+                systemctl stop k3s
+                cp "$STATE_DIR/state.db" /var/lib/rancher/k3s/server/db/
+                cp "$STATE_DIR/state.db-shm" /var/lib/rancher/k3s/server/db/ 2>/dev/null || true
+                cp "$STATE_DIR/state.db-wal" /var/lib/rancher/k3s/server/db/ 2>/dev/null || true
+                systemctl start k3s
+                sleep 30
+                kubectl wait --for=condition=ready node --all --timeout=300s || true
+                echo "✓ K3s state restored"
+              else
+                echo "No K3s state found in backup"
+              fi
+            executable: /bin/bash
+          when: restore_target == '1'
+
+        - name: Restore namespaces
+          ansible.builtin.shell:
+            cmd: |
+              set -e
+              BACKUP_PATH="{{ extracted_path }}"
+              RESTORE_TARGET="{{ restore_target }}"
+              SELECTED_NS="{{ selected_namespace | default('') }}"
+
+              restore_namespace() {
+                local NS_DIR="$1"
+                local NS=$(basename "$NS_DIR")
+
+                echo ""
+                echo "══════════════════════════════════════════════════════════════"
+                echo "Restoring namespace: $NS"
+                echo "══════════════════════════════════════════════════════════════"
+
+                # Create namespace if needed
+                kubectl create namespace "$NS" --dry-run=client -o yaml 2>/dev/null | kubectl apply -f - || true
+
+                # Restore secrets
+                if [ -f "$NS_DIR/secrets.yaml" ]; then
+                  echo "  → Restoring secrets..."
+                  kubectl apply -f "$NS_DIR/secrets.yaml" 2>&1 | grep -v "unchanged" | head -10 || true
+                fi
+
+                # Restore configmaps
+                if [ -f "$NS_DIR/configmaps.yaml" ]; then
+                  echo "  → Restoring configmaps..."
+                  kubectl apply -f "$NS_DIR/configmaps.yaml" 2>&1 | grep -v "unchanged" | head -10 || true
+                fi
+
+                # Restore PVC data
+                if [ -d "$NS_DIR/pvc-data" ]; then
+                  echo "  → Restoring PVC data..."
+                  for POD_DIR in "$NS_DIR/pvc-data"/*/; do
+                    [ -d "$POD_DIR" ] || continue
+                    DIR_NAME=$(basename "$POD_DIR")
+                    # Extract pod name (everything before the mount path)
+                    POD_NAME=$(echo "$DIR_NAME" | sed 's/_[^_]*$//' | sed 's/_/-/g')
+
+                    echo "    → $POD_NAME"
+
+                    # Find running pod
+                    POD=$(kubectl get pods -n "$NS" 2>/dev/null | grep "^${POD_NAME}" | grep Running | awk '{print $1}' | head -1)
+                    if [ -z "$POD" ]; then
+                      echo "      ⚠ Pod not running, skipping"
+                      continue
+                    fi
+
+                    # Get mount path from directory name
+                    MOUNT_PATH=$(echo "$DIR_NAME" | grep -oP '_[^_]+$' | sed 's/^_/\//' | tr '_' '/')
+                    [ -z "$MOUNT_PATH" ] && MOUNT_PATH="/"
+
+                    # Copy data
+                    kubectl cp "$POD_DIR" "$NS/$POD:$MOUNT_PATH" 2>/dev/null && \
+                      echo "      ✓ Restored" || echo "      ⚠ Failed"
+                  done
+                fi
+
+                echo "✓ Namespace $NS done"
+              }
+
+              # Execute based on target
+              case "$RESTORE_TARGET" in
+                1) # ALL
+                  for NS_DIR in "$BACKUP_PATH"/*/; do
+                    [ -d "$NS_DIR" ] || continue
+                    NS=$(basename "$NS_DIR")
+                    [ "$NS" = "k3s-state" ] && continue
+                    restore_namespace "$NS_DIR"
+                  done
+                  ;;
+                2) # INFRA only
+                  [ -d "$BACKUP_PATH/infrastructure" ] && restore_namespace "$BACKUP_PATH/infrastructure"
+                  ;;
+                3) # APPS only
+                  for NS_DIR in "$BACKUP_PATH"/*/; do
+                    NS=$(basename "$NS_DIR")
+                    [ "$NS" = "infrastructure" ] || [ "$NS" = "k3s-state" ] && continue
+                    restore_namespace "$NS_DIR"
+                  done
+                  ;;
+                4) # Specific namespace
+                  [ -d "$BACKUP_PATH/$SELECTED_NS" ] && restore_namespace "$BACKUP_PATH/$SELECTED_NS"
+                  ;;
+              esac
+
+              echo ""
+              echo "══════════════════════════════════════════════════════════════"
+              echo "RESTORE COMPLETED"
+              echo "══════════════════════════════════════════════════════════════"
+            executable: /bin/bash
+          register: restore_output
+
+        - name: Display restore output
+          ansible.builtin.debug:
+            msg: "{{ restore_output.stdout_lines }}"
+
+        - name: Cleanup temp directory
+          ansible.builtin.file:
+            path: "{{ temp_dir.path }}"
+            state: absent
+
+    - name: Restore summary
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "═══════════════════════════════════════════════════════════════"
+          - "✓ Restore completed"
+          - "═══════════════════════════════════════════════════════════════"
+          - ""
+          - "From: {{ selected_backup.path | basename }}"
+          - "Mode: {{ restore_desc }}"
+          - ""
+          - "Verify: kubectl get pods --all-namespaces"
+      when: not ansible_check_mode

@@ -1,0 +1,113 @@
+---
+# Manual backup execution
+# Triggers Kubernetes CronJob for immediate backup
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/backup.yml
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/backup.yml -e "async_mode=true"
+
+- name: Trigger Manual Backup
+  hosts: infra_nodes
+  gather_facts: true
+  vars:
+    async_mode: "{{ lookup('env', 'ASYNC') | default(false) | bool }}"
+    job_timeout: 7200  # 2 hours
+
+  tasks:
+    - name: Check kubectl access
+      ansible.builtin.command:
+        cmd: kubectl cluster-info
+      changed_when: false
+      register: kubectl_check
+      failed_when: kubectl_check.rc != 0
+
+    - name: Generate job name
+      ansible.builtin.set_fact:
+        job_name: "backup-manual-{{ ansible_date_time.epoch }}"
+
+    - name: Display backup configuration
+      ansible.builtin.debug:
+        msg:
+          - "Starting manual backup..."
+          - "Job: {{ job_name }}"
+          - "Mode: {{ 'async (background)' if async_mode else 'sync (wait for completion)' }}"
+
+    - name: Trigger backup CronJob
+      ansible.builtin.command:
+        cmd: >
+          kubectl create job {{ job_name }}
+          --from=cronjob/backup
+          -n infrastructure
+      register: backup_job
+      changed_when: backup_job.rc == 0
+
+    - name: Report async status
+      ansible.builtin.debug:
+        msg:
+          - "✓ Backup job triggered (running in background)"
+          - ""
+          - "Monitor progress:"
+          - "  ssh {{ ansible_user }}@{{ ansible_host }} 'kubectl logs -f job/{{ job_name }} -n infrastructure'"
+      when: async_mode
+
+    - name: Wait for backup job completion
+      ansible.builtin.command:
+        cmd: >
+          kubectl wait job/{{ job_name }}
+          --for=condition=complete
+          --timeout={{ job_timeout }}s
+          -n infrastructure
+      when: not async_mode
+      register: backup_wait
+      failed_when: false
+      changed_when: false
+
+    - name: Get job status
+      ansible.builtin.command:
+        cmd: kubectl get job {{ job_name }} -n infrastructure -o jsonpath='{.status.succeeded}'
+      register: job_status
+      when: not async_mode
+      changed_when: false
+
+    - name: Get backup logs (last 30 lines)
+      ansible.builtin.command:
+        cmd: kubectl logs job/{{ job_name }} -n infrastructure --tail=30
+      register: backup_logs
+      when: not async_mode
+      changed_when: false
+      failed_when: false
+
+    - name: Display backup logs
+      ansible.builtin.debug:
+        msg: "{{ backup_logs.stdout_lines }}"
+      when:
+        - not async_mode
+        - backup_logs.stdout_lines is defined
+
+    - name: Report success
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "═══════════════════════════════════════════════════════════════"
+          - "✓ Backup completed successfully!"
+          - "═══════════════════════════════════════════════════════════════"
+          - ""
+          - "Verify backup:"
+          - "  ansible-playbook -i inventory/hosts.yml playbooks/backups/list-backups.yml"
+      when:
+        - not async_mode
+        - job_status.stdout == "1"
+
+    - name: Report failure
+      ansible.builtin.fail:
+        msg:
+          - ""
+          - "═══════════════════════════════════════════════════════════════"
+          - "✗ Backup failed!"
+          - "═══════════════════════════════════════════════════════════════"
+          - ""
+          - "Full logs:"
+          - "  ssh {{ ansible_user }}@{{ ansible_host }} 'kubectl logs job/{{ job_name }} -n infrastructure'"
+      when:
+        - not async_mode
+        - job_status.stdout != "1"

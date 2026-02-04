@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-init-pgvector
+  labels:
+    app: supabase-postgres
+    service-type: infra
+spec:
+  ttlSecondsAfterFinished: 60
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: postgres-init-job
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15-alpine
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL to be ready..."
+              until pg_isready -h supabase-postgres -p 5432 -U supabase_admin; do
+                echo "PostgreSQL unavailable - waiting..."
+                sleep 2
+              done
+              echo "✅ PostgreSQL is ready"
+      containers:
+        - name: install-pgvector
+          image: postgres:15-alpine
+          env:
+            - name: PGHOST
+              value: supabase-postgres
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secrets
+                  key: POSTGRES_PASSWORD
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+
+              echo "Installing pgvector extension in public schema..."
+
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+
+              psql -U supabase_admin -d postgres <<-EOSQL
+                DO \$\$
+                BEGIN
+                  CREATE EXTENSION IF NOT EXISTS vector SCHEMA public;
+                  RAISE NOTICE '✅ pgvector extension installed in public schema';
+                END \$\$;
+              EOSQL
+
+              echo "✅ pgvector installation completed"
+
+              # Verify installation
+              psql -U supabase_admin -d postgres -c "SELECT extname, nspname FROM pg_extension e JOIN pg_namespace n ON e.extnamespace = n.oid WHERE extname = 'vector';"

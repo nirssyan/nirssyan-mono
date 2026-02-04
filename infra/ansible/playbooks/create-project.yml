@@ -1,0 +1,253 @@
+---
+# Create new project with Kustomize structure
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/create-project.yml
+# Required env: PROJECT_NAME, PROD_DOMAIN, DEV_DOMAIN
+
+- name: Create New Project
+  hosts: localhost
+  gather_facts: false
+  vars:
+    project_name: "{{ lookup('env', 'PROJECT_NAME') }}"
+    prod_domain: "{{ lookup('env', 'PROD_DOMAIN') }}"
+    dev_domain: "{{ lookup('env', 'DEV_DOMAIN') }}"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - project_name is defined and project_name | length > 0
+          - prod_domain is defined and prod_domain | length > 0
+          - dev_domain is defined and dev_domain | length > 0
+        fail_msg: "PROJECT_NAME, PROD_DOMAIN, and DEV_DOMAIN environment variables are required"
+
+    - name: Validate project name format
+      ansible.builtin.assert:
+        that:
+          - project_name is match('^[a-z0-9-]+$')
+        fail_msg: "PROJECT_NAME must contain only lowercase letters, numbers, and hyphens"
+
+    - name: Create Kustomize project structure
+      ansible.builtin.include_role:
+        name: kustomize_generator
+        tasks_from: create_project_structure.yml
+
+    - name: Create production namespace manifest
+      ansible.builtin.copy:
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/prod/namespace.yml"
+        content: |
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: {{ project_name }}-prod
+            labels:
+              product: {{ project_name }}
+              environment: prod
+        mode: '0644'
+
+    - name: Create development namespace manifest
+      ansible.builtin.copy:
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/dev/namespace.yml"
+        content: |
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: {{ project_name }}-dev
+            labels:
+              product: {{ project_name }}
+              environment: dev
+        mode: '0644'
+
+    - name: Create production kustomization.yml
+      ansible.builtin.copy:
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/prod/kustomization.yml"
+        content: |
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+
+          namespace: {{ project_name }}-prod
+
+          resources:
+            - namespace.yml
+            - network-policies.yml
+            - resourcequota.yml
+            - limitrange.yml
+            - ../../base
+
+          commonLabels:
+            product: {{ project_name }}
+            environment: prod
+
+          patches:
+            - target:
+                kind: Deployment
+              patch: |
+                - op: add
+                  path: /spec/template/spec/nodeSelector
+                  value:
+                    node-role: infra
+                - op: add
+                  path: /spec/template/spec/tolerations
+                  value:
+                    - key: node-role
+                      operator: Equal
+                      value: infra
+                      effect: NoSchedule
+                - op: add
+                  path: /spec/template/spec/imagePullSecrets
+                  value:
+                    - name: regcred
+            - target:
+                kind: StatefulSet
+              patch: |
+                - op: add
+                  path: /spec/template/spec/nodeSelector
+                  value:
+                    node-role: infra
+                - op: add
+                  path: /spec/template/spec/tolerations
+                  value:
+                    - key: node-role
+                      operator: Equal
+                      value: infra
+                      effect: NoSchedule
+                - op: add
+                  path: /spec/template/spec/imagePullSecrets
+                  value:
+                    - name: regcred
+        mode: '0644'
+
+    - name: Create development kustomization.yml
+      ansible.builtin.copy:
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/dev/kustomization.yml"
+        content: |
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+
+          namespace: {{ project_name }}-dev
+
+          resources:
+            - namespace.yml
+            - network-policies.yml
+            - resourcequota.yml
+            - limitrange.yml
+            - ../../base
+
+          commonLabels:
+            product: {{ project_name }}
+            environment: dev
+
+          patches:
+            - target:
+                kind: Deployment
+              patch: |
+                - op: add
+                  path: /spec/template/spec/nodeSelector
+                  value:
+                    node-role: infra
+                - op: add
+                  path: /spec/template/spec/tolerations
+                  value:
+                    - key: node-role
+                      operator: Equal
+                      value: infra
+                      effect: NoSchedule
+                - op: add
+                  path: /spec/template/spec/imagePullSecrets
+                  value:
+                    - name: regcred
+            - target:
+                kind: StatefulSet
+              patch: |
+                - op: add
+                  path: /spec/template/spec/nodeSelector
+                  value:
+                    node-role: infra
+                - op: add
+                  path: /spec/template/spec/tolerations
+                  value:
+                    - key: node-role
+                      operator: Equal
+                      value: infra
+                      effect: NoSchedule
+                - op: add
+                  path: /spec/template/spec/imagePullSecrets
+                  value:
+                    - name: regcred
+        mode: '0644'
+
+    - name: Create base kustomization.yml
+      ansible.builtin.copy:
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/base/kustomization.yml"
+        content: |
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+
+          resources: []
+        mode: '0644'
+
+    - name: Create NetworkPolicies for prod
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/kubernetes/network-policies.yml.j2"
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/prod/network-policies.yml"
+        mode: '0644'
+      vars:
+        target_namespace: "{{ project_name }}-prod"
+
+    - name: Create NetworkPolicies for dev
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/kubernetes/network-policies.yml.j2"
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/dev/network-policies.yml"
+        mode: '0644'
+      vars:
+        target_namespace: "{{ project_name }}-dev"
+
+    - name: Create ResourceQuota for prod
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/kubernetes/resourcequota.yml.j2"
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/prod/resourcequota.yml"
+        mode: '0644'
+      vars:
+        target_namespace: "{{ project_name }}-prod"
+        env_name: "prod"
+
+    - name: Create ResourceQuota for dev
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/kubernetes/resourcequota.yml.j2"
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/dev/resourcequota.yml"
+        mode: '0644'
+      vars:
+        target_namespace: "{{ project_name }}-dev"
+        env_name: "dev"
+
+    - name: Create LimitRange for prod
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/kubernetes/limitrange.yml.j2"
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/prod/limitrange.yml"
+        mode: '0644'
+      vars:
+        target_namespace: "{{ project_name }}-prod"
+        env_name: "prod"
+
+    - name: Create LimitRange for dev
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/kubernetes/limitrange.yml.j2"
+        dest: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/dev/limitrange.yml"
+        mode: '0644'
+      vars:
+        target_namespace: "{{ project_name }}-dev"
+        env_name: "dev"
+
+    - name: Project creation complete
+      ansible.builtin.debug:
+        msg:
+          - "✓ Project {{ project_name }} created successfully"
+          - ""
+          - "Project structure:"
+          - "  projects/{{ project_name }}/base/         - Base manifests"
+          - "  projects/{{ project_name }}/overlays/prod/ - Production config"
+          - "  projects/{{ project_name }}/overlays/dev/  - Development config"
+          - ""
+          - "Next steps:"
+          - "1. Add services: ansible-playbook -i inventory/hosts.yml playbooks/add-service.yml"
+          - "2. Create secrets via Lens UI or kubectl"
+          - "3. Deploy: ansible-playbook -i inventory/hosts.yml playbooks/deploy-project.yml"

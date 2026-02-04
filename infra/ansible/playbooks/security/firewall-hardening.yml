@@ -1,0 +1,136 @@
+---
+# Firewall hardening: block external access to internal services
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/security/firewall-hardening.yml
+#
+# This playbook closes the following ports from external access:
+#   - 9100  (node_exporter metrics)
+#   - 6443  (Kubernetes API)
+#   - 10250 (Kubelet API)
+#
+# Internal networks (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) retain access.
+
+- name: Harden Firewall - Close Internal Ports
+  hosts: infra_nodes
+  become: true
+  gather_facts: true
+
+  vars:
+    sensitive_ports:
+      - { port: 9100, service: "node_exporter" }
+      - { port: 6443, service: "kubernetes-api" }
+      - { port: 10250, service: "kubelet-api" }
+    internal_networks:
+      - "10.0.0.0/8"
+      - "172.16.0.0/12"
+      - "192.168.0.0/16"
+      - "127.0.0.0/8"
+
+  tasks:
+    - name: Display current iptables INPUT rules
+      ansible.builtin.command:
+        cmd: iptables -L INPUT -n -v --line-numbers
+      register: iptables_before
+      changed_when: false
+      tags: [info]
+
+    - name: Show current rules
+      ansible.builtin.debug:
+        msg: "{{ iptables_before.stdout_lines }}"
+      tags: [info]
+
+    # Allow internal networks for each port
+    - name: Allow internal networks to access sensitive ports
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "{{ item.1.port }}"
+        source: "{{ item.0 }}"
+        jump: ACCEPT
+        comment: "Allow {{ item.0 }} to {{ item.1.service }}"
+      loop: "{{ internal_networks | product(sensitive_ports) | list }}"
+      loop_control:
+        label: "{{ item.0 }} -> {{ item.1.service }}:{{ item.1.port }}"
+      notify: Save iptables rules
+
+    # Drop external access to each port
+    - name: Block external access to sensitive ports
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: "{{ item.port }}"
+        jump: DROP
+        comment: "Block external access to {{ item.service }}"
+      loop: "{{ sensitive_ports }}"
+      loop_control:
+        label: "DROP -> {{ item.service }}:{{ item.port }}"
+      notify: Save iptables rules
+
+    - name: Display iptables INPUT rules after changes
+      ansible.builtin.command:
+        cmd: iptables -L INPUT -n -v --line-numbers
+      register: iptables_after
+      changed_when: false
+      tags: [info]
+
+    - name: Show rules after changes
+      ansible.builtin.debug:
+        msg: "{{ iptables_after.stdout_lines }}"
+      tags: [info]
+
+  handlers:
+    - name: Save iptables rules
+      ansible.builtin.shell: |
+        if command -v netfilter-persistent &> /dev/null; then
+          netfilter-persistent save
+        elif [ -f /etc/iptables/rules.v4 ]; then
+          iptables-save > /etc/iptables/rules.v4
+        else
+          iptables-save > /etc/sysconfig/iptables
+        fi
+      changed_when: true
+
+- name: Verify Firewall Rules
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  vars:
+    target_host: "81.200.158.120"
+    test_ports:
+      - { port: 9100, service: "node_exporter" }
+      - { port: 6443, service: "kubernetes-api" }
+      - { port: 10250, service: "kubelet-api" }
+
+  tasks:
+    - name: Test external access to ports (should timeout/fail)
+      ansible.builtin.command:
+        cmd: "curl -s -m 3 --connect-timeout 3 http://{{ target_host }}:{{ item.port }}/"
+      loop: "{{ test_ports }}"
+      loop_control:
+        label: "{{ item.service }}:{{ item.port }}"
+      register: curl_results
+      failed_when: false
+      changed_when: false
+      tags: [verify]
+
+    - name: Display verification results
+      ansible.builtin.debug:
+        msg: |
+          ======================================
+          FIREWALL VERIFICATION RESULTS
+          ======================================
+          {% for result in curl_results.results %}
+          {{ result.item.service }} ({{ result.item.port }}): {{ 'BLOCKED' if result.rc != 0 else 'STILL OPEN' }}
+          {% endfor %}
+
+          All ports should show BLOCKED for security.
+      tags: [verify]
+
+    - name: Fail if any port is still accessible
+      ansible.builtin.fail:
+        msg: "Port {{ item.item.port }} ({{ item.item.service }}) is still accessible from external network!"
+      loop: "{{ curl_results.results }}"
+      loop_control:
+        label: "{{ item.item.service }}"
+      when: item.rc == 0
+      tags: [verify]

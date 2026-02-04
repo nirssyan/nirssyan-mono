@@ -1,0 +1,35 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - bodyclose
+    - noctx
+    - gosec
+    - exportloopref
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/MargoRSq/infatium-mono/services/go-integrations
+
+  gosec:
+    excludes:
+      - G104 # Audit errors not checked (we handle them explicitly)
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - errcheck

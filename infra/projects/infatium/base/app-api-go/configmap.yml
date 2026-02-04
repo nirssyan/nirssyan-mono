@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-api-go-config
+data:
+  HTTP_PORT: "8080"
+  METRICS_PORT: "9464"
+  DEBUG: "false"
+  ENVIRONMENT: "development"
+  DATABASE_POOL_MIN: "5"
+  DATABASE_POOL_MAX: "20"
+  MEDIA_PROXY_ENABLED: "true"
+  MEDIA_PROXY_TIMEOUT: "30s"
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "go-api"
+  OTEL_ENVIRONMENT: "development"
+  ALLOWED_ORIGINS: "*"

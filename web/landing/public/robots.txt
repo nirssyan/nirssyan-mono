@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://infatium.ru/sitemap.xml
+
+Host: https://infatium.ru

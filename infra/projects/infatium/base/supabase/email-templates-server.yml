@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-templates-server
+  labels:
+    app: email-templates-server
+    service-type: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: email-templates-server
+  template:
+    metadata:
+      labels:
+        app: email-templates-server
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+              name: http
+          volumeMounts:
+            - name: templates
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 50m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /magic_link.html
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /magic_link.html
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      volumes:
+        - name: templates
+          configMap:
+            name: supabase-email-templates
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: email-templates-server
+  labels:
+    app: email-templates-server
+spec:
+  selector:
+    app: email-templates-server
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

@@ -1,0 +1,39 @@
+---
+# Install essential Kubernetes tools (helm, etc.)
+
+- name: Check if Helm is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/helm
+  register: helm_binary
+
+- name: Helm already installed
+  ansible.builtin.debug:
+    msg: "Helm is already installed (idempotent - skipping installation)"
+  when: helm_binary.stat.exists
+
+- name: Download Helm installation script
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: /tmp/get-helm-3.sh
+    mode: '0700'
+  when: not helm_binary.stat.exists
+
+- name: Install Helm
+  ansible.builtin.command: /tmp/get-helm-3.sh
+  when: not helm_binary.stat.exists
+  register: helm_install_result
+
+- name: Remove Helm installation script
+  ansible.builtin.file:
+    path: /tmp/get-helm-3.sh
+    state: absent
+  when: not helm_binary.stat.exists
+
+- name: Verify Helm installation
+  ansible.builtin.command: helm version --short
+  register: helm_version
+  changed_when: false
+
+- name: Helm installation complete
+  ansible.builtin.debug:
+    msg: "Helm {{ helm_version.stdout }} is ready"

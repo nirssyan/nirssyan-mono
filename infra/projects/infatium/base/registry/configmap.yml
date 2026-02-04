@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: registry-config
+data:
+  DATABASE_URL: "postgresql+asyncpg://makefeed:makefeed@postgres:5432/makefeed"
+  REGISTRY_SYNC_ENABLED: "true"
+  REGISTRY_SYNC_INTERVAL_SECONDS: "86400"
+  LLM_MODELS_SYNC_ENABLED: "true"
+  LLM_MODELS_SYNC_INTERVAL_SECONDS: "86400"
+  LLM_MODELS_TELEGRAM_CHAT_ID: "-1002622491758"
+  LLM_MODELS_TELEGRAM_THREAD_ID: "1696"
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "makefeed-registry"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo.infrastructure:4317"
+  OTEL_DEPLOYMENT_ENVIRONMENT: "production"

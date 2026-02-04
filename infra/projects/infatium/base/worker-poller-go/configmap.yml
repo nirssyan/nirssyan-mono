@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-poller-go-config
+data:
+  # Feature flags
+  RSS_POLLING_ENABLED: "true"
+  WEB_POLLING_ENABLED: "true"
+  TELEGRAM_POLLING_ENABLED: "true"
+
+  # Database (URL from service-secrets)
+  DATABASE_POOL_MIN: "2"
+  DATABASE_POOL_MAX: "10"
+
+  # NATS
+  NATS_URL: "nats://nats:4222"
+  NATS_PUBLISH_ENABLED: "true"
+  NATS_VALIDATION_HANDLER_ENABLED: "true"
+
+  # Moderation (Python API)
+  MODERATION_SERVICE_URL: "http://makefeed-api:8000"
+
+  # RSS Settings
+  RSS_POLLING_INTERVAL_SECONDS: "300"
+  RSS_CONCURRENT_FEEDS: "5"
+  RSS_FEED_TIMEOUT: "7m"
+  RSS_TIMEOUT: "30s"
+  RSS_MAX_RETRIES: "3"
+  RSS_FETCH_FULL_CONTENT: "true"
+  RSS_MIN_CONTENT_LENGTH: "500"
+  RSS_INITIAL_ARTICLES_COUNT: "5"
+  RSS_MAX_ARTICLES_PER_REQUEST: "20"
+
+  # RSS Tier intervals (seconds)
+  RSS_TIER_HOT_INTERVAL: "300"
+  RSS_TIER_WARM_INTERVAL: "600"
+  RSS_TIER_COLD_INTERVAL: "3600"
+  RSS_TIER_QUARANTINE_INTERVAL: "14400"
+
+  # Web Settings
+  WEB_POLLING_INTERVAL_SECONDS: "600"
+  WEB_CONCURRENT_REQUESTS: "3"
+  WEB_FEED_TIMEOUT: "10m"
+  WEB_INITIAL_ARTICLES_COUNT: "5"
+  WEB_MAX_ARTICLES_PER_REQUEST: "10"
+
+  # Web Tier intervals (seconds)
+  WEB_TIER_HOT_INTERVAL: "600"
+  WEB_TIER_WARM_INTERVAL: "1800"
+  WEB_TIER_COLD_INTERVAL: "7200"
+  WEB_TIER_QUARANTINE_INTERVAL: "28800"
+
+  # HTTP/Scraping Settings
+  SCRAPING_REQUESTS_PER_SEC: "0.5"
+  SCRAPING_TIMEOUT: "10s"
+  SCRAPING_MAX_RETRIES: "3"
+  HTTP_CACHE_ENABLED: "true"
+  HTTP_CACHE_TTL_HOURS: "24"
+
+  # Observability
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "makefeed-go-poller"
+  OTEL_EXPORTER_ENDPOINT: "tempo.grafana.svc.cluster.local:4317"
+  OTEL_ENVIRONMENT: "production"
+  METRICS_PORT: "9464"
+
+  # Server
+  HTTP_PORT: "8080"
+  DEBUG: "false"
+
+  # Telegram Settings
+  TELEGRAM_POLLING_INTERVAL_SECONDS: "5"
+  TELEGRAM_CONCURRENT_CHANNELS: "3"
+  TELEGRAM_MAX_MESSAGES_PER_REQUEST: "100"
+  TELEGRAM_INITIAL_MESSAGES_COUNT: "25"
+
+  # Telegram Tier intervals (seconds) - more aggressive than RSS/Web
+  TELEGRAM_TIER_HOT_INTERVAL: "30"
+  TELEGRAM_TIER_WARM_INTERVAL: "120"
+  TELEGRAM_TIER_COLD_INTERVAL: "600"
+  TELEGRAM_TIER_QUARANTINE_INTERVAL: "3600"
+
+  # Telegram Rate Limiting
+  TELEGRAM_FLOOD_WAIT_COOLDOWN_SECONDS: "300"
+  TELEGRAM_ADAPTIVE_RATE_ENABLED: "true"
+  TELEGRAM_ADAPTIVE_RATE_MAX_MULTIPLIER: "3.0"
+  TELEGRAM_BASE_REQUEST_DELAY_MS: "100"
+
+  # Telegram Session
+  TELEGRAM_WORKDIR: "/app/.telegram/"
+  TELEGRAM_SESSION_NAME: "dev_session"
+
+  # Telegram Media URL (CRITICAL: must be set, default is localhost)
+  TELEGRAM_MEDIA_BASE_URL: "https://dev.service.infatium.ru"

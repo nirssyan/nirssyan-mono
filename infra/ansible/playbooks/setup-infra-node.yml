@@ -1,0 +1,1370 @@
+---
+# Setup infrastructure node (k3s server + all global services)
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/setup-infra-node.yml
+# Required env: INFRA_SSH_HOST, INFRA_DOMAIN, ACME_EMAIL, METALLB_IP_RANGE, DOCKER_HUB_USERNAME, DOCKER_HUB_TOKEN
+
+- name: Setup Infrastructure Node
+  hosts: infra_nodes
+  become: true
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - infra_domain is defined and infra_domain | length > 0
+          - registry_domain is defined and registry_domain | length > 0
+          - acme_email is defined and acme_email | length > 0
+          - metallb_ip_range is defined and metallb_ip_range | length > 0
+          - docker_hub_username is defined and docker_hub_username | length > 0
+          - docker_hub_token is defined and docker_hub_token | length > 0
+        fail_msg: "Required environment variables: INFRA_DOMAIN, ACME_EMAIL, METALLB_IP_RANGE, DOCKER_HUB_USERNAME, DOCKER_HUB_TOKEN"
+      tags: always
+
+    - name: Display configuration
+      ansible.builtin.debug:
+        msg:
+          - "Setting up infrastructure node"
+          - "Domain: {{ infra_domain }}"
+          - "Registry: {{ registry_domain }}"
+          - "MetalLB range: {{ metallb_ip_range }}"
+      tags: always
+
+  tasks:
+    # ============================================================
+    # STEP 1: System preparation
+    # ============================================================
+    - name: Update apt cache and upgrade system packages
+      tags: [system, base, packages]
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 604800  # Only update cache if older than 7 days (idempotent)
+        upgrade: safe  # Upgrade packages safely (only if no new dependencies required)
+        autoremove: true  # Remove unused dependencies
+      when: ansible_os_family == "Debian"
+
+    - name: Install dependencies
+      tags: [system, base, packages]
+      ansible.builtin.package:
+        name:
+          - curl
+          - tar
+          - nfs-common
+          - apache2-utils     # for htpasswd
+          - python3-pip       # for installing kubernetes Python library
+          - python3-yaml      # for Ansible kubernetes.core module
+          - python3-venv      # for creating virtual environment
+        state: present
+
+    # Create isolated venv for kubernetes library on localhost (PEP 668 compliant)
+    # kubernetes.core tasks run on localhost (delegate_to), not remote host
+    # This avoids --break-system-packages and potential system conflicts
+    - name: Create Ansible virtual environment for kubernetes library
+      tags: [system, base, python]
+      ansible.builtin.pip:
+        name:
+          - kubernetes>=24.2.0
+          - PyYAML
+        state: present
+        virtualenv: "{{ lookup('env', 'HOME') }}/.local/ansible-venv"
+        virtualenv_command: python3 -m venv
+      delegate_to: localhost
+      become: false
+
+    - name: Set Python interpreter to venv for kubernetes.core tasks
+      ansible.builtin.set_fact:
+        kubernetes_python_interpreter: "{{ lookup('env', 'HOME') }}/.local/ansible-venv/bin/python3"
+
+    # ============================================================
+    # STEP 2: Install k3s server
+    # ============================================================
+    - name: Install k3s server
+      tags: [k3s, base, core]
+      ansible.builtin.include_role:
+        name: k3s
+      vars:
+        k3s_mode: server
+        k3s_disable_services:
+          - traefik
+        k3s_flannel_backend: vxlan
+
+    - name: Set node labels and taints
+      tags: [k3s, base, core]
+      ansible.builtin.include_role:
+        name: k3s
+        tasks_from: configure_node.yml
+      vars:
+        node_labels:
+          node-role: infra
+        node_taints:
+          - key: node-role
+            value: infra
+            effect: NoSchedule
+
+    # ============================================================
+    # STEP 3: Configure kubeconfig for local kubectl access
+    # ============================================================
+    - name: Ensure .kube directory exists on localhost
+      ansible.builtin.file:
+        path: "{{ lookup('env', 'HOME') }}/.kube"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      become: false
+      tags: [k3s, base, core]
+
+    - name: Fetch kubeconfig to localhost
+      ansible.builtin.fetch:
+        src: /root/.kube/config
+        dest: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+        flat: true
+      tags: [k3s, base, core]
+
+    - name: Replace localhost with real IP in kubeconfig
+      ansible.builtin.replace:
+        path: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+        regexp: 'https://127\.0\.0\.1:6443'
+        replace: "https://{{ ansible_host }}:6443"
+      delegate_to: localhost
+      become: false
+      tags: [k3s, base, core]
+
+    - name: Rename kubeconfig context
+      ansible.builtin.replace:
+        path: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+        regexp: '(name: |current-context: )default$'
+        replace: '\1{{ cluster_name }}'
+      delegate_to: localhost
+      become: false
+      tags: [k3s, base, core]
+
+    - name: Rename kubeconfig cluster
+      ansible.builtin.replace:
+        path: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+        regexp: '^(\s+)cluster: default$'
+        replace: '\1cluster: {{ cluster_name }}'
+      delegate_to: localhost
+      become: false
+      tags: [k3s, base, core]
+
+    - name: Rename kubeconfig user
+      ansible.builtin.replace:
+        path: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+        regexp: '^(\s+)user: default$'
+        replace: '\1user: {{ cluster_name }}'
+      delegate_to: localhost
+      become: false
+      tags: [k3s, base, core]
+
+    # ============================================================
+    # STEP 4: Apply HelmChartConfigs for k3s system components
+    # ============================================================
+    # HelmChartConfig ensures tolerations survive k3s restarts (persistent config)
+    - name: Apply CoreDNS HelmChartConfig for infra taint toleration
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../../global/kubernetes-templates/coredns-helmchartconfig.yml"
+      delegate_to: localhost
+      become: false
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_python_interpreter }}"
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      tags: [k3s, base, core]
+
+    # Fallback: also patch deployment directly for immediate effect
+    - name: Ensure CoreDNS tolerates infra taint (immediate patch)
+      kubernetes.core.k8s:
+        state: present
+        kind: Deployment
+        name: coredns
+        namespace: kube-system
+        definition:
+          spec:
+            template:
+              spec:
+                tolerations:
+                  - key: node-role
+                    operator: Equal
+                    value: infra
+                    effect: NoSchedule
+        merge_type: strategic-merge
+      delegate_to: localhost
+      become: false
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_python_interpreter }}"
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      tags: [k3s, base, core]
+
+    - name: Wait for CoreDNS to be ready
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=60s
+      register: coredns_wait
+      retries: 3
+      delay: 10
+      until: coredns_wait.rc == 0
+      changed_when: false
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      tags: [k3s, base, core]
+
+    - name: Ensure local-path-provisioner tolerates infra taint
+      kubernetes.core.k8s:
+        state: present
+        kind: Deployment
+        name: local-path-provisioner
+        namespace: kube-system
+        definition:
+          spec:
+            template:
+              spec:
+                tolerations:
+                  - key: node-role
+                    operator: Equal
+                    value: infra
+                    effect: NoSchedule
+        merge_type: strategic-merge
+      delegate_to: localhost
+      become: false
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_python_interpreter }}"
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      tags: [k3s, base, core]
+
+    - name: Wait for local-path-provisioner to be ready
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=Ready pod -l app=local-path-provisioner -n kube-system --timeout=60s
+      register: provisioner_wait
+      retries: 3
+      delay: 10
+      until: provisioner_wait.rc == 0
+      changed_when: false
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      tags: [k3s, base, core]
+
+    # ============================================================
+    # STEP 5: Add Helm repositories
+    # ============================================================
+    - name: Add Helm repositories
+      tags: [helm, base, infrastructure]
+      block:
+        - name: Add MetalLB Helm repository
+          kubernetes.core.helm_repository:
+            name: metallb
+            repo_url: https://metallb.github.io/metallb
+          delegate_to: localhost
+          become: false
+
+        - name: Add Jetstack (cert-manager) Helm repository
+          kubernetes.core.helm_repository:
+            name: jetstack
+            repo_url: https://charts.jetstack.io
+          delegate_to: localhost
+          become: false
+
+        - name: Add Traefik Helm repository
+          kubernetes.core.helm_repository:
+            name: traefik
+            repo_url: https://traefik.github.io/charts
+          delegate_to: localhost
+          become: false
+
+    # ============================================================
+    # STEP 6: Install MetalLB via Helm
+    # ============================================================
+    - name: Install MetalLB via Helm
+      tags: [networking, base, metallb, loadbalancer]
+      block:
+        - name: Deploy MetalLB Helm chart
+          kubernetes.core.helm:
+            name: metallb
+            chart_ref: metallb/metallb
+            chart_version: "0.14.3"
+            release_namespace: infrastructure
+            create_namespace: true
+            kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+            values_files:
+              - "{{ playbook_dir }}/../helm-values/metallb/values.yaml"
+          delegate_to: localhost
+          become: false
+
+        - name: Wait for MetalLB controller to be ready
+          kubernetes.core.k8s_info:
+            kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+            kind: Deployment
+            name: metallb-controller
+            namespace: infrastructure
+          register: metallb_controller
+          until: >
+            metallb_controller.resources | length > 0 and
+            metallb_controller.resources[0].status.availableReplicas is defined and
+            metallb_controller.resources[0].status.availableReplicas > 0
+          retries: 20
+          delay: 5
+          delegate_to: localhost
+          become: false
+
+    # ============================================================
+    # STEP 7: Install cert-manager via Helm
+    # ============================================================
+    - name: Install cert-manager via Helm
+      tags: [networking, base, certificates, cert-manager]
+      block:
+        - name: Deploy cert-manager Helm chart
+          kubernetes.core.helm:
+            name: cert-manager
+            chart_ref: jetstack/cert-manager
+            chart_version: "v1.13.0"
+            release_namespace: infrastructure
+            create_namespace: true
+            kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+            values_files:
+              - "{{ playbook_dir }}/../helm-values/cert-manager/values.yaml"
+          delegate_to: localhost
+          become: false
+
+        - name: Wait for cert-manager webhook to be ready
+          kubernetes.core.k8s_info:
+            kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+            kind: Deployment
+            name: cert-manager-webhook
+            namespace: infrastructure
+          register: certmanager_webhook
+          until: >
+            certmanager_webhook.resources | length > 0 and
+            certmanager_webhook.resources[0].status.availableReplicas is defined and
+            certmanager_webhook.resources[0].status.availableReplicas > 0
+          retries: 30
+          delay: 5
+          delegate_to: localhost
+          become: false
+
+
+    - name: Create MetalLB IPAddressPool
+      kubernetes.core.k8s:
+        state: present
+        template: "{{ playbook_dir }}/../../global/kubernetes-templates/metallb-ipaddresspool.yml"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      tags: [networking, metallb]
+
+    - name: Create MetalLB L2Advertisement
+      kubernetes.core.k8s:
+        state: present
+        template: "{{ playbook_dir }}/../../global/kubernetes-templates/metallb-l2advertisement.yml"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      tags: [networking, metallb]
+
+
+    - name: Create Let's Encrypt ClusterIssuer
+      kubernetes.core.k8s:
+        state: present
+        template: "{{ playbook_dir }}/../../global/kubernetes-templates/cert-manager-clusterissuer.yml"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      tags: [networking, cert-manager]
+
+    # ============================================================
+    # STEP 7: Create infrastructure namespace
+    # ============================================================
+    - name: Create infrastructure namespace
+      kubernetes.core.k8s:
+        state: present
+        template: "{{ playbook_dir }}/../../global/kubernetes-templates/namespace.yml"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      vars:
+        namespace_name: infrastructure
+
+    # ============================================================
+    # STEP 7.1: Create Docker Hub credentials secret
+    # ============================================================
+    - name: Create Docker Hub imagePullSecret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: docker-registry-creds
+            namespace: infrastructure
+          type: kubernetes.io/dockerconfigjson
+          data:
+            .dockerconfigjson: "{{ dockerconfig_json | b64encode }}"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      vars:
+        dockerconfig_json: |
+          {
+            "auths": {
+              "https://index.docker.io/v1/": {
+                "auth": "{{ (lookup('env', 'DOCKER_HUB_USERNAME') + ':' + lookup('env', 'DOCKER_HUB_TOKEN')) | b64encode }}"
+              }
+            }
+          }
+      tags: [base, docker, secrets]
+
+    # ============================================================
+    # STEP 8: Install Traefik Ingress Controller via Helm
+    # ============================================================
+    - name: Install Traefik via Helm
+      tags: [networking, base, ingress, traefik]
+      block:
+        - name: Deploy Traefik Helm chart
+          kubernetes.core.helm:
+            name: traefik
+            chart_ref: traefik/traefik
+            chart_version: "26.0.0"
+            release_namespace: infrastructure
+            create_namespace: true
+            kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+            values_files:
+              - "{{ playbook_dir }}/../helm-values/traefik/values.yaml"
+          delegate_to: localhost
+          become: false
+
+        - name: Wait for Traefik deployment to be ready
+          kubernetes.core.k8s_info:
+            kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+            kind: Deployment
+            name: traefik
+            namespace: infrastructure
+          register: traefik_deployment
+          retries: 20
+          delay: 5
+          until: >
+            traefik_deployment.resources | length > 0 and
+            traefik_deployment.resources[0].status.availableReplicas is defined and
+            traefik_deployment.resources[0].status.availableReplicas > 0
+          delegate_to: localhost
+          become: false
+
+        - name: Deploy Traefik security middlewares
+          ansible.builtin.command:
+            cmd: kubectl apply -k "{{ playbook_dir }}/../../global/traefik-middlewares/"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+        - name: Deploy CrowdSec middleware
+          ansible.builtin.command:
+            cmd: kubectl apply -k "{{ playbook_dir }}/../../global/crowdsec/"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+    # ============================================================
+    # STEP 9: Generate or retrieve secrets (idempotent)
+    # ============================================================
+    - name: Check if registry secret exists
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: registry-auth
+        namespace: infrastructure
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      register: registry_secret_check
+
+    - name: Generate registry credentials
+      block:
+        - name: Include password generation
+          ansible.builtin.include_role:
+            name: common
+            tasks_from: generate_password.yml
+          vars:
+            password_var_name: registry_password
+            password_length: 32
+
+        - name: Install passlib Python library for htpasswd
+          ansible.builtin.apt:
+            name: python3-passlib
+            state: present
+            update_cache: false
+
+        - name: Generate htpasswd for registry
+          community.general.htpasswd:
+            path: /tmp/registry-htpasswd
+            name: "{{ docker_hub_username }}"
+            password: "{{ registry_password }}"
+            mode: '0600'
+
+        - name: Read htpasswd file
+          ansible.builtin.slurp:
+            path: /tmp/registry-htpasswd
+          register: htpasswd_content
+
+        - name: Store htpasswd as fact
+          ansible.builtin.set_fact:
+            registry_htpasswd: "{{ htpasswd_content.content }}"
+
+      when: registry_secret_check.resources | length == 0
+
+    - name: Use existing registry credentials
+      block:
+        - name: Get existing htpasswd
+          ansible.builtin.set_fact:
+            registry_htpasswd: "{{ registry_secret_check.resources[0].data.htpasswd }}"
+            registry_password: "{{ registry_secret_check.resources[0].data.password | b64decode }}"
+
+      when: registry_secret_check.resources | length > 0
+
+    - name: Check if n8n PostgreSQL secret exists
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: n8n-postgres
+        namespace: infrastructure
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      register: n8n_postgres_secret_check
+
+    - name: Generate n8n PostgreSQL password
+      block:
+        - name: Include password generation
+          ansible.builtin.include_role:
+            name: common
+            tasks_from: generate_password.yml
+          vars:
+            password_var_name: n8n_db_password
+            password_length: 32
+
+      when: n8n_postgres_secret_check.resources | length == 0
+
+    - name: Use existing n8n PostgreSQL password
+      block:
+        - name: Get existing n8n PostgreSQL password
+          ansible.builtin.set_fact:
+            n8n_db_password: "{{ n8n_postgres_secret_check.resources[0].data.password | b64decode }}"
+
+      when: n8n_postgres_secret_check.resources | length > 0
+
+    - name: Check if Matomo MariaDB secret exists
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: matomo-mariadb
+        namespace: infrastructure
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      register: matomo_mariadb_secret_check
+
+    - name: Generate Matomo MariaDB passwords
+      block:
+        - name: Include root password generation
+          ansible.builtin.include_role:
+            name: common
+            tasks_from: generate_password.yml
+          vars:
+            password_var_name: matomo_db_root_password
+            password_length: 32
+
+        - name: Include user password generation
+          ansible.builtin.include_role:
+            name: common
+            tasks_from: generate_password.yml
+          vars:
+            password_var_name: matomo_db_password
+            password_length: 32
+
+      when: matomo_mariadb_secret_check.resources | length == 0
+
+    - name: Use existing Matomo MariaDB passwords
+      block:
+        - name: Get existing Matomo MariaDB passwords
+          ansible.builtin.set_fact:
+            matomo_db_root_password: "{{ matomo_mariadb_secret_check.resources[0].data['root-password'] | b64decode }}"
+            matomo_db_password: "{{ matomo_mariadb_secret_check.resources[0].data.password | b64decode }}"
+
+      when: matomo_mariadb_secret_check.resources | length > 0
+
+    # ============================================================
+    # STEP 10: Deploy Docker Registry
+    # ============================================================
+    - name: Deploy Docker Registry
+      tags: [services, registry, docker]
+      block:
+        - name: Find Docker Registry manifests
+          ansible.builtin.find:
+            paths: "{{ playbook_dir }}/../../global/docker-registry"
+            patterns: "*.yml"
+            excludes: "registry-auth-secret.yml"
+          delegate_to: localhost
+          become: false
+          register: registry_manifests
+
+        # Files are named with numeric prefixes (01-, 02-, etc.) to ensure correct order
+        - name: Apply Docker Registry manifests
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ item.path }}"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          loop: "{{ registry_manifests.files | sort(attribute='path') }}"
+          loop_control:
+            label: "{{ item.path | basename }}"
+
+        - name: Create registry auth secret (if not exists)
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ playbook_dir }}/../../global/docker-registry/registry-auth-secret.yml"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          when: registry_secret_check.resources | length == 0
+
+      when: deploy_docker_registry | default(true)
+
+    # ============================================================
+    # STEP 11: Create infrastructure namespace
+    # ============================================================
+    - name: Create infrastructure namespace
+      tags: [services, monitoring, grafana, observability]
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: infrastructure
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+    # ============================================================
+    # STEP 12: Generate Grafana admin secret (idempotent)
+    # ============================================================
+    - name: Check if Grafana admin secret exists
+      tags: [services, monitoring, grafana, observability]
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: grafana-admin
+        namespace: infrastructure
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      register: grafana_secret_check
+
+    - name: Generate Grafana admin password
+      tags: [services, monitoring, grafana, observability]
+      block:
+        - name: Include password generation
+          ansible.builtin.include_role:
+            name: common
+            tasks_from: generate_password.yml
+          vars:
+            password_var_name: grafana_admin_password
+            password_length: 32
+
+      when: grafana_secret_check.resources | length == 0
+
+    - name: Use existing Grafana admin password
+      tags: [services, monitoring, grafana, observability]
+      block:
+        - name: Get existing Grafana admin password
+          ansible.builtin.set_fact:
+            grafana_admin_password: "{{ grafana_secret_check.resources[0].data.password | b64decode }}"
+
+      when: grafana_secret_check.resources | length > 0
+
+    - name: Create Grafana admin secret (if not exists)
+      tags: [services, monitoring, grafana, observability]
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: grafana-admin
+            namespace: infrastructure
+          stringData:
+            username: admin
+            password: "{{ grafana_admin_password }}"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      when: grafana_secret_check.resources | length == 0
+
+    # ============================================================
+    # STEP 13: Deploy Grafana Stack (Helm-based)
+    # ============================================================
+    - name: Deploy Grafana Stack
+      tags: [services, monitoring, grafana, observability]
+      block:
+        # Add Helm repositories
+        - name: Add prometheus-community Helm repository
+          kubernetes.core.helm_repository:
+            name: prometheus-community
+            repo_url: https://prometheus-community.github.io/helm-charts
+          delegate_to: localhost
+          become: false
+
+        - name: Add Grafana Helm repository
+          kubernetes.core.helm_repository:
+            name: grafana
+            repo_url: https://grafana.github.io/helm-charts
+          delegate_to: localhost
+          become: false
+
+        # Deploy custom dashboards ConfigMaps before Helm (so they exist when Helm tries to mount them)
+        - name: Apply Grafana dashboards ConfigMaps
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ item }}"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          loop:
+            - "{{ playbook_dir }}/../../global/grafana-stack/24-grafana-dashboards-config.yml"
+            - "{{ playbook_dir }}/../../global/grafana-stack/25-backup-alerts.yml"
+            - "{{ playbook_dir }}/../../global/grafana-stack/30-grafana-dashboard-k8s.yml"
+            - "{{ playbook_dir }}/../../global/grafana-stack/31-grafana-dashboard-backup.yml"
+
+        # Fetch Grafana PostgreSQL password from infatium-dev secret
+        - name: Get Grafana PostgreSQL password from secret
+          kubernetes.core.k8s_info:
+            kind: Secret
+            name: grafana-postgres-credentials
+            namespace: infatium-dev
+          register: grafana_postgres_secret
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+        - name: Set grafana_postgres_password from existing secret
+          ansible.builtin.set_fact:
+            grafana_postgres_password: "{{ grafana_postgres_secret.resources[0].data.password | b64decode }}"
+          when:
+            - grafana_postgres_secret.resources | length > 0
+            - grafana_postgres_secret.resources[0].data.password | default('') | b64decode | length > 0
+
+        - name: Generate new Grafana PostgreSQL password if missing or empty
+          ansible.builtin.set_fact:
+            grafana_postgres_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+          when: grafana_postgres_password is not defined or grafana_postgres_password | length == 0
+
+        - name: Update grafana-postgres-credentials secret in infatium-dev
+          kubernetes.core.k8s:
+            state: present
+            definition:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: grafana-postgres-credentials
+                namespace: infatium-dev
+                labels:
+                  app: postgres
+                  component: grafana-integration
+              type: Opaque
+              stringData:
+                password: "{{ grafana_postgres_password }}"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          when: grafana_postgres_password is defined and grafana_postgres_password | length > 0
+
+        - name: Trigger postgres-init-grafana-user job to sync password
+          kubernetes.core.k8s:
+            state: absent
+            kind: Job
+            name: postgres-init-grafana-user
+            namespace: infatium-dev
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          failed_when: false
+
+        - name: Apply postgres-init-grafana-user job
+          kubernetes.core.k8s:
+            state: present
+            src: "{{ playbook_dir }}/../../projects/infatium/base/supabase/postgres-init-grafana-user-job.yml"
+            namespace: infatium-dev
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+        - name: Wait for postgres-init-grafana-user job completion
+          kubernetes.core.k8s_info:
+            kind: Job
+            name: postgres-init-grafana-user
+            namespace: infatium-dev
+          register: grafana_user_job
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          until: >-
+            grafana_user_job.resources | length > 0 and
+            (grafana_user_job.resources[0].status.succeeded | default(0) > 0 or
+             grafana_user_job.resources[0].status.failed | default(0) > 0)
+          retries: 30
+          delay: 5
+
+        # Deploy kube-prometheus-stack (Prometheus + Grafana + Alertmanager + exporters)
+        - name: Deploy kube-prometheus-stack Helm chart
+          kubernetes.core.helm:
+            name: kube-prometheus-stack
+            chart_ref: prometheus-community/kube-prometheus-stack
+            chart_version: "56.0.0"
+            release_namespace: infrastructure
+            create_namespace: true
+            values_files:
+              - "{{ playbook_dir }}/../helm-values/kube-prometheus-stack/values.yaml"
+            values:
+              grafana:
+                grafana.ini:
+                  server:
+                    root_url: "https://{{ grafana_domain }}"
+                ingress:
+                  hosts:
+                    - "{{ grafana_domain }}"
+                  tls:
+                    - secretName: grafana-tls
+                      hosts:
+                        - "{{ grafana_domain }}"
+                additionalDataSources:
+                  - name: PostgreSQL-Infatium
+                    type: postgres
+                    uid: postgres-infatium-dev
+                    access: proxy
+                    url: postgres.infatium-dev.svc.cluster.local:5432
+                    user: grafana_reader
+                    editable: false
+                    jsonData:
+                      database: postgres
+                      sslmode: disable
+                      maxOpenConns: 5
+                      maxIdleConns: 2
+                      connMaxLifetime: 14400
+                      postgresVersion: 1500
+                      timescaledb: false
+                    secureJsonData:
+                      password: "{{ grafana_postgres_password | default('') }}"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+        # Deploy Loki
+        - name: Deploy Loki Helm chart
+          kubernetes.core.helm:
+            name: loki
+            chart_ref: grafana/loki
+            chart_version: "5.47.0"
+            release_namespace: infrastructure
+            create_namespace: true
+            values_files:
+              - "{{ playbook_dir }}/../helm-values/loki/values.yaml"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+        # Deploy Tempo
+        - name: Deploy Tempo Helm chart
+          kubernetes.core.helm:
+            name: tempo
+            chart_ref: grafana/tempo
+            chart_version: "1.24.1"
+            release_namespace: infrastructure
+            create_namespace: true
+            values_files:
+              - "{{ playbook_dir }}/../helm-values/tempo/values.yaml"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+        # Deploy Grafana Agent (manual manifest - custom configuration)
+        - name: Apply Grafana Agent manifest
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ playbook_dir }}/../../global/grafana-stack/22-grafana-agent.yml"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+        # Deploy PVC Exporter (manual manifests - custom component)
+        - name: Apply PVC Exporter manifests
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ item }}"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          loop:
+            - "{{ playbook_dir }}/../../global/grafana-stack/40-pvc-exporter-configmap.yml"
+            - "{{ playbook_dir }}/../../global/grafana-stack/41-pvc-exporter-daemonset.yml"
+
+        # Wait for Grafana to be ready
+        - name: Wait for Grafana deployment to be ready
+          kubernetes.core.k8s_info:
+            kind: Deployment
+            name: kube-prometheus-stack-grafana
+            namespace: infrastructure
+          register: grafana_deployment
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          retries: 20
+          delay: 15
+          until:
+            - grafana_deployment.resources | length > 0
+            - grafana_deployment.resources[0].status.readyReplicas is defined
+            - grafana_deployment.resources[0].status.readyReplicas == grafana_deployment.resources[0].spec.replicas
+
+      when: deploy_grafana_stack | default(true)
+
+    # ============================================================
+    # STEP 13: Deploy n8n
+    # ============================================================
+    - name: Deploy n8n
+      tags: [services, workflow, n8n, automation]
+      block:
+        - name: Find n8n manifests
+          ansible.builtin.find:
+            paths: "{{ playbook_dir }}/../../global/n8n"
+            patterns: "*.yml"
+            excludes: "*secret.yml"
+          delegate_to: localhost
+          become: false
+          register: n8n_manifests
+
+        # Files are named with numeric prefixes (01-, 02-, etc.) to ensure correct order
+        - name: Apply n8n manifests
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ item.path }}"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          loop: "{{ n8n_manifests.files | sort(attribute='path') }}"
+          loop_control:
+            label: "{{ item.path | basename }}"
+
+        - name: Create n8n PostgreSQL secret (if not exists)
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ playbook_dir }}/../../global/n8n/n8n-postgres-secret.yml"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          when: n8n_postgres_secret_check.resources | length == 0
+
+        - name: Wait for n8n PostgreSQL to be ready
+          kubernetes.core.k8s_info:
+            kind: StatefulSet
+            name: n8n-postgres
+            namespace: infrastructure
+          register: n8n_postgres
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          retries: 10
+          delay: 15
+          until:
+            - n8n_postgres.resources | length > 0
+            - n8n_postgres.resources[0].status.readyReplicas is defined
+            - n8n_postgres.resources[0].status.readyReplicas == n8n_postgres.resources[0].spec.replicas
+
+        - name: Wait for n8n deployment to be ready
+          kubernetes.core.k8s_info:
+            kind: Deployment
+            name: n8n
+            namespace: infrastructure
+          register: n8n_deployment
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          retries: 10
+          delay: 15
+          until:
+            - n8n_deployment.resources | length > 0
+            - n8n_deployment.resources[0].status.readyReplicas is defined
+            - n8n_deployment.resources[0].status.readyReplicas == n8n_deployment.resources[0].spec.replicas
+
+      when: deploy_n8n | default(true)
+
+    # ============================================================
+    # STEP 14: Deploy Matomo
+    # ============================================================
+    - name: Deploy Matomo
+      tags: [services, analytics, matomo]
+      block:
+        - name: Find Matomo manifests
+          ansible.builtin.find:
+            paths: "{{ playbook_dir }}/../../global/matomo"
+            patterns: "*.yml"
+            excludes: "*secret.yml,00-secrets.yml"
+          delegate_to: localhost
+          become: false
+          register: matomo_manifests
+
+        - name: Apply Matomo manifests
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ item.path }}"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          loop: "{{ matomo_manifests.files | sort(attribute='path') }}"
+          loop_control:
+            label: "{{ item.path | basename }}"
+
+        - name: Create Matomo MariaDB secret (if not exists)
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ playbook_dir }}/../../global/matomo/matomo-mariadb-secret.yml"
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          when: matomo_mariadb_secret_check.resources | length == 0
+
+        - name: Wait for Matomo MariaDB to be ready
+          kubernetes.core.k8s_info:
+            kind: StatefulSet
+            name: matomo-mariadb
+            namespace: infrastructure
+          register: matomo_mariadb
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          retries: 10
+          delay: 15
+          until:
+            - matomo_mariadb.resources | length > 0
+            - matomo_mariadb.resources[0].status.readyReplicas is defined
+            - matomo_mariadb.resources[0].status.readyReplicas == matomo_mariadb.resources[0].spec.replicas
+
+        - name: Wait for Matomo deployment to be ready
+          kubernetes.core.k8s_info:
+            kind: Deployment
+            name: matomo
+            namespace: infrastructure
+          register: matomo_deployment
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          retries: 10
+          delay: 15
+          until:
+            - matomo_deployment.resources | length > 0
+            - matomo_deployment.resources[0].status.readyReplicas is defined
+            - matomo_deployment.resources[0].status.readyReplicas == matomo_deployment.resources[0].spec.replicas
+
+      when: deploy_matomo | default(true)
+
+    # ============================================================
+    # STEP 15: Create credentials file
+    # ============================================================
+    - name: Generate credentials file
+      ansible.builtin.copy:
+        dest: "{{ playbook_dir }}/../../.env.infra.generated"
+        content: |
+          # Infrastructure Node Credentials
+          # Generated by Ansible on {{ ansible_date_time.iso8601 }}
+          # WARNING: This file is auto-generated. Do not edit manually.
+          # Source of truth: Kubernetes secrets in 'infrastructure' namespace
+
+          # Domains
+          INFRA_DOMAIN={{ infra_domain }}
+          REGISTRY_DOMAIN={{ registry_domain }}
+
+          # k3s
+          K3S_TOKEN={{ k3s_node_token | default('') }}
+          K3S_URL=https://{{ ansible_host }}:6443
+
+          # Docker Registry
+          REGISTRY_USERNAME={{ docker_hub_username }}
+          REGISTRY_PASSWORD={{ registry_password }}
+
+          # Grafana
+          GRAFANA_ADMIN_USER=admin
+          GRAFANA_ADMIN_PASSWORD={{ grafana_admin_password }}
+
+          # Infrastructure
+          METALLB_IP_RANGE={{ metallb_ip_range }}
+          ACME_EMAIL={{ acme_email }}
+        mode: '0600'
+      delegate_to: localhost
+      become: false
+
+    # ============================================================
+    # STEP 17: Create infrastructure ConfigMap
+    # ============================================================
+    - name: Create infrastructure ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        template: "{{ playbook_dir }}/../../global/kubernetes-templates/infrastructure-configmap.yml"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+    # ============================================================
+    # STEP 18: Verify metrics collection
+    # ============================================================
+    - name: Verify metrics server is working
+      block:
+        - name: Check metrics-server pod is running
+          kubernetes.core.k8s_info:
+            kind: Pod
+            namespace: kube-system
+            label_selectors:
+              - k8s-app=metrics-server
+          register: metrics_server_pods
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+        - name: Verify metrics API is responding
+          ansible.builtin.command:
+            cmd: kubectl get --raw /apis/metrics.k8s.io/v1beta1/nodes
+          register: metrics_api_test
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          changed_when: false
+          failed_when: false
+
+        - name: Test kubectl top nodes
+          ansible.builtin.command:
+            cmd: kubectl top nodes
+          register: kubectl_top_test
+          delegate_to: localhost
+          become: false
+          environment:
+            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+          changed_when: false
+          failed_when: false
+
+        - name: Metrics status
+          ansible.builtin.debug:
+            msg:
+              - "Metrics Server Status:"
+              - "  Pods: {{ metrics_server_pods.resources | length }} running"
+              - "  Metrics API: {{ 'Available' if metrics_api_test.rc == 0 else 'Not available yet (may need time to collect data)' }}"
+              - "  kubectl top: {{ 'Working' if kubectl_top_test.rc == 0 else 'Not working yet (may need time to collect data)' }}"
+              - "  Lens IDE: {{ 'CPU/Memory should be visible' if metrics_api_test.rc == 0 else 'May show N/A until metrics are collected' }}"
+
+  post_tasks:
+    - name: Infrastructure setup complete
+      ansible.builtin.debug:
+        msg:
+          - "✓ Infrastructure node setup complete!"
+          - ""
+          - "Installed components:"
+          - "  - k3s server ({{ k3s_version }})"
+          - "  - Calico CNI"
+          - "  - MetalLB ({{ metallb_ip_range }})"
+          - "  - cert-manager"
+          - "  - Docker Registry ({{ registry_domain }})"
+          - "  - Grafana Stack"
+          - "  - n8n"
+          - ""
+          - "Credentials:"
+          - "  File: .env.infra.generated (auto-generated, safe to commit to .gitignore)"
+          - "  Source of truth: Kubernetes secrets in 'infrastructure' namespace"
+          - "  View credentials: ansible-playbook playbooks/show-credentials.yml"
+          - ""
+          - "Load credentials in your shell:"
+          - "  source .env.infra.generated"
+          - ""
+          - "Access services:"
+          - "  Registry: https://{{ registry_domain }}"
+          - "  Grafana: https://{{ grafana_domain }}"
+          - "  n8n: https://{{ n8n_domain }}"
+          - ""
+          - "Next steps:"
+          - "1. Setup apps nodes: ansible-playbook -i inventory/hosts.yml playbooks/setup-apps-node.yml"
+          - "2. Create projects: ansible-playbook -i inventory/hosts.yml playbooks/create-project.yml"
+
+# Backup configuration
+- name: Configure Automated Backups
+  hosts: infra_nodes
+  become: true
+  tags: [backup]
+
+  tasks:
+    # Create backup directory
+    - name: Create backup directory
+      ansible.builtin.file:
+        path: /var/backups/kubernetes
+        state: directory
+        mode: '0755'
+
+    # Install and configure age encryption
+    - name: Check if age is installed
+      ansible.builtin.command: which age
+      register: age_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install age
+      when: age_check.rc != 0
+      block:
+        - name: Download age
+          ansible.builtin.get_url:
+            url: "https://github.com/FiloSottile/age/releases/download/v1.1.1/age-v1.1.1-linux-amd64.tar.gz"
+            dest: /tmp/age.tar.gz
+            mode: '0644'
+
+        - name: Extract age
+          ansible.builtin.unarchive:
+            src: /tmp/age.tar.gz
+            dest: /tmp/
+            remote_src: true
+
+        - name: Install age binaries
+          ansible.builtin.copy:
+            src: "/tmp/age/{{ item }}"
+            dest: "/usr/local/bin/{{ item }}"
+            mode: '0755'
+            remote_src: true
+          loop: [age, age-keygen]
+
+    - name: Create age config directory
+      ansible.builtin.file:
+        path: /root/.config/age
+        state: directory
+        mode: '0700'
+
+    - name: Check if age key exists
+      ansible.builtin.stat:
+        path: /root/.config/age/backup.key
+      register: age_key_stat
+
+    - name: Generate age key
+      ansible.builtin.command: age-keygen -o /root/.config/age/backup.key
+      when: not age_key_stat.stat.exists
+
+    # Install and configure rclone
+    - name: Install rclone
+      ansible.builtin.package:
+        name: rclone
+        state: present
+
+    - name: Create rclone config directory
+      ansible.builtin.file:
+        path: /root/.config/rclone
+        state: directory
+        mode: '0700'
+
+    - name: Configure rclone for Yandex Disk
+      ansible.builtin.copy:
+        dest: /root/.config/rclone/rclone.conf
+        mode: '0600'
+        content: |
+          [ydisk]
+          type = yandex
+          token = {"access_token":"{{ lookup('env', 'YANDEX_DISK_TOKEN') }}","token_type":"OAuth","expiry":"0001-01-01T00:00:00Z"}
+
+    # Create K8s secrets
+    - name: Read age key
+      ansible.builtin.slurp:
+        path: /root/.config/age/backup.key
+      register: age_key_content
+
+    - name: Read rclone config
+      ansible.builtin.slurp:
+        path: /root/.config/rclone/rclone.conf
+      register: rclone_config_content
+
+    - name: Create backup-encryption-key secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: backup-encryption-key
+            namespace: infrastructure
+          type: Opaque
+          data:
+            age-secret-key: "{{ age_key_content.content }}"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+    - name: Create rclone-config secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: rclone-config
+            namespace: infrastructure
+          type: Opaque
+          data:
+            rclone.conf: "{{ rclone_config_content.content }}"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+    # Deploy CronJob
+    - name: Deploy backup CronJob
+      ansible.builtin.command:
+        cmd: kubectl apply -k "{{ playbook_dir }}/../../global/backup/"
+      delegate_to: localhost
+      become: false
+      environment:
+        KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+      register: backup_result
+      changed_when: "'created' in backup_result.stdout or 'configured' in backup_result.stdout"
+
+  post_tasks:
+    - name: Backup configuration complete
+      ansible.builtin.debug:
+        msg:
+          - "✓ Backup configured"
+          - "  - CronJob: 03:00 daily"
+          - "  - Yandex Disk: enabled"

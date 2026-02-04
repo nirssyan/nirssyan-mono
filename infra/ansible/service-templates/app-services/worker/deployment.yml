@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app: SERVICE_NAME
+    service-type: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: SERVICE_NAME
+  template:
+    metadata:
+      labels:
+        app: SERVICE_NAME
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: SERVICE_NAME
+          image: REGISTRY_URL/PRODUCT_NAME/SERVICE_NAME:prod
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: SERVICE_NAME-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

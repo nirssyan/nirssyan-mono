@@ -1,0 +1,25 @@
+FROM glitchtip/glitchtip:v4.1
+
+# Switch to root for modifications
+USER root
+
+# Inject CSS link into index.html files BEFORE collectstatic
+# GlitchTip v4.1 has index.html at these locations
+RUN if [ -f /code/static/index.html ]; then \
+        sed -i 's|</head>|<link rel="stylesheet" href="/static/custom/linear-theme.css"></head>|' \
+        /code/static/index.html; \
+    fi
+
+RUN if [ -f /code/dist/index.html ]; then \
+        sed -i 's|</head>|<link rel="stylesheet" href="/static/custom/linear-theme.css"></head>|' \
+        /code/dist/index.html; \
+    fi
+
+# Create custom CSS directory
+RUN mkdir -p /code/static/custom && chown -R app:app /code/static/custom
+
+# Copy custom CSS theme (AFTER mkdir to ensure directory exists)
+COPY --chown=app:app linear-theme.css /code/static/custom/linear-theme.css
+
+# Switch back to app user
+USER app

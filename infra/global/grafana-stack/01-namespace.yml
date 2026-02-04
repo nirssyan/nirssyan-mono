@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infrastructure
+  labels:
+    app: grafana-stack
+    managed-by: infra-startup

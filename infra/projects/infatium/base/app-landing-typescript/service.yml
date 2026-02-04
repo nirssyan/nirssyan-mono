@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-landing-typescript
+  labels:
+    app: app-landing-typescript
+spec:
+  selector:
+    app: app-landing-typescript
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

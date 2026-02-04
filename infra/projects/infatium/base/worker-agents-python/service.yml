@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker-agents-python
+  labels:
+    app: worker-agents-python
+spec:
+  selector:
+    app: worker-agents-python
+  ports:
+    - protocol: TCP
+      port: 9464
+      targetPort: 9464
+      name: metrics
+  type: ClusterIP

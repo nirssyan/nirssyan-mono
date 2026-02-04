@@ -1,0 +1,14 @@
+---
+# k3s handlers
+
+- name: Restart k3s server
+  ansible.builtin.systemd:
+    name: "{{ k3s_service_name_server }}"
+    state: restarted
+    daemon_reload: true
+
+- name: Restart k3s agent
+  ansible.builtin.systemd:
+    name: "{{ k3s_service_name_agent }}"
+    state: restarted
+    daemon_reload: true

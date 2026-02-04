@@ -1,0 +1,37 @@
+#!/bin/bash
+# Export Kubernetes secrets to .env file
+# Usage: ./export-env [project_name] [environment]
+# Example: ./export-env infatium dev
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Default values
+PROJECT_NAME="${1:-${PROJECT_NAME:-infatium}}"
+ENVIRONMENT="${2:-${ENVIRONMENT:-dev}}"
+
+echo "=================================================="
+echo "Exporting secrets to .env file"
+echo "=================================================="
+echo "Project:     $PROJECT_NAME"
+echo "Environment: $ENVIRONMENT"
+echo ""
+
+# Run ansible playbook
+ansible-playbook \
+  -i "$SCRIPT_DIR/inventory/hosts.yml" \
+  "$SCRIPT_DIR/playbooks/export-env.yml" \
+  -e "project_name=$PROJECT_NAME" \
+  -e "env_name=$ENVIRONMENT"
+
+echo ""
+echo "=================================================="
+echo "✅ Done!"
+echo "=================================================="
+echo ""
+echo "Location: projects/$PROJECT_NAME/overlays/$ENVIRONMENT/.env"
+echo ""
+echo "⚠️  WARNING: This file contains sensitive credentials!"
+echo "    Do not commit to git or share publicly."
+echo ""

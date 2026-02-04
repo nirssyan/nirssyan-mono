@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-poller-go
+  labels:
+    app: worker-poller-go
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: worker-poller-go
+  template:
+    metadata:
+      labels:
+        app: worker-poller-go
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9464"
+        prometheus.io/path: "/metrics"
+    spec:
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: worker-poller-go
+          image: registry.infra.makekod.ru/makefeed-go-poller:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9464
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: worker-poller-go-config
+            - secretRef:
+                name: service-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: telegram-sessions
+              mountPath: /app/.telegram
+      volumes:
+        - name: telegram-sessions
+          persistentVolumeClaim:
+            claimName: telegram-sessions
+      terminationGracePeriodSeconds: 30

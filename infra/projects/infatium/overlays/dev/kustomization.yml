@@ -1,0 +1,122 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: infatium-dev
+
+components:
+  - ../../../../global/proxy-sidecar
+  - ../../../../global/app-python
+  - ../../../../global/worker-python
+  - ../../../../global/app-go
+  - ../../../../global/worker-go
+  - ../../../../global/app-typescript
+  - ../../../../global/worker-typescript
+
+resources:
+  - namespace.yml
+  # network-policies.yml applied separately to avoid commonLabels in selectors
+  - resourcequota.yml
+  - limitrange.yml
+  - api/ingress.yml
+  - landing/ingress.yml
+  - ../../base
+  # SealedSecrets (encrypted, safe to commit)
+  - service-secrets-sealed.yml
+  - auth-secrets-sealed.yml
+  - redis-secrets-sealed.yml
+  - postgres-secrets-sealed.yml
+  - dockerhub-registry-sealed.yml
+  - integrations-secrets-sealed.yml
+  - minio-secrets-sealed.yml
+  - minio-ingress.yml
+  - ../../base/minio
+
+commonLabels:
+  product: infatium
+  environment: dev
+
+images:
+  # auth-go-app uses auth-service image in registry
+  - name: registry.infra.makekod.ru/auth-service
+    newTag: dev
+
+patches:
+  - path: worker-processor-go-patch.yml
+  - path: app-registry-go-patch.yml
+  - path: app-api-go-patch.yml
+  - target:
+      kind: ConfigMap
+      name: app-api-python-config
+    patch: |
+      - op: replace
+        path: /data/OTEL_DEPLOYMENT_ENVIRONMENT
+        value: "development"
+  - target:
+      kind: Deployment
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role: infra
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role
+            operator: Equal
+            value: infra
+            effect: NoSchedule
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: regcred
+          - name: dockerhub-registry
+  - target:
+      kind: StatefulSet
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role: infra
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role
+            operator: Equal
+            value: infra
+            effect: NoSchedule
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: regcred
+          - name: dockerhub-registry
+  - target:
+      kind: Job
+    patch: |
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role: infra
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role
+            operator: Equal
+            value: infra
+            effect: NoSchedule
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: regcred
+          - name: dockerhub-registry
+  - target:
+      kind: Ingress
+      name: app-integrations-python
+    patch: |
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: "dev.integrations.infatium.ru"
+      - op: replace
+        path: /spec/rules/0/host
+        value: "dev.integrations.infatium.ru"
+  # Security patches disabled - conflict with proxy-sidecar init container
+  # TODO: Re-enable after fixing proxy-sidecar to work with non-root

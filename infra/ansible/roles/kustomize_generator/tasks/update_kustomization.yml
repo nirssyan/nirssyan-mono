@@ -1,0 +1,49 @@
+---
+# Update kustomization.yml with new service
+# Required vars: kustomization_file_path, service_name
+
+- name: Check if kustomization.yml exists
+  ansible.builtin.stat:
+    path: "{{ kustomization_file_path }}"
+  register: kustomization_stat
+
+- name: Read existing kustomization.yml
+  ansible.builtin.slurp:
+    path: "{{ kustomization_file_path }}"
+  register: kustomization_content
+  when: kustomization_stat.stat.exists
+
+- name: Parse kustomization.yml
+  ansible.builtin.set_fact:
+    kustomization_data: "{{ kustomization_content.content | b64decode | from_yaml }}"
+  when: kustomization_stat.stat.exists
+
+- name: Check if service already in resources
+  ansible.builtin.set_fact:
+    service_exists_in_kustomization: "{{ service_name in (kustomization_data.resources | default([])) }}"
+  when: kustomization_stat.stat.exists
+
+- name: Add service to kustomization resources
+  ansible.builtin.blockinfile:
+    path: "{{ kustomization_file_path }}"
+    marker: "# {mark} ANSIBLE MANAGED - {{ service_name }}"
+    block: |
+      - {{ service_name }}
+    insertafter: "^resources:"
+  when: kustomization_stat.stat.exists and not service_exists_in_kustomization
+
+- name: Create new kustomization.yml
+  ansible.builtin.copy:
+    dest: "{{ kustomization_file_path }}"
+    content: |
+      apiVersion: kustomize.config.k8s.io/v1beta1
+      kind: Kustomization
+
+      resources:
+        - {{ service_name }}
+    mode: '0644'
+  when: not kustomization_stat.stat.exists
+
+- name: Kustomization updated
+  ansible.builtin.debug:
+    msg: "Updated {{ kustomization_file_path }} with {{ service_name }}"

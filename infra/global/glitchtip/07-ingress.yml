@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: glitchtip
+  namespace: infrastructure
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - glitchtip.infra.makekod.ru
+      secretName: glitchtip-tls
+  rules:
+    - host: glitchtip.infra.makekod.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: glitchtip-web
+                port:
+                  number: 8080

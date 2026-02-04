@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: integrations-config
+  namespace: infrastructure
+data:
+  HOST: "0.0.0.0"
+  PORT: "8000"
+  DEBUG: "false"
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "makefeed-integrations"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo.grafana.svc.cluster.local:4317"
+  OTEL_DEPLOYMENT_ENVIRONMENT: "production"
+  SENTRY_ENVIRONMENT: "production"

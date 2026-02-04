@@ -1,0 +1,8 @@
+---
+# Common tasks - validation, file ops, utilities
+
+# This role provides reusable tasks that can be included by other roles and playbooks
+# Usage: include_role: name=common tasks_from=validate_url.yml
+
+# No tasks run by default
+# Include specific task files as needed

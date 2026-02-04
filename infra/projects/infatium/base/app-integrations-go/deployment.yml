@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-integrations-go
+  labels:
+    app: app-integrations-go
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: app-integrations-go
+  template:
+    metadata:
+      labels:
+        app: app-integrations-go
+        expose: ingress
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9464"
+        prometheus.io/path: "/metrics"
+    spec:
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: app-integrations-go
+          image: registry.infra.makekod.ru/makefeed-integrations-go:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+            - containerPort: 9464
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: app-integrations-go-config
+            - secretRef:
+                name: integrations-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 50m
+              memory: 128Mi
+      terminationGracePeriodSeconds: 30

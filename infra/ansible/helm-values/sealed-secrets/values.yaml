@@ -1,0 +1,6 @@
+# Sealed Secrets Helm values
+# Chart: sealed-secrets/sealed-secrets
+
+image:
+  pullSecrets:
+    - dockerhub-registry

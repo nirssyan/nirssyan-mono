@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infrastructure-config
+  namespace: infrastructure
+data:
+  infra_domain: "{{ infra_domain }}"
+  registry_domain: "{{ registry_domain }}"
+  team_name: "{{ team_name }}"
+  version: "{{ version }}"

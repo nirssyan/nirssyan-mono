@@ -1,0 +1,31 @@
+---
+# Create project kustomize structure
+# Required vars: project_name
+
+- name: Set project directory
+  ansible.builtin.set_fact:
+    project_dir: "{{ projects_base_dir }}/{{ project_name }}"
+
+- name: Check if project already exists
+  ansible.builtin.stat:
+    path: "{{ project_dir }}"
+  register: project_dir_stat
+
+- name: Project already exists
+  ansible.builtin.debug:
+    msg: "Project {{ project_name }} already exists at {{ project_dir }}"
+  when: project_dir_stat.stat.exists
+
+- name: Create project directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ project_dir }}/{{ kustomize_base_dir }}"
+    - "{{ project_dir }}/{{ kustomize_overlays_dir }}/prod"
+    - "{{ project_dir }}/{{ kustomize_overlays_dir }}/dev"
+
+- name: Project structure created
+  ansible.builtin.debug:
+    msg: "Created project structure for {{ project_name }}"

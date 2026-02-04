@@ -1,0 +1,99 @@
+---
+# Add service to project
+# Required vars: project_name, service_name, service_type
+
+- name: Resolve service type alias
+  ansible.builtin.set_fact:
+    resolved_service_type: "{{ service_type_aliases[service_type] | default(service_type) }}"
+
+- name: Validate service type
+  ansible.builtin.assert:
+    that:
+      - resolved_service_type in available_service_types
+    fail_msg: "Invalid service type: {{ service_type }} (resolved to {{ resolved_service_type }}). Must be one of: {{ available_service_types | join(', ') }}"
+
+- name: Determine service category
+  ansible.builtin.set_fact:
+    service_category: >-
+      {{
+        'app-services'
+        if resolved_service_type in ['backend-nodejs', 'backend-python', 'frontend-nextjs', 'frontend-react', 'worker', 'cronjob']
+        else 'infra-services'
+      }}
+
+- name: Set service directories
+  ansible.builtin.set_fact:
+    project_base_dir: "{{ projects_base_dir }}/{{ project_name }}/{{ kustomize_base_dir }}"
+    service_base_dir: "{{ projects_base_dir }}/{{ project_name }}/{{ kustomize_base_dir }}/{{ service_name }}"
+    template_source_dir: "{{ templates_base_dir }}/{{ service_category }}/{{ resolved_service_type }}"
+
+- name: Check if service already exists
+  ansible.builtin.stat:
+    path: "{{ service_base_dir }}"
+  register: service_dir_stat
+
+- name: Service already exists (skip)
+  ansible.builtin.debug:
+    msg: "Service {{ service_name }} already exists in {{ project_name }}"
+  when: service_dir_stat.stat.exists
+
+- name: Create service directory
+  ansible.builtin.file:
+    path: "{{ service_base_dir }}"
+    state: directory
+    mode: '0755'
+  when: not service_dir_stat.stat.exists
+
+- name: Find YAML template files
+  ansible.builtin.find:
+    paths: "{{ template_source_dir }}"
+    patterns: "*.yml,*.yaml"
+  register: yaml_template_files
+  when: not service_dir_stat.stat.exists
+
+- name: Find non-YAML template files (Dockerfile, etc.)
+  ansible.builtin.find:
+    paths: "{{ template_source_dir }}"
+    patterns: "*"
+    excludes: "*.yml,*.yaml,README.md,.gitkeep"
+  register: other_template_files
+  when: not service_dir_stat.stat.exists
+
+- name: Process YAML templates with variable substitution
+  ansible.builtin.template:
+    src: "{{ item.path }}"
+    dest: "{{ service_base_dir }}/{{ item.path | basename }}"
+    mode: '0644'
+  loop: "{{ yaml_template_files.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  vars:
+    project_namespace: "{{ project_name }}-{{ environment | default('prod') }}"
+    service_domain: "{{ service_name }}.{{ prod_domain | default('example.com') }}"
+  when: not service_dir_stat.stat.exists
+
+- name: Copy non-YAML files as-is
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ service_base_dir }}/{{ item.path | basename }}"
+    mode: preserve
+  loop: "{{ other_template_files.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: not service_dir_stat.stat.exists
+
+- name: Replace service name in generated files
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: "{{ resolved_service_type }}"
+    replace: "{{ service_name }}"
+  with_fileglob:
+    - "{{ service_base_dir }}/*.yml"
+    - "{{ service_base_dir }}/*.yaml"
+    - "{{ service_base_dir }}/Dockerfile"
+    - "{{ service_base_dir }}/.dockerignore"
+  when: not service_dir_stat.stat.exists
+
+- name: Service added to base
+  ansible.builtin.debug:
+    msg: "Service {{ service_name }} ({{ service_type }}) added to {{ project_name }}/base"

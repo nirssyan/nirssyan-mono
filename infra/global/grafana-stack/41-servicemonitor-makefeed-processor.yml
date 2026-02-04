@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: makefeed-processor
+  namespace: infrastructure
+  labels:
+    app: makefeed-processor
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: makefeed-processor
+  namespaceSelector:
+    matchNames:
+      - infatium-dev
+      - infatium-prod
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

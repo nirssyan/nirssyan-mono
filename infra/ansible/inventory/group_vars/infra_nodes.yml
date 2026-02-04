@@ -1,0 +1,21 @@
+---
+# Infra node specific configuration
+node_type: infra
+node_role: infra
+
+# Node taints
+node_taints:
+  - key: node-role
+    value: infra
+    effect: NoSchedule
+
+# Services to deploy
+deploy_docker_registry: true
+deploy_grafana_stack: true
+deploy_n8n: true
+
+# k3s configuration for infra
+k3s_mode: server
+k3s_disable_services:
+  - traefik
+k3s_flannel_backend: none  # We use Calico CNI

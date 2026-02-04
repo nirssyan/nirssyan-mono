@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-registry-go-config
+data:
+  HTTP_PORT: "8080"
+  METRICS_PORT: "9464"
+  DEBUG: "false"
+  ENVIRONMENT: "development"
+  LLM_MODELS_SYNC_ENABLED: "true"
+  LLM_MODELS_SYNC_INTERVAL: "24h"
+  LLM_MODELS_TELEGRAM_CHAT_ID: "-1002622491758"
+  LLM_MODELS_TELEGRAM_THREAD_ID: "1696"
+  REGISTRY_SYNC_ENABLED: "false"
+  REGISTRY_SYNC_INTERVAL: "24h"
+  DATABASE_POOL_MIN: "2"
+  DATABASE_POOL_MAX: "5"
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "go-registry"
+  OTEL_ENVIRONMENT: "development"

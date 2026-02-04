@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-processor-go
+  labels:
+    app: worker-processor-go
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-processor-go
+  template:
+    metadata:
+      labels:
+        app: worker-processor-go
+    spec:
+      containers:
+        - name: worker-processor-go
+          image: registry.infra.makekod.ru/go-processor:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9464
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: worker-processor-go-config
+            - secretRef:
+                name: service-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+      imagePullSecrets:
+        - name: registry-credentials

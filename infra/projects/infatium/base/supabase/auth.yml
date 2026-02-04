@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supabase-auth
+  labels:
+    app: supabase-auth
+    service-type: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supabase-auth
+  template:
+    metadata:
+      labels:
+        app: supabase-auth
+    spec:
+      containers:
+        - name: auth
+          image: supabase/gotrue:v2.183.0
+          ports:
+            - containerPort: 9999
+              name: http
+          envFrom:
+            - secretRef:
+                name: supabase-secrets
+          env:
+            - name: GOTRUE_DB_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secrets
+                  key: GOTRUE_DB_DATABASE_URL
+            - name: API_EXTERNAL_URL
+              value: "https://supabase.infatium.ru"
+            - name: GOTRUE_SITE_URL
+              value: "makefeed://"
+            - name: GOTRUE_MAILER_TEMPLATES_CONFIRMATION
+              value: "http://email-templates-server/confirmation.html"
+            - name: GOTRUE_MAILER_TEMPLATES_RECOVERY
+              value: "http://email-templates-server/recovery.html"
+            - name: GOTRUE_MAILER_TEMPLATES_MAGIC_LINK
+              value: "http://email-templates-server/magic_link.html"
+            - name: GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE
+              value: "http://email-templates-server/email_change.html"
+            - name: GOTRUE_MAILER_TEMPLATES_INVITE
+              value: "http://email-templates-server/invite.html"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supabase-auth
+  labels:
+    app: supabase-auth
+spec:
+  selector:
+    app: supabase-auth
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9999
+      targetPort: 9999

@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: matomo
+  namespace: infrastructure
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - matomo.infra.makekod.ru
+      secretName: matomo-tls
+  rules:
+    - host: matomo.infra.makekod.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: matomo
+                port:
+                  number: 80

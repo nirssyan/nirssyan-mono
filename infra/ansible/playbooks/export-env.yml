@@ -1,0 +1,90 @@
+---
+# Export Kubernetes secrets to .env file for a project
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/export-env.yml -e "project_name=infatium environment=dev"
+
+- name: Export project secrets to .env file
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    project_name: "{{ lookup('env', 'PROJECT_NAME') | default('infatium', true) }}"
+    env_name: "{{ lookup('env', 'ENVIRONMENT') | default('dev', true) }}"
+    k8s_namespace: "{{ project_name }}-{{ env_name }}"
+    output_file: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/{{ env_name }}/.env"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - project_name is defined
+          - project_name != ''
+          - env_name is defined
+          - env_name != ''
+        fail_msg: "PROJECT_NAME and ENVIRONMENT must be defined"
+
+    - name: Check if namespace exists
+      ansible.builtin.shell: |
+        export KUBECONFIG=~/.kube/nirssyan_config
+        kubectl get namespace {{ k8s_namespace }} -o name
+      register: namespace_check
+      failed_when: namespace_check.rc != 0
+      changed_when: false
+
+    - name: Get Supabase secrets as JSON
+      ansible.builtin.shell: |
+        export KUBECONFIG=~/.kube/nirssyan_config
+        kubectl get secret supabase-secrets -n {{ k8s_namespace }} -o json 2>/dev/null || echo '{}'
+      register: supabase_secrets_raw
+      changed_when: false
+      failed_when: false
+
+    - name: Get Redis secrets as JSON
+      ansible.builtin.shell: |
+        export KUBECONFIG=~/.kube/nirssyan_config
+        kubectl get secret redis-secrets -n {{ k8s_namespace }} -o json 2>/dev/null || echo '{}'
+      register: redis_secrets_raw
+      changed_when: false
+      failed_when: false
+
+    - name: Parse Supabase secrets
+      ansible.builtin.set_fact:
+        supabase_secrets_json: "{{ supabase_secrets_raw.stdout | from_json }}"
+      when: not ansible_check_mode
+
+    - name: Parse Redis secrets
+      ansible.builtin.set_fact:
+        redis_secrets_json: "{{ redis_secrets_raw.stdout | from_json }}"
+      when: not ansible_check_mode
+
+    - name: Decode Supabase secrets
+      ansible.builtin.set_fact:
+        supabase_env: "{{ supabase_env | default({}) | combine({item.key: item.value | b64decode}) }}"
+      loop: "{{ supabase_secrets_json.data | default({}) | dict2items }}"
+      when: supabase_secrets_json.data is defined
+      no_log: true
+
+    - name: Decode Redis secrets
+      ansible.builtin.set_fact:
+        redis_env: "{{ redis_env | default({}) | combine({item.key: item.value | b64decode}) }}"
+      loop: "{{ redis_secrets_json.data | default({}) | dict2items }}"
+      when: redis_secrets_json.data is defined
+      no_log: true
+
+    - name: Set default empty dicts
+      ansible.builtin.set_fact:
+        supabase_env: "{{ supabase_env | default({}) }}"
+        redis_env: "{{ redis_env | default({}) }}"
+
+    - name: Generate .env file from template
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/project-env.j2"
+        dest: "{{ output_file }}"
+        mode: '0600'
+
+    - name: Display success message
+      ansible.builtin.debug:
+        msg:
+          - "✅ Environment file generated successfully!"
+          - "Location: {{ output_file }}"
+          - "Services: Supabase ({{ supabase_env.keys() | length }} vars), Redis ({{ redis_env.keys() | length }} vars)"

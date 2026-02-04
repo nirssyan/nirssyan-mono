@@ -1,0 +1,225 @@
+---
+# Install k3s in server mode
+
+- name: Check if k3s is already installed (server)
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Check if k3s service is running (server)
+  ansible.builtin.systemd:
+    name: "{{ k3s_service_name_server }}"
+  register: k3s_service
+  failed_when: false
+  when: k3s_binary.stat.exists
+
+- name: k3s already installed
+  ansible.builtin.debug:
+    msg: "k3s server is already installed and running (idempotent - skipping installation)"
+  when:
+    - k3s_binary.stat.exists
+    - k3s_service.status.ActiveState is defined
+    - k3s_service.status.ActiveState == 'active'
+
+- name: Build k3s server install command
+  ansible.builtin.set_fact:
+    k3s_install_cmd: |
+      curl -sfL {{ k3s_install_script_url }} | sh -s - server
+      {%- if k3s_disable_services | length > 0 %}
+      {%- for service in k3s_disable_services %}
+       --disable {{ service }}
+      {%- endfor %}
+      {%- endif %}
+      {%- if k3s_flannel_backend == 'none' %}
+       --flannel-backend=none
+      {%- endif %}
+      {%- if k3s_cluster_init %}
+       --cluster-init
+      {%- endif %}
+       --kubelet-arg=image-gc-high-threshold={{ k3s_kubelet_gc_high_threshold }}
+       --kubelet-arg=image-gc-low-threshold={{ k3s_kubelet_gc_low_threshold }}
+  when: not (k3s_binary.stat.exists and k3s_service.status.ActiveState == 'active')
+
+- name: Install k3s server
+  ansible.builtin.shell: "{{ k3s_install_cmd }}"
+  args:
+    executable: /bin/bash
+  when: not (k3s_binary.stat.exists and k3s_service.status.ActiveState is defined and k3s_service.status.ActiveState == 'active')
+  register: k3s_install_result
+
+- name: Wait for k3s server to be ready
+  ansible.builtin.wait_for:
+    path: "{{ k3s_kubeconfig_path }}"
+    state: present
+    timeout: "{{ k3s_wait_timeout }}"
+  when: k3s_install_result is changed
+
+- name: Verify k3s server is running
+  ansible.builtin.command: k3s kubectl get nodes
+  register: k3s_nodes
+  changed_when: false
+  retries: 3
+  delay: 5
+  until: k3s_nodes.rc == 0
+
+- name: k3s server installation complete
+  ansible.builtin.debug:
+    msg: "k3s server is ready"
+
+- name: Read k3s node token
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: k3s_token_file
+  no_log: true
+
+- name: Set k3s node token as fact
+  ansible.builtin.set_fact:
+    k3s_node_token: "{{ k3s_token_file.content | b64decode | trim }}"
+    cacheable: true
+  no_log: true
+
+- name: Wait for metrics-server deployment to exist
+  ansible.builtin.command: k3s kubectl get deployment metrics-server -n kube-system
+  register: metrics_server_check
+  changed_when: false
+  retries: 10
+  delay: 5
+  until: metrics_server_check.rc == 0
+  failed_when: false
+
+- name: Patch metrics-server to tolerate infra node taint
+  ansible.builtin.command: |
+    k3s kubectl patch deployment metrics-server -n kube-system --type=json -p='[
+      {
+        "op": "add",
+        "path": "/spec/template/spec/tolerations/-",
+        "value": {
+          "key": "node-role",
+          "operator": "Equal",
+          "value": "infra",
+          "effect": "NoSchedule"
+        }
+      }
+    ]'
+  when: metrics_server_check.rc == 0
+  register: metrics_server_patch
+  changed_when: "'patched' in metrics_server_patch.stdout or 'not patched' in metrics_server_patch.stderr"
+  failed_when: false
+
+- name: Wait for metrics-server to be ready
+  ansible.builtin.command: k3s kubectl rollout status deployment/metrics-server -n kube-system --timeout=120s
+  when: metrics_server_check.rc == 0
+  changed_when: false
+  retries: 3
+  delay: 10
+  until: metrics_server_ready.rc == 0
+  register: metrics_server_ready
+  failed_when: false
+
+- name: Verify metrics API endpoint is available
+  ansible.builtin.command: k3s kubectl get --raw /apis/metrics.k8s.io/v1beta1/nodes
+  register: metrics_api_check
+  changed_when: false
+  retries: 10
+  delay: 6
+  until: metrics_api_check.rc == 0
+  failed_when: false
+
+- name: Metrics server status
+  ansible.builtin.debug:
+    msg: >-
+      {% if metrics_api_check.rc == 0 %}
+      Metrics API is available - Lens and kubectl top will work
+      {% else %}
+      WARNING: Metrics API is not available yet. May need manual troubleshooting.
+      {% endif %}
+
+# CoreDNS toleration for infra node
+- name: Wait for CoreDNS deployment to exist
+  ansible.builtin.command: k3s kubectl get deployment coredns -n kube-system
+  register: coredns_check
+  changed_when: false
+  retries: 10
+  delay: 5
+  until: coredns_check.rc == 0
+  failed_when: false
+
+- name: Patch CoreDNS to tolerate infra node taint
+  ansible.builtin.command: |
+    k3s kubectl patch deployment coredns -n kube-system --type=json -p='[
+      {
+        "op": "add",
+        "path": "/spec/template/spec/tolerations/-",
+        "value": {
+          "key": "node-role",
+          "operator": "Equal",
+          "value": "infra",
+          "effect": "NoSchedule"
+        }
+      }
+    ]'
+  when: coredns_check.rc == 0
+  register: coredns_patch
+  changed_when: "'patched' in coredns_patch.stdout"
+  failed_when: false
+
+- name: Wait for CoreDNS to be ready
+  ansible.builtin.command: k3s kubectl rollout status deployment/coredns -n kube-system --timeout=120s
+  when: coredns_check.rc == 0
+  changed_when: false
+  retries: 3
+  delay: 10
+  until: coredns_ready.rc == 0
+  register: coredns_ready
+  failed_when: false
+
+- name: CoreDNS status
+  ansible.builtin.debug:
+    msg: >-
+      {% if coredns_ready.rc == 0 %}
+      CoreDNS is ready - DNS resolution will work
+      {% else %}
+      WARNING: CoreDNS is not ready. DNS may not work properly.
+      {% endif %}
+  when: coredns_check.rc == 0
+
+# Daily cleanup of unused container images
+- name: Create image cleanup script
+  ansible.builtin.copy:
+    dest: /usr/local/bin/k3s-image-cleanup.sh
+    mode: '0755'
+    content: |
+      #!/bin/bash
+      /usr/local/bin/k3s crictl rmi --prune 2>/dev/null || true
+
+- name: Create systemd service for image cleanup
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/k3s-image-cleanup.service
+    content: |
+      [Unit]
+      Description=Cleanup unused k3s images
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/k3s-image-cleanup.sh
+
+- name: Create systemd timer for image cleanup
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/k3s-image-cleanup.timer
+    content: |
+      [Unit]
+      Description=Daily k3s image cleanup
+
+      [Timer]
+      OnCalendar=daily
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable image cleanup timer
+  ansible.builtin.systemd:
+    name: k3s-image-cleanup.timer
+    enabled: true
+    state: started
+    daemon_reload: true

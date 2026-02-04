@@ -1,0 +1,100 @@
+---
+# Setup apps node (k3s agent + monitoring)
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/setup-apps-node.yml
+# Required env: APPS_SSH_HOST, K3S_URL, K3S_TOKEN, PRODUCT_NAME
+
+- name: Setup Apps Node
+  hosts: apps_nodes
+  become: true
+  vars:
+    product_name: "{{ lookup('env', 'PRODUCT_NAME') }}"
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - product_name is defined and product_name | length > 0
+          - k3s_url is defined and k3s_url | length > 0
+          - k3s_token is defined and k3s_token | length > 0
+        fail_msg: "PRODUCT_NAME, K3S_URL, and K3S_TOKEN are required"
+
+    - name: Display configuration
+      ansible.builtin.debug:
+        msg:
+          - "Setting up apps node for product: {{ product_name }}"
+          - "k3s server: {{ k3s_url }}"
+          - "Node: {{ ansible_host }}"
+
+  tasks:
+    - name: Update apt cache and upgrade system packages
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 604800  # Only update cache if older than 7 days (idempotent)
+        upgrade: safe  # Upgrade packages safely (only if no new dependencies required)
+        autoremove: true  # Remove unused dependencies
+      when: ansible_os_family == "Debian"
+
+    - name: Install dependencies
+      ansible.builtin.package:
+        name:
+          - curl
+          - tar
+          - nfs-common
+          - python3-kubernetes  # for Ansible kubernetes.core module
+          - python3-yaml        # for Ansible kubernetes.core module
+        state: present
+
+    - name: Install k3s agent
+      ansible.builtin.include_role:
+        name: k3s
+      vars:
+        k3s_mode: agent
+
+    - name: Wait for node to join cluster
+      ansible.builtin.pause:
+        seconds: 30
+
+    - name: Set node labels
+      ansible.builtin.include_role:
+        name: k3s
+        tasks_from: configure_node.yml
+      vars:
+        node_labels:
+          product: "{{ product_name }}"
+          node-role: apps
+        node_taints:
+          - key: product
+            value: "{{ product_name }}"
+            effect: NoSchedule
+
+    - name: Deploy Grafana Agent for monitoring
+      block:
+        - name: Create Grafana Agent namespace
+          kubernetes.core.k8s:
+            state: present
+            template: "{{ playbook_dir }}/../../global/kubernetes-templates/namespace.yml"
+          vars:
+            namespace_name: grafana-agent
+
+        - name: Deploy Grafana Agent DaemonSet
+          kubernetes.core.k8s:
+            state: present
+            src: "{{ playbook_dir }}/../global/grafana-stack/agent-daemonset.yml"
+
+      when: deploy_grafana_agent | default(true)
+      delegate_to: "{{ groups['infra_nodes'][0] }}"
+
+    - name: Apps node setup complete
+      ansible.builtin.debug:
+        msg:
+          - "✓ Apps node setup complete"
+          - ""
+          - "Configuration:"
+          - "  Product: {{ product_name }}"
+          - "  Node labels: product={{ product_name }}, node-role=apps"
+          - "  Node taints: product={{ product_name }}:NoSchedule"
+          - "  Monitoring: Grafana Agent deployed"
+          - ""
+          - "Next steps:"
+          - "1. Create project: ansible-playbook -i inventory/hosts.yml playbooks/create-project.yml"
+          - "2. Deploy services: ansible-playbook -i inventory/hosts.yml playbooks/deploy-project.yml"

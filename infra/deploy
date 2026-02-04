@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Root-level deployment wrapper
+
+cd "$(dirname "$0")/ansible"
+./deploy "$@"

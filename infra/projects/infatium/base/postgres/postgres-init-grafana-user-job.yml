@@ -1,0 +1,101 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-init-grafana-user
+  labels:
+    app: postgres
+    service-type: infra
+spec:
+  ttlSecondsAfterFinished: 60
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        app: postgres-init-job
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:17-alpine
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL to be ready..."
+              until pg_isready -h postgres -p 5432 -U postgres; do
+                echo "PostgreSQL unavailable - waiting..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready"
+      containers:
+        - name: create-grafana-user
+          image: postgres:17-alpine
+          env:
+            - name: PGHOST
+              value: postgres
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: POSTGRES_PASSWORD
+            - name: GRAFANA_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-postgres-credentials
+                  key: password
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+
+              echo "Creating Grafana read-only user..."
+
+              psql -U postgres -d postgres <<-EOSQL
+                DO \$\$
+                BEGIN
+                  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'grafana_reader') THEN
+                    CREATE ROLE grafana_reader WITH LOGIN PASSWORD '$GRAFANA_PG_PASSWORD' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+                    RAISE NOTICE 'User grafana_reader created';
+                  ELSE
+                    ALTER ROLE grafana_reader WITH PASSWORD '$GRAFANA_PG_PASSWORD';
+                    RAISE NOTICE 'User grafana_reader password updated';
+                  END IF;
+
+                  -- Grant CONNECT to database
+                  GRANT CONNECT ON DATABASE postgres TO grafana_reader;
+
+                  -- Grant USAGE on schemas
+                  GRANT USAGE ON SCHEMA public TO grafana_reader;
+                  GRANT USAGE ON SCHEMA auth TO grafana_reader;
+
+                  -- Grant SELECT on all existing tables
+                  GRANT SELECT ON ALL TABLES IN SCHEMA public TO grafana_reader;
+                  GRANT SELECT ON ALL TABLES IN SCHEMA auth TO grafana_reader;
+
+                  -- Grant SELECT on future tables
+                  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO grafana_reader;
+                  ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT SELECT ON TABLES TO grafana_reader;
+
+                  -- Set statement timeout for protection against heavy queries
+                  ALTER ROLE grafana_reader SET statement_timeout = '30s';
+
+                  RAISE NOTICE 'Grafana read-only user configured successfully';
+                END \$\$;
+              EOSQL
+
+              echo "Grafana user initialization completed"
+
+              psql -U postgres -d postgres -c "\du grafana_reader"

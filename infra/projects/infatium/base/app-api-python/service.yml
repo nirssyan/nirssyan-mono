@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-api-python
+  labels:
+    app: app-api-python
+spec:
+  selector:
+    app: app-api-python
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      name: http
+    - protocol: TCP
+      port: 9464
+      targetPort: 9464
+      name: metrics
+  type: ClusterIP

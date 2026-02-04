@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: registry-sync
+  labels:
+    app: makefeed-api
+    component: registry-sync
+    app.kubernetes.io/part-of: makefeed
+spec:
+  schedule: "0 4 * * *"  # Daily at 4 AM (after telegram-media-cleanup at 3 AM)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 3600
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            app: registry-sync
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: infra
+          tolerations:
+            - key: node-role
+              operator: Equal
+              value: infra
+              effect: NoSchedule
+          containers:
+            - name: sync
+              image: registry.infra.makekod.ru/makefeed:microservices
+              envFrom:
+                - configMapRef:
+                    name: api-config
+                - secretRef:
+                    name: service-secrets
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+              command:
+                - python
+                - -c
+                - |
+                  import asyncio
+                  from loguru import logger
+
+                  async def main():
+                      from sqlalchemy.ext.asyncio import create_async_engine
+                      from makefeed_moderation.registries import RegistrySyncManager
+                      from makefeed_shared.database.connection import SessionMaker
+                      from makefeed_api.config import settings
+
+                      logger.info("Starting registry sync cronjob")
+
+                      engine = create_async_engine(settings.database_url)
+                      session_maker = SessionMaker(engine)
+
+                      async with session_maker.session() as conn:
+                          async with conn.begin():
+                              manager = RegistrySyncManager(conn)
+
+                              # Sync foreign agents registry
+                              logger.info("Syncing foreign_agents registry...")
+                              result = await manager.sync_registry("foreign_agents")
+                              logger.info(f"foreign_agents: synced {result.entry_count} entries")
+
+                      await engine.dispose()
+                      logger.info("Registry sync completed successfully")
+
+                  asyncio.run(main())

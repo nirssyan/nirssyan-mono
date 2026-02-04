@@ -1,0 +1,490 @@
+# kube-prometheus-stack Helm values
+# Chart: prometheus-community/kube-prometheus-stack
+# Docs: https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
+
+# Global settings
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: false
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: false
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
+
+# Prometheus Operator
+prometheusOperator:
+  enabled: true
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+  # Admission webhooks tolerations for both create and patch jobs
+  admissionWebhooks:
+    patch:
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+
+# Prometheus
+prometheus:
+  enabled: true
+  prometheusSpec:
+    # Enable remote write receiver for Grafana Agent
+    enableRemoteWriteReceiver: true
+    externalLabels:
+      cluster: "infra"
+    nodeSelector:
+      node-role: infra
+    tolerations:
+      - key: node-role
+        operator: Equal
+        value: infra
+        effect: NoSchedule
+
+    # Retention - 7 days
+    retention: 7d
+    retentionSize: ""
+
+    # Admin API disabled for security (enable temporarily for manual cleanup)
+    enableAdminAPI: false
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    # Service discovery configs matching current setup
+    # NOTE: kubernetes-apiservers removed - scraped via ServiceMonitor with metricRelabelings
+    additionalScrapeConfigs:
+      # Kubernetes nodes
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+        # Drop/optimize heavy apiserver metrics that may come from nodes
+        metric_relabel_configs:
+          - source_labels: [__name__, le]
+            regex: 'apiserver_request_sli_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+            action: drop
+          - source_labels: [__name__]
+            regex: 'apiserver_request_body_size_bytes_(bucket|count|sum)'
+            action: drop
+          - source_labels: [__name__]
+            regex: 'apiserver_response_sizes_(bucket|count|sum)'
+            action: drop
+          - source_labels: [__name__]
+            regex: 'apiserver_watch_cache_read_wait_seconds_(bucket|count|sum)'
+            action: drop
+          - source_labels: [__name__]
+            regex: 'apiserver_watch_events_sizes_(bucket|count|sum)'
+            action: drop
+          - source_labels: [__name__, le]
+            regex: 'apiserver_request_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+            action: drop
+          - source_labels: [__name__, le]
+            regex: 'etcd_request_duration_seconds_bucket;(0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+            action: drop
+
+      # Kubernetes pods with prometheus.io/scrape annotation
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+        # Drop high-cardinality NATS _INBOX metrics (saves ~192K series)
+        metric_relabel_configs:
+          - source_labels: [messaging_destination_name]
+            regex: '_INBOX\..*'
+            action: drop
+          - source_labels: [messaging_destination_publish_name]
+            regex: '_INBOX\..*'
+            action: drop
+
+      # Kubernetes services with prometheus.io/scrape annotation
+      - job_name: 'kubernetes-services'
+        kubernetes_sd_configs:
+          - role: service
+        metrics_path: /probe
+        params:
+          module: [http_2xx]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            target_label: kubernetes_name
+
+# Alertmanager
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    nodeSelector:
+      node-role: infra
+    tolerations:
+      - key: node-role
+        operator: Equal
+        value: infra
+        effect: NoSchedule
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+# Grafana
+grafana:
+  enabled: true
+  # Disable default kube-prometheus-stack dashboards (use custom_dashboard label for our dashboards)
+  defaultDashboardsEnabled: false
+
+  # Only load dashboards with label custom_dashboard=enabled (our custom dashboards)
+  sidecar:
+    dashboards:
+      enabled: true
+      label: custom_dashboard
+      labelValue: "enabled"
+      searchNamespace: ALL
+
+  image:
+    tag: "11.3.0"
+
+  # Fix permissions on PVC when upgrading from older versions
+  initChownData:
+    enabled: true
+    image:
+      repository: busybox
+      tag: "1.36"
+    securityContext:
+      runAsNonRoot: false
+      runAsUser: 0
+      seccompProfile:
+        type: RuntimeDefault
+
+  # Use Recreate strategy for PVC-backed deployments
+  deploymentStrategy:
+    type: Recreate
+
+  admin:
+    existingSecret: grafana-admin
+    userKey: username
+    passwordKey: password
+
+  persistence:
+    enabled: true
+    size: 5Gi
+    accessModes:
+      - ReadWriteOnce
+
+  nodeSelector:
+    node-role: infra
+
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Grafana configuration
+  grafana.ini:
+    server:
+      root_url: "https://{{ grafana_domain }}"
+    auth.anonymous:
+      enabled: false
+
+  # Datasources - will add Loki and Tempo
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki:3100
+      editable: false
+      jsonData:
+        maxLines: 1000
+
+    - name: Tempo
+      type: tempo
+      access: proxy
+      url: http://tempo:3200
+      editable: false
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: Loki
+        tracesToMetrics:
+          datasourceUid: Prometheus
+        serviceMap:
+          datasourceUid: Prometheus
+
+    - name: PostgreSQL-Infatium
+      type: postgres
+      uid: postgres-infatium-dev
+      access: proxy
+      url: postgres.infatium-dev.svc.cluster.local:5432
+      user: grafana_reader
+      editable: false
+      jsonData:
+        database: postgres
+        sslmode: disable
+        maxOpenConns: 5
+        maxIdleConns: 2
+        connMaxLifetime: 14400
+        postgresVersion: 1700
+        timescaledb: false
+      secureJsonData:
+        password: "{{ grafana_postgres_password }}"
+
+  # Ingress
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - "{{ grafana_domain }}"
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - "{{ grafana_domain }}"
+
+  # Dashboard provisioning
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+        - name: 'backup'
+          orgId: 1
+          folder: 'Infrastructure'
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/backup
+
+  # Will be populated from ConfigMaps
+  dashboardsConfigMaps:
+    default: grafana-dashboard-kubernetes
+    backup: grafana-dashboard-backup
+
+# =============================================================================
+# METRICS OPTIMIZATION
+# Reduces cardinality by ~105,000 series (40% reduction)
+# =============================================================================
+
+# Kube API Server metrics optimization
+kubeApiServer:
+  enabled: true
+  serviceMonitor:
+    metricRelabelings:
+      # OPTIMIZE apiserver_request_sli_duration_seconds buckets (needed for SLO dashboard)
+      # Keep: 0.05, 0.1, 0.2, 1.0, 2.0, 5.0, 10.0, +Inf (8 buckets)
+      # Saves ~21,000 series (from 31,820 to ~10,600)
+      - sourceLabels: [__name__, le]
+        regex: 'apiserver_request_sli_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+        action: drop
+
+      # DROP apiserver_request_body_size_bytes entirely
+      # Rarely needed, saves ~24,960 series
+      - sourceLabels: [__name__]
+        regex: 'apiserver_request_body_size_bytes_(bucket|count|sum)'
+        action: drop
+
+      # DROP apiserver_response_sizes entirely
+      # Rarely needed, saves ~8,960 series
+      - sourceLabels: [__name__]
+        regex: 'apiserver_response_sizes_(bucket|count|sum)'
+        action: drop
+
+      # DROP apiserver_watch_cache_read_wait_seconds entirely
+      # Only for deep API server debugging, saves ~4,760 series
+      - sourceLabels: [__name__]
+        regex: 'apiserver_watch_cache_read_wait_seconds_(bucket|count|sum)'
+        action: drop
+
+      # DROP apiserver_watch_events_sizes entirely
+      # Saves ~3,456 series
+      - sourceLabels: [__name__]
+        regex: 'apiserver_watch_events_sizes_(bucket|count|sum)'
+        action: drop
+
+      # DROP unnecessary histogram buckets for apiserver_request_duration_seconds
+      # Original: 0.005, 0.025, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, +Inf (24 buckets)
+      # Keep: 0.05, 0.1, 0.2, 1.0, 2.0, 5.0, 10.0, +Inf (8 buckets - enough for percentiles)
+      # Saves ~30,000 series
+      - sourceLabels: [__name__, le]
+        regex: 'apiserver_request_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+        action: drop
+
+# Kube Etcd metrics optimization
+kubeEtcd:
+  enabled: true
+  serviceMonitor:
+    metricRelabelings:
+      # DROP unnecessary histogram buckets for etcd_request_duration_seconds
+      # Same buckets as apiserver, keep: 0.005, 0.05, 0.1, 0.2, 1.0, 2.0, 5.0, 10.0, +Inf
+      # Saves ~20,000 series
+      - sourceLabels: [__name__, le]
+        regex: 'etcd_request_duration_seconds_bucket;(0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+        action: drop
+
+# Kubelet metrics optimization
+kubelet:
+  enabled: true
+  serviceMonitor:
+    metricRelabelings:
+      # Optimize heavy apiserver metrics that kubelet also exposes
+      - sourceLabels: [__name__, le]
+        regex: 'apiserver_request_sli_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+        action: drop
+      - sourceLabels: [__name__]
+        regex: 'apiserver_request_body_size_bytes_(bucket|count|sum)'
+        action: drop
+      - sourceLabels: [__name__]
+        regex: 'apiserver_response_sizes_(bucket|count|sum)'
+        action: drop
+      - sourceLabels: [__name__]
+        regex: 'apiserver_watch_cache_read_wait_seconds_(bucket|count|sum)'
+        action: drop
+      - sourceLabels: [__name__]
+        regex: 'apiserver_watch_events_sizes_(bucket|count|sum)'
+        action: drop
+      - sourceLabels: [__name__, le]
+        regex: 'apiserver_request_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+        action: drop
+      - sourceLabels: [__name__, le]
+        regex: 'etcd_request_duration_seconds_bucket;(0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+        action: drop
+
+# Kube Scheduler metrics optimization (already disabled in defaultRules, but adding for safety)
+kubeScheduler:
+  enabled: false
+
+# =============================================================================
+# END METRICS OPTIMIZATION
+# =============================================================================
+
+# Node Exporter
+nodeExporter:
+  enabled: true
+  tolerations:
+    - operator: Exists
+
+# Kube State Metrics
+kube-state-metrics:
+  nodeSelector:
+    node-role: infra
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+# Prometheus Node Exporter
+prometheus-node-exporter:
+  tolerations:
+    - operator: Exists
+
+  # Enable textfile collector for backup metrics
+  extraArgs:
+    - --collector.textfile.directory=/var/lib/node_exporter/textfile_collector
+
+  extraHostVolumeMounts:
+    - name: textfile-collector
+      hostPath: /var/lib/node_exporter/textfile_collector
+      mountPath: /var/lib/node_exporter/textfile_collector
+      readOnly: true
+
+  prometheus:
+    monitor:
+      relabelings:
+        - targetLabel: cluster
+          replacement: infra
+          action: replace

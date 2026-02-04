@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app: SERVICE_NAME
+    service-type: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: SERVICE_NAME
+  template:
+    metadata:
+      labels:
+        app: SERVICE_NAME
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: SERVICE_NAME
+          image: registry.infra.makekod.ru/makefeed-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: SERVICE_NAME-config
+            - secretRef:
+                name: SERVICE_NAME-secrets
+          volumeMounts:
+            - name: rustore-key
+              mountPath: /app/secrets
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: rustore-key
+          secret:
+            secretName: SERVICE_NAME-secrets
+            items:
+              - key: rustore_private_key.pem
+                path: rustore_private_key.pem
+                mode: 0400

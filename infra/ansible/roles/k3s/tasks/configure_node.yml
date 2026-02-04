@@ -1,0 +1,27 @@
+---
+# Configure node labels and taints
+
+- name: Get node name
+  ansible.builtin.command: hostname
+  register: node_hostname
+  changed_when: false
+
+- name: Apply node labels
+  ansible.builtin.command: |
+    k3s kubectl label node {{ node_hostname.stdout }} {{ item.key }}={{ item.value }} --overwrite
+  loop: "{{ node_labels | dict2items }}"
+  when: node_labels | length > 0
+  register: label_result
+  changed_when: "'labeled' in label_result.stdout or 'not labeled' not in label_result.stdout"
+
+- name: Apply node taints
+  ansible.builtin.command: |
+    k3s kubectl taint node {{ node_hostname.stdout }} {{ item.key }}={{ item.value }}:{{ item.effect }} --overwrite
+  loop: "{{ node_taints }}"
+  when: node_taints | length > 0
+  register: taint_result
+  changed_when: "'tainted' in taint_result.stdout or 'not tainted' not in taint_result.stdout"
+
+- name: Node configuration complete
+  ansible.builtin.debug:
+    msg: "Node {{ node_hostname.stdout }} configured with {{ node_labels | length }} labels and {{ node_taints | length }} taints"

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-registry-go
+  labels:
+    app: app-registry-go
+    service-template: app-go
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-registry-go
+  template:
+    metadata:
+      labels:
+        app: app-registry-go
+    spec:
+      containers:
+        - name: app-registry-go
+          image: registry.infra.makekod.ru/go-registry:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9464
+              name: metrics
+          env:
+            - name: LLM_MODELS_TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: TELEGRAM_BOT_TOKEN
+          envFrom:
+            - configMapRef:
+                name: app-registry-go-config
+            - secretRef:
+                name: service-secrets
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5

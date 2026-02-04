@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-auth-go-config
+  labels:
+    app: app-auth-go
+data:
+  SERVER_ADDR: ":8080"
+  LOG_LEVEL: "info"
+  ACCESS_TOKEN_TTL: "15m"
+  REFRESH_TOKEN_TTL: "336h"
+  MAGIC_LINK_TTL: "15m"
+  EMAIL_FROM: "noreply@infatium.ru"

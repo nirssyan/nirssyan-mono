@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-bot-python
+  labels:
+    app: worker-bot-python
+    service-template: worker-python
+    service-type: app
+    proxy-sidecar: enabled
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: worker-bot-python
+  template:
+    metadata:
+      labels:
+        app: worker-bot-python
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: worker-bot-python
+          image: registry.infra.makekod.ru/infatium-bot:dev
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: worker-bot-python-config
+            - secretRef:
+                name: bot-secrets
+          resources:
+            requests:
+              cpu: 20m
+              memory: 192Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

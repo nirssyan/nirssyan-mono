@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Quick deployment wrapper with optional arguments
+
+cd "$(dirname "$0")"
+
+# Parse arguments
+PROJECT=""
+ENV=""
+DRY_RUN="n"
+SKIP_PROMPTS="n"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -p|--project)
+            PROJECT="$2"
+            SKIP_PROMPTS="y"
+            shift 2
+            ;;
+        -e|--environment|--env)
+            ENV="$2"
+            SKIP_PROMPTS="y"
+            shift 2
+            ;;
+        --dry-run)
+            DRY_RUN="y"
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: ./deploy [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  -p, --project NAME       Project name"
+            echo "  -e, --environment ENV    Environment (dev/prod)"
+            echo "  --dry-run                Preview changes without applying"
+            echo "  -h, --help               Show this help"
+            echo ""
+            echo "Examples:"
+            echo "  ./deploy                                    # Interactive mode"
+            echo "  ./deploy -p infatium -e dev                 # Deploy infatium to dev"
+            echo "  ./deploy -p infatium -e prod --dry-run      # Preview prod deployment"
+            echo ""
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Choose playbook based on mode
+if [ "$SKIP_PROMPTS" = "y" ]; then
+    # Use non-interactive playbook
+    export PROJECT_NAME="$PROJECT"
+    export ENVIRONMENT="$ENV"
+
+    EXTRA_VARS=""
+    if [ "$DRY_RUN" = "y" ]; then
+        EXTRA_VARS="-e dry_run_mode=true"
+    else
+        EXTRA_VARS="-e dry_run_mode=false"
+    fi
+
+    ansible-playbook -i inventory/hosts.yml playbooks/deploy-project.yml $EXTRA_VARS
+else
+    # Use interactive playbook
+    EXTRA_VARS=""
+    if [ "$DRY_RUN" = "y" ]; then
+        EXTRA_VARS="-e dry_run_input=y"
+    fi
+
+    ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml $EXTRA_VARS
+fi

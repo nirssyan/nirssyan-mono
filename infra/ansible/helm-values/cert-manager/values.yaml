@@ -1,0 +1,32 @@
+# cert-manager Helm values
+# Chart: jetstack/cert-manager
+# Docs: https://cert-manager.io/docs/
+
+installCRDs: true
+
+tolerations:
+  - key: node-role
+    operator: Equal
+    value: infra
+    effect: NoSchedule
+
+webhook:
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+cainjector:
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+startupapicheck:
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule

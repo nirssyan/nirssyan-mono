@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-rss-python
+  labels:
+    app: worker-rss-python
+    service-template: worker-python
+    service-type: worker
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: worker-rss-python
+  template:
+    metadata:
+      labels:
+        app: worker-rss-python
+    spec:
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: worker-rss-python
+          image: registry.infra.makekod.ru/makefeed:microservices
+          imagePullPolicy: Always
+          command: ["makefeed-rss"]
+          envFrom:
+            - configMapRef:
+                name: worker-rss-python-config
+            - secretRef:
+                name: service-secrets
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 192Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      terminationGracePeriodSeconds: 30

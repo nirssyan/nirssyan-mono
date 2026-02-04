@@ -1,0 +1,13 @@
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: dockerhub-registry
+  namespace: infatium-prod
+spec:
+  encryptedData:
+    .dockerconfigjson: AgBh0J0xPGa5rSJlBqXYJm7GtYgTs/6F3jGowGPyYY9pPwJTR7H3U23lDaB1SpnibitVb5HpfS2DqrwA8CflIjBb0Hz4NIdwSezbibj5clZ5MJag7G/t4CGKuLtGbRq1YgmLFoI7rfSOgduDAxea4aXu7rErd8LwD50yASf9cPxd0ySqtuP9VYHJk8p5+qG44UK568epSNsyRyoF+MieTiqMseTGq3tXQpx+LBFR6KEDmE3d0EPHbeoNgSRTeve7xG0NsBXRMX9UttCwFnRoAYN6WLL4/agwZ/IU/5bc4dY6FIw7241iP3ivIgpLxmjC9BPnfStIwMvwKRjyYxYaSVcOMorXd6P/LAct1eZndEl0N9pDTlkvCqUlFepHvp+OwYmSSQ8IDxEh/lYgPKzdrJCHuAyB0223gVpHPbNADrAsbd2GcyLEwoQyL+S18LDqpYKy2P8g4bNWq07aepN5UBybc1JjIEDZPQH7C84TmyBDF0OgT2BAkm7jeMkZzGSbECHjPkyCvVWhwq9cgw4R1hGbMHMdxaDpxCMmdi7JrrYSa1AGe1rSu2MtnQb4iP4Gw0qogFzVXpT0RNWsmcknb2ci2sWbR+AikR55dkreQ49Rg4Y+oh/QAK7JpNh9ot28aRGvbtHI17NVUKcpsnrqib7PR+I5hEsNkU/+ij/ruu8lcnpU2TPQ+99lpxZp2rGS2bWdz3pAOclZBwqRWLtAo/qOiUOKilS7BL0+g1D+r5+DZeCLwjyOgYeERlE+wi1TrJwIep1Yn63kqFCz6F1cyokFm4VXDCYWY8Py0KvLQ7n5Ql7t17X2QMJT7AIIVceGKngp1AR+sPJ+PAmXnOcgk0fiCa3q3RsGS3bEvuZxcUiCa5x3i2mpj2KdBSWMKukR125rSb2294wYNgld34K6/JNQlGBuWTouMzDnqimRjgWt8c+RMv1q9wYVkBUmG1VIVTs=
+  template:
+    metadata:
+      name: dockerhub-registry
+      namespace: infatium-prod
+    type: kubernetes.io/dockerconfigjson
