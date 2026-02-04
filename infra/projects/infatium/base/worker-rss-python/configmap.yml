@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-rss-python-config
+data:
+  NATS_URL: "nats://nats:4222"
+  DATABASE_URL: "postgresql+asyncpg://makefeed:makefeed@postgres:5432/makefeed"
+  RSS_POLLING_ENABLED: "true"
+  RSS_POLLING_INTERVAL_SECONDS: "300"
+  NATS_PUBLISH_ENABLED: "true"
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "makefeed-rss"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo.infrastructure:4317"
+  OTEL_DEPLOYMENT_ENVIRONMENT: "production"

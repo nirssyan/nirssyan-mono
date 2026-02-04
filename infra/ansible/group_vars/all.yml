@@ -1,0 +1,34 @@
+# ============================================================================
+# BACKUP CONFIGURATION
+# ============================================================================
+
+# Backup base directory
+backup_base_dir: "/var/backups/kubernetes"
+backup_retention_days: "{{ lookup('env', 'BACKUP_RETENTION_DAYS') | default('3', true) }}"
+
+# Backup schedules
+backup_schedule_infra: "0 4 * * *"  # 04:00 daily
+backup_schedule_apps: "0 3 * * *"   # 03:00 daily
+backup_databases_schedule: "0 2 * * *"  # 02:00 daily
+
+# Yandex Disk configuration
+yandex_disk_enabled: true
+yandex_disk_token: "{{ lookup('env', 'YANDEX_DISK_TOKEN') | default('', true) }}"
+yandex_disk_path: "{{ lookup('env', 'YANDEX_DISK_PATH') | default('/Backups', true) }}"
+yandex_disk_remote_name: "ydisk"
+
+# Auto-discovery
+auto_discover_databases: true
+discovery_schedule: "0 * * * *"  # Hourly
+
+# PVC exclusions
+pvc_exclude_names:
+  - "loki-data"
+  - "tempo-data"
+
+# Database backup retention (in pods)
+database_backup_retention_days: 7
+
+# Prometheus metrics
+backup_metrics_enabled: true
+node_exporter_textfile_dir: "/var/lib/node_exporter/textfile_collector"

@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pvc-exporter-script
+  namespace: infrastructure
+  labels:
+    app: pvc-exporter
+data:
+  collect-pvc-metrics.sh: |
+    #!/bin/sh
+    # PVC metrics collector for K3s local-path provisioner
+    # Generates Prometheus metrics via node-exporter textfile collector
+
+    set -e
+
+    STORAGE_PATH="/host-storage"
+    OUTPUT_DIR="/textfile-collector"
+    OUTPUT_FILE="pvc_metrics.prom"
+    TEMP_FILE="${OUTPUT_FILE}.$$"
+
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting PVC metrics collection..."
+
+    # Generate metrics
+    {
+      echo "# HELP pvc_used_bytes Persistent Volume Claim used bytes calculated via du"
+      echo "# TYPE pvc_used_bytes gauge"
+
+      pvc_count=0
+      for pvc_dir in ${STORAGE_PATH}/pvc-*; do
+        [ -d "$pvc_dir" ] || continue
+
+        # Get size in bytes
+        size=$(du -sb "$pvc_dir" 2>/dev/null | awk '{print $1}')
+
+        # Skip if du failed
+        [ -z "$size" ] && continue
+
+        # Parse directory name: pvc-<uuid>_<namespace>_<pvc-name>
+        dir_name=$(basename "$pvc_dir")
+
+        # Extract namespace (second field)
+        namespace=$(echo "$dir_name" | cut -d'_' -f2)
+
+        # Extract PVC name (third field onwards, in case name contains underscores)
+        pvc_name=$(echo "$dir_name" | cut -d'_' -f3-)
+
+        # Skip if parsing failed
+        [ -z "$namespace" ] || [ -z "$pvc_name" ] && continue
+
+        # Output metric
+        echo "pvc_used_bytes{namespace=\"${namespace}\",persistentvolumeclaim=\"${pvc_name}\"} ${size}"
+
+        pvc_count=$((pvc_count + 1))
+      done
+
+      # Add collection metadata
+      echo "# HELP pvc_collection_timestamp_seconds Timestamp of last PVC metrics collection"
+      echo "# TYPE pvc_collection_timestamp_seconds gauge"
+      echo "pvc_collection_timestamp_seconds $(date +%s)"
+
+      echo "# HELP pvc_collection_pvcs_total Total number of PVCs collected"
+      echo "# TYPE pvc_collection_pvcs_total gauge"
+      echo "pvc_collection_pvcs_total ${pvc_count}"
+
+    } > "${OUTPUT_DIR}/${TEMP_FILE}"
+
+    # Atomic move
+    mv "${OUTPUT_DIR}/${TEMP_FILE}" "${OUTPUT_DIR}/${OUTPUT_FILE}"
+
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Collected metrics for ${pvc_count} PVCs"
+
+  entrypoint.sh: |
+    #!/bin/sh
+    # Entrypoint script that sets up cron job
+
+    set -e
+
+    echo "=== PVC Exporter Starting ==="
+    echo "Collection interval: ${COLLECTION_INTERVAL:-1} minute(s)"
+
+    # Create cron schedule
+    CRON_SCHEDULE="${COLLECTION_INTERVAL:-1}"
+    echo "*/${CRON_SCHEDULE} * * * * /scripts/collect-pvc-metrics.sh >> /proc/1/fd/1 2>&1" > /etc/crontabs/root
+
+    echo "Cron schedule: */${CRON_SCHEDULE} * * * *"
+
+    # Run once immediately
+    echo "Running initial collection..."
+    /scripts/collect-pvc-metrics.sh
+
+    # Start crond in foreground
+    echo "Starting crond..."
+    exec crond -f -l 2

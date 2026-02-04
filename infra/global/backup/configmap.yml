@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-config
+  namespace: infrastructure
+data:
+  # Backup retention in days
+  retention-days: "3"
+  # Team name for Yandex Disk path (used as "{team-name} Backups" folder)
+  team-name: "nirssyan"
+  # Rclone remote name
+  yandex-disk-remote: "ydisk"

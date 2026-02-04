@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker-processor-python
+  labels:
+    app: worker-processor-python
+spec:
+  selector:
+    app: worker-processor-python
+  ports:
+    - protocol: TCP
+      port: 9464
+      targetPort: 9464
+      name: metrics
+  type: ClusterIP

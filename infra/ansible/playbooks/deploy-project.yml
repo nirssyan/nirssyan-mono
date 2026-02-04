@@ -1,0 +1,259 @@
+---
+# Deploy project to Kubernetes cluster
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/deploy-project.yml
+# Required env: PROJECT_NAME, ENVIRONMENT (prod or dev)
+
+- name: Deploy Project
+  hosts: localhost
+  gather_facts: false
+  vars:
+    project_name: "{{ lookup('env', 'PROJECT_NAME') }}"
+    deploy_environment: "{{ lookup('env', 'ENVIRONMENT') | default('prod') }}"
+    repo_root: "{{ playbook_dir }}/../../"
+    overlay_path: "{{ repo_root }}/projects/{{ project_name }}/overlays/{{ deploy_environment }}"
+    deploy_namespace: "{{ project_name }}-{{ deploy_environment }}"
+    dry_run_enabled: "{{ (dry_run_mode | default('false') | string | lower) in ['true', 'yes', 'y', '1'] }}"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - project_name is defined and project_name | length > 0
+          - deploy_environment in ['prod', 'dev']
+        fail_msg: "PROJECT_NAME is required and ENVIRONMENT must be 'prod' or 'dev'"
+
+    - name: Deployment mode
+      ansible.builtin.debug:
+        msg:
+          - "╔════════════════════════════════════════════════════════╗"
+          - "║          Kubernetes Deployment                        ║"
+          - "╚════════════════════════════════════════════════════════╝"
+          - ""
+          - "Project:      {{ project_name }}"
+          - "Environment:  {{ deploy_environment }}"
+          - "Namespace:    {{ deploy_namespace }}"
+          - "Mode:         {{ 'DRY-RUN (preview only)' if dry_run_enabled else 'APPLY (real deployment)' }}"
+          - ""
+
+    - name: Check if overlay path exists
+      ansible.builtin.stat:
+        path: "{{ overlay_path }}"
+      register: overlay_stat
+
+    - name: Overlay not found
+      ansible.builtin.fail:
+        msg: "Overlay path not found: {{ overlay_path }}"
+      when: not overlay_stat.stat.exists
+
+    - name: Validate kustomization.yml exists
+      ansible.builtin.stat:
+        path: "{{ overlay_path }}/kustomization.yml"
+      register: kustomization_stat
+
+    - name: kustomization.yml not found
+      ansible.builtin.fail:
+        msg: "kustomization.yml not found in {{ overlay_path }}"
+      when: not kustomization_stat.stat.exists
+
+    - name: Export secrets to .env file
+      ansible.builtin.command:
+        cmd: >-
+          ansible-playbook {{ playbook_dir }}/export-env.yml
+          -i {{ playbook_dir }}/../inventory/hosts.yml
+          -e project_name={{ project_name }}
+          -e env_name={{ deploy_environment }}
+      register: export_env_result
+      changed_when: false
+      failed_when: false
+
+    - name: Display .env export status
+      ansible.builtin.debug:
+        msg: "{{ export_env_result.stdout_lines | select('search', '✅') | list }}"
+      when: export_env_result.rc == 0
+
+    - name: Preview kustomize build
+      ansible.builtin.command:
+        cmd: "kubectl kustomize {{ overlay_path }}"
+      register: kustomize_preview
+      changed_when: false
+
+    - name: Display kustomize preview (first 100 lines)
+      ansible.builtin.debug:
+        msg: "{{ kustomize_preview.stdout_lines[:100] }}"
+      when: dry_run_enabled
+
+    - name: Dry-run complete
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════╗"
+          - "║              Dry-Run Complete                         ║"
+          - "╚════════════════════════════════════════════════════════╝"
+          - ""
+          - "Preview shown above. No changes were applied."
+          - ""
+      when: dry_run_enabled
+
+    - name: Apply manifests with kubectl
+      ansible.builtin.command:
+        cmd: "kubectl apply -k {{ overlay_path }}"
+      register: kubectl_apply
+      changed_when: true
+      when: not dry_run_enabled
+
+    - name: Check if network-policies.yml exists
+      ansible.builtin.stat:
+        path: "{{ overlay_path }}/network-policies.yml"
+      register: network_policies_stat
+
+    - name: Apply NetworkPolicies separately (to avoid commonLabels in selectors)
+      ansible.builtin.command:
+        cmd: "kubectl apply -f {{ overlay_path }}/network-policies.yml"
+      register: network_policies_apply
+      changed_when: true
+      when: not dry_run_enabled and network_policies_stat.stat.exists
+
+    - name: Display apply results
+      ansible.builtin.debug:
+        msg: "{{ kubectl_apply.stdout_lines }}"
+      when: not dry_run_enabled and kubectl_apply is defined
+
+    - name: Load environment variables from .env file
+      ansible.builtin.shell:
+        cmd: |
+          set -a
+          source "{{ overlay_path }}/.env"
+          set +a
+          echo "REGISTRY_SERVER=${REGISTRY_SERVER:-}"
+          echo "REGISTRY_USERNAME=${REGISTRY_USERNAME:-}"
+          echo "REGISTRY_PASSWORD=${REGISTRY_PASSWORD:-}"
+          echo "DOCKER_HUB_USERNAME=${DOCKER_HUB_USERNAME:-}"
+          echo "DOCKER_HUB_TOKEN=${DOCKER_HUB_TOKEN:-}"
+      register: env_vars
+      changed_when: false
+      when: not dry_run_enabled
+
+    - name: Parse environment variables
+      ansible.builtin.set_fact:
+        registry_server: >-
+          {{ env_vars.stdout_lines | select('match', '^REGISTRY_SERVER=') | first |
+             default('REGISTRY_SERVER=') | regex_replace('^REGISTRY_SERVER=', '') }}
+        registry_username: >-
+          {{ env_vars.stdout_lines | select('match', '^REGISTRY_USERNAME=') | first |
+             default('REGISTRY_USERNAME=') | regex_replace('^REGISTRY_USERNAME=', '') }}
+        registry_password: >-
+          {{ env_vars.stdout_lines | select('match', '^REGISTRY_PASSWORD=') | first |
+             default('REGISTRY_PASSWORD=') | regex_replace('^REGISTRY_PASSWORD=', '') }}
+        dockerhub_username: >-
+          {{ env_vars.stdout_lines | select('match', '^DOCKER_HUB_USERNAME=') | first |
+             default('DOCKER_HUB_USERNAME=') | regex_replace('^DOCKER_HUB_USERNAME=', '') }}
+        dockerhub_token: >-
+          {{ env_vars.stdout_lines | select('match', '^DOCKER_HUB_TOKEN=') | first |
+             default('DOCKER_HUB_TOKEN=') | regex_replace('^DOCKER_HUB_TOKEN=', '') }}
+      when: not dry_run_enabled and env_vars is defined
+
+    - name: Build private registry docker config
+      ansible.builtin.set_fact:
+        regcred_auth: "{{ (registry_username + ':' + registry_password) | b64encode }}"
+        regcred_config: >-
+          {{ {'auths': {registry_server: {'username': registry_username,
+              'password': registry_password, 'auth': regcred_auth}}} | to_json | b64encode }}
+      when:
+        - not dry_run_enabled
+        - registry_server | default('') | length > 0
+        - registry_username | default('') | length > 0
+        - registry_password | default('') | length > 0
+
+    - name: Create private registry secret (regcred)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: regcred
+            namespace: "{{ deploy_namespace }}"
+          type: kubernetes.io/dockerconfigjson
+          data:
+            .dockerconfigjson: "{{ regcred_config }}"
+      when:
+        - not dry_run_enabled
+        - regcred_config is defined
+
+    - name: Build Docker Hub docker config
+      ansible.builtin.set_fact:
+        dockerhub_auth: "{{ (dockerhub_username + ':' + dockerhub_token) | b64encode }}"
+        dockerhub_config: >-
+          {{ {'auths': {'https://index.docker.io/v1/': {'username': dockerhub_username,
+              'password': dockerhub_token, 'auth': dockerhub_auth}}} | to_json | b64encode }}
+      when:
+        - not dry_run_enabled
+        - dockerhub_username | default('') | length > 0
+        - dockerhub_token | default('') | length > 0
+
+    - name: Create Docker Hub registry secret (dockerhub-registry)
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: dockerhub-registry
+            namespace: "{{ deploy_namespace }}"
+          type: kubernetes.io/dockerconfigjson
+          data:
+            .dockerconfigjson: "{{ dockerhub_config }}"
+      when:
+        - not dry_run_enabled
+        - dockerhub_config is defined
+
+    - name: Wait for deployments rollout
+      ansible.builtin.command:
+        cmd: "kubectl rollout status deployment --all -n {{ deploy_namespace }} --timeout=5m"
+      register: rollout_status
+      changed_when: false
+      failed_when: false
+      when: not dry_run_enabled
+
+    - name: Get deployment status
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        namespace: "{{ deploy_namespace }}"
+      register: deployments
+      when: not dry_run_enabled and not ansible_check_mode
+
+    - name: Get pods status
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ deploy_namespace }}"
+      register: pods
+      when: not dry_run_enabled and not ansible_check_mode
+
+    - name: Deployment complete
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════╗"
+          - "║        ✓ Deployment Completed Successfully!           ║"
+          - "╚════════════════════════════════════════════════════════╝"
+          - ""
+          - "Project:      {{ project_name }}"
+          - "Environment:  {{ deploy_environment }}"
+          - "Namespace:    {{ deploy_namespace }}"
+          - ""
+          - "Status:"
+          - "  Deployments: {{ (deployments.resources | default([])) | length }}"
+          - "  Pods:        {{ (pods.resources | default([])) | length }}"
+          - "  Running:     {{ (pods.resources | default([])) | selectattr('status.phase', 'equalto', 'Running') | list | length }}"
+          - ""
+          - "Check status: kubectl get all -n {{ deploy_namespace }}"
+          - ""
+      when: not dry_run_enabled
+
+  post_tasks:
+    - name: Reminder about backup labels
+      ansible.builtin.debug:
+        msg:
+          - "IMPORTANT: Ensure your workloads have backup labels!"
+          - "Add 'backup.infra/enabled: true' and 'backup.infra/type: database|pvc' labels"
+          - "See docs/backup.md for details"

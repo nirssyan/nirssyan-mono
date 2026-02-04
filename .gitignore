@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+.rye/
+
+# Build artifacts
+*.exe
+*.out
+dist/
+build/
+.next/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Coverage
+coverage/
+.coverage
+htmlcov/
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Go
+vendor/
+
+# Python
+*.egg-info/
+*.egg
+
+# Secrets
+*.pem
+*.key
+secrets/
+credentials.json
+
+# Kubernetes
+kubeconfig
+*.kubeconfig

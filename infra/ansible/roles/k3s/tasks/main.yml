@@ -1,0 +1,17 @@
+---
+# k3s installation and configuration
+
+- name: Include installation tasks
+  ansible.builtin.include_tasks: "install_{{ k3s_mode }}.yml"
+
+- name: Include tools installation tasks (server only)
+  ansible.builtin.include_tasks: install_tools.yml
+  when: k3s_mode == 'server'
+
+- name: Include node configuration tasks
+  ansible.builtin.include_tasks: configure_node.yml
+  when: node_labels | length > 0 or node_taints | length > 0
+
+- name: Include kubeconfig tasks (server only)
+  ansible.builtin.include_tasks: configure_kubeconfig.yml
+  when: k3s_mode == 'server'

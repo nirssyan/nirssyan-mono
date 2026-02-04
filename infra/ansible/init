@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Quick wrapper for interactive project initialization
+
+cd "$(dirname "$0")"
+ansible-playbook -i inventory/hosts.yml playbooks/init-project.yml

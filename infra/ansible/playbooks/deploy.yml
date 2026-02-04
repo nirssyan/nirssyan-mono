@@ -1,0 +1,304 @@
+---
+# Interactive deployment playbook with project and environment selection
+# Usage:
+#   Interactive: ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml
+#   With vars:   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml -e "project_name=infatium environment=dev"
+#   With env:    PROJECT_NAME=infatium ENVIRONMENT=dev ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml
+
+- name: Deploy Project to Kubernetes
+  hosts: localhost
+  gather_facts: false
+
+  vars_prompt:
+    - name: project_name_input
+      prompt: |
+        ╔════════════════════════════════════════════════════════╗
+        ║          Kubernetes Deployment Manager                ║
+        ╚════════════════════════════════════════════════════════╝
+
+        Enter project name (or press Enter if using -e project_name)
+      private: false
+      default: ""
+
+    - name: environment_input
+      prompt: "Select environment (prod/dev, or press Enter if using -e environment)"
+      private: false
+      default: "dev"
+
+    - name: dry_run_input
+      prompt: "Dry-run mode? (preview changes without applying) (y/n)"
+      private: false
+      default: "n"
+
+  tasks:
+    - name: Get environment variables
+      ansible.builtin.set_fact:
+        env_project_name: "{{ lookup('env', 'PROJECT_NAME') }}"
+        env_environment: "{{ lookup('env', 'ENVIRONMENT') }}"
+
+    - name: Determine final project name
+      ansible.builtin.set_fact:
+        final_project_name: >-
+          {{
+            project_name if (project_name is defined and project_name | length > 0)
+            else (env_project_name if env_project_name | length > 0
+            else project_name_input)
+          }}
+
+    - name: Determine final environment
+      ansible.builtin.set_fact:
+        final_environment: >-
+          {{
+            environment if (environment is defined and environment | length > 0)
+            else (env_environment if env_environment | length > 0
+            else environment_input)
+          }}
+
+    - name: Set deployment variables
+      ansible.builtin.set_fact:
+        project_name: "{{ final_project_name }}"
+        deploy_environment: "{{ final_environment }}"
+        dry_run_mode: "{{ (dry_run_input | default('n')) | lower in ['y', 'yes'] }}"
+
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - project_name is defined and project_name | length > 0
+          - deploy_environment in ['prod', 'dev']
+        fail_msg: "PROJECT_NAME is required and ENVIRONMENT must be 'prod' or 'dev'"
+
+    - name: Set paths
+      ansible.builtin.set_fact:
+        overlay_path: "{{ playbook_dir }}/../projects/{{ project_name }}/overlays/{{ deploy_environment }}"
+        deploy_namespace: "{{ project_name }}-{{ deploy_environment }}"
+
+    - name: Check if project exists
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/../projects/{{ project_name }}"
+      register: project_stat
+
+    - name: List available projects if not found
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/../projects"
+        file_type: directory
+        excludes: ".gitkeep"
+      register: available_projects
+      when: not project_stat.stat.exists
+
+    - name: Project not found
+      ansible.builtin.fail:
+        msg: |
+          Project '{{ project_name }}' not found!
+
+          Available projects:
+          {% if available_projects.files | length > 0 %}
+          {{ available_projects.files | map(attribute='path') | map('basename') | list | join('\n') }}
+          {% else %}
+            (no projects found)
+          {% endif %}
+
+          Create new project:
+            cd ansible && ./init
+      when: not project_stat.stat.exists
+
+    - name: Check if overlay exists
+      ansible.builtin.stat:
+        path: "{{ overlay_path }}"
+      register: overlay_stat
+
+    - name: Overlay not found
+      ansible.builtin.fail:
+        msg: "Overlay not found: {{ overlay_path }}"
+      when: not overlay_stat.stat.exists
+
+    - name: Check if kustomization.yml exists
+      ansible.builtin.stat:
+        path: "{{ overlay_path }}/kustomization.yml"
+      register: kustomization_stat
+
+    - name: kustomization.yml not found
+      ansible.builtin.fail:
+        msg: "kustomization.yml not found in {{ overlay_path }}"
+      when: not kustomization_stat.stat.exists
+
+    - name: Deployment Configuration
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════╗"
+          - "║           Deployment Configuration                    ║"
+          - "╚════════════════════════════════════════════════════════╝"
+          - ""
+          - "Project:      {{ project_name }}"
+          - "Environment:  {{ deploy_environment }}"
+          - "Namespace:    {{ deploy_namespace }}"
+          - "Overlay:      {{ overlay_path }}"
+          - "Mode:         {{ 'DRY-RUN (preview only)' if dry_run_mode else 'APPLY (real deployment)' }}"
+          - ""
+
+    - name: Preview kustomize build
+      ansible.builtin.command:
+        cmd: "kubectl kustomize {{ overlay_path }}"
+      register: kustomize_preview
+      changed_when: false
+
+    - name: Count resources
+      ansible.builtin.set_fact:
+        resource_count: "{{ (kustomize_preview.stdout | regex_findall('kind:') | length) }}"
+
+    - name: Display preview summary
+      ansible.builtin.debug:
+        msg:
+          - "═══ Kustomize Preview ═══"
+          - ""
+          - "Total resources: {{ resource_count }}"
+          - ""
+
+    - name: Show preview (first 50 lines)
+      ansible.builtin.debug:
+        msg: "{{ kustomize_preview.stdout_lines[:50] }}"
+      when: dry_run_mode
+
+    - name: Confirm deployment
+      ansible.builtin.pause:
+        prompt: |
+
+          Ready to deploy {{ resource_count }} resources to {{ deploy_namespace }}
+
+          Press Enter to continue, Ctrl+C to abort
+      when: not dry_run_mode
+
+    - name: Apply manifests with kubectl
+      ansible.builtin.command:
+        cmd: "kubectl apply -k {{ overlay_path }}"
+      register: kubectl_apply
+      changed_when: true
+      when: not dry_run_mode
+
+    - name: Display apply results
+      ansible.builtin.debug:
+        msg: "{{ kubectl_apply.stdout_lines }}"
+      when: not dry_run_mode
+
+    - name: Wait for namespace to be active
+      ansible.builtin.command:
+        cmd: "kubectl get namespace {{ deploy_namespace }}"
+      register: ns_check
+      until: ns_check.rc == 0
+      retries: 10
+      delay: 2
+      changed_when: false
+      when: not dry_run_mode
+
+    - name: Get deployment names
+      ansible.builtin.command:
+        cmd: "kubectl get deployments -n {{ deploy_namespace }} -o jsonpath='{.items[*].metadata.name}'"
+      register: deployment_names
+      changed_when: false
+      failed_when: false
+      when: not dry_run_mode
+
+    - name: Wait for deployments rollout
+      ansible.builtin.command:
+        cmd: "kubectl rollout status deployment/{{ item }} -n {{ deploy_namespace }} --timeout=5m"
+      loop: "{{ deployment_names.stdout.split() }}"
+      register: rollout_status
+      changed_when: false
+      failed_when: false
+      when:
+        - not dry_run_mode
+        - deployment_names.stdout | length > 0
+
+    - name: Get pods
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ deploy_namespace }}"
+      register: pods
+      when: not dry_run_mode and not ansible_check_mode
+
+    - name: Get deployments
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        namespace: "{{ deploy_namespace }}"
+      register: deployments
+      when: not dry_run_mode and not ansible_check_mode
+
+    - name: Get statefulsets
+      kubernetes.core.k8s_info:
+        kind: StatefulSet
+        namespace: "{{ deploy_namespace }}"
+      register: statefulsets
+      when: not dry_run_mode and not ansible_check_mode
+
+    - name: Get services
+      kubernetes.core.k8s_info:
+        kind: Service
+        namespace: "{{ deploy_namespace }}"
+      register: services
+      when: not dry_run_mode and not ansible_check_mode
+
+    - name: Get ingresses
+      kubernetes.core.k8s_info:
+        kind: Ingress
+        namespace: "{{ deploy_namespace }}"
+      register: ingresses
+      when: not dry_run_mode and not ansible_check_mode
+
+    - name: Dry-run complete
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════╗"
+          - "║              Dry-Run Complete                         ║"
+          - "╚════════════════════════════════════════════════════════╝"
+          - ""
+          - "Preview shown above. No changes were applied."
+          - ""
+          - "To deploy for real:"
+          - "  ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml \\"
+          - "    -e 'project_name={{ project_name }}' \\"
+          - "    -e 'environment={{ deploy_environment }}' \\"
+          - "    -e 'dry_run_input=n'"
+          - ""
+      when: dry_run_mode
+
+    - name: Deployment complete
+      ansible.builtin.debug:
+        msg:
+          - ""
+          - "╔════════════════════════════════════════════════════════╗"
+          - "║        ✓ Deployment Completed Successfully!           ║"
+          - "╚════════════════════════════════════════════════════════╝"
+          - ""
+          - "Project:      {{ project_name }}"
+          - "Environment:  {{ deploy_environment }}"
+          - "Namespace:    {{ deploy_namespace }}"
+          - ""
+          - "═══ Resource Status ═══"
+          - ""
+          - "Deployments:   {{ (deployments.resources | default([])) | length }}"
+          - "  Ready:       {{ (deployments.resources | default([])) | selectattr('status.readyReplicas', 'defined') | list | length }}"
+          - ""
+          - "StatefulSets:  {{ (statefulsets.resources | default([])) | length }}"
+          - "  Ready:       {{ (statefulsets.resources | default([])) | selectattr('status.readyReplicas', 'defined') | list | length }}"
+          - ""
+          - "Pods:          {{ (pods.resources | default([])) | length }}"
+          - "  Running:     {{ (pods.resources | default([])) | selectattr('status.phase', 'equalto', 'Running') | list | length }}"
+          - "  Pending:     {{ (pods.resources | default([])) | selectattr('status.phase', 'equalto', 'Pending') | list | length }}"
+          - "  Failed:      {{ (pods.resources | default([])) | selectattr('status.phase', 'equalto', 'Failed') | list | length }}"
+          - ""
+          - "Services:      {{ (services.resources | default([])) | length }}"
+          - "Ingresses:     {{ (ingresses.resources | default([])) | length }}"
+          - ""
+          - "═══ Next Steps ═══"
+          - ""
+          - "Check status:"
+          - "  kubectl get all -n {{ deploy_namespace }}"
+          - ""
+          - "View logs:"
+          - "  kubectl logs -n {{ deploy_namespace }} -l app=<service-name> -f"
+          - ""
+          - "Access services:"
+          - "  kubectl get ingress -n {{ deploy_namespace }}"
+          - ""
+      when: not dry_run_mode

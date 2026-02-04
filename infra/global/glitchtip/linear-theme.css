@@ -1,0 +1,289 @@
+/* ===========================================
+   GlitchTip Linear Theme - MINIMAL VERSION
+   Only colors, fonts, basic cosmetics
+   NO structural changes
+   =========================================== */
+
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ============================================
+   CSS VARIABLES - LINEAR PALETTE
+   ============================================ */
+:root {
+  --linear-accent: #5E6AD2;
+  --linear-accent-hover: #4B55B0;
+  --linear-bg: #ffffff;
+  --linear-bg-secondary: #f9fafb;
+  --linear-bg-tertiary: #f3f4f6;
+  --linear-text: #1f2937;
+  --linear-text-secondary: #6b7280;
+  --linear-text-muted: #9ca3af;
+  --linear-border: #e5e7eb;
+  --linear-error: #ef4444;
+  --linear-warning: #f59e0b;
+  --linear-success: #10b981;
+}
+
+/* ============================================
+   FONTS
+   ============================================ */
+html, body, * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* Preserve Material Icons */
+.material-icons,
+mat-icon,
+.mat-icon {
+  font-family: 'Material Icons' !important;
+}
+
+/* ============================================
+   BASIC COLORS
+   ============================================ */
+body {
+  background: var(--linear-bg) !important;
+  color: var(--linear-text) !important;
+}
+
+/* Sidebar */
+.mat-sidenav,
+.mat-drawer,
+mat-sidenav {
+  background: var(--linear-bg-secondary) !important;
+  border-right: 1px solid var(--linear-border) !important;
+}
+
+/* Main content */
+.mat-sidenav-content,
+.mat-drawer-content {
+  background: var(--linear-bg) !important;
+}
+
+/* ============================================
+   PRIMARY BUTTONS - PURPLE ACCENT
+   ============================================ */
+.mat-raised-button[color="primary"],
+.mat-flat-button[color="primary"],
+.mat-mdc-raised-button[color="primary"],
+.mat-mdc-unelevated-button[color="primary"],
+button[color="primary"] {
+  background: var(--linear-accent) !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+.mat-raised-button[color="primary"]:hover,
+button[color="primary"]:hover {
+  background: var(--linear-accent-hover) !important;
+}
+
+/* Outlined/secondary buttons */
+.mat-stroked-button,
+.mat-mdc-outlined-button {
+  border-color: var(--linear-border) !important;
+  border-radius: 6px !important;
+}
+
+/* ============================================
+   LINKS
+   ============================================ */
+a {
+  color: var(--linear-text) !important;
+  text-decoration: none !important;
+}
+
+a:hover {
+  color: var(--linear-accent) !important;
+}
+
+/* Sidebar active link */
+.mdc-list-item--activated,
+.mat-mdc-list-item.mdc-list-item--activated {
+  background: rgba(94, 106, 210, 0.1) !important;
+}
+
+.mdc-list-item--activated .mdc-list-item__primary-text {
+  color: var(--linear-accent) !important;
+}
+
+/* ============================================
+   CARDS
+   ============================================ */
+.mat-card,
+.mat-mdc-card {
+  border: 1px solid var(--linear-border) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+/* ============================================
+   FORM FIELDS
+   ============================================ */
+.mat-mdc-form-field {
+  --mdc-outlined-text-field-outline-color: var(--linear-border);
+  --mdc-outlined-text-field-focus-outline-color: var(--linear-accent);
+  --mdc-outlined-text-field-hover-outline-color: var(--linear-accent);
+}
+
+/* ============================================
+   TABLES
+   ============================================ */
+.mat-mdc-row:hover,
+tr:hover {
+  background: var(--linear-bg-secondary) !important;
+}
+
+.mat-mdc-header-cell {
+  color: var(--linear-text-secondary) !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* ============================================
+   LEVEL INDICATORS - LEFT BORDER ON ROW
+   ============================================ */
+
+/* Reset any background on level cells */
+.level--error,
+.level--warning,
+.level--info,
+[class*="level--"] {
+  background: transparent !important;
+}
+
+/* Apply border to the parent row via :has() */
+.mat-mdc-row:has(.level--error),
+tr:has(.level--error) {
+  border-left: 4px solid var(--linear-error) !important;
+}
+
+.mat-mdc-row:has(.level--warning),
+tr:has(.level--warning) {
+  border-left: 4px solid var(--linear-warning) !important;
+}
+
+.mat-mdc-row:has(.level--info),
+tr:has(.level--info) {
+  border-left: 4px solid var(--linear-accent) !important;
+}
+
+/* ============================================
+   METADATA / TIMESTAMPS
+   ============================================ */
+.mat-caption,
+small,
+time,
+.text-muted {
+  color: var(--linear-text-muted) !important;
+}
+
+/* ============================================
+   CHIPS
+   ============================================ */
+.mat-mdc-chip {
+  background: var(--linear-bg-tertiary) !important;
+  border-radius: 6px !important;
+}
+
+/* ============================================
+   SELECT / DROPDOWN
+   ============================================ */
+.mat-mdc-select-panel {
+  border: 1px solid var(--linear-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+/* ============================================
+   DIALOGS
+   ============================================ */
+.mat-mdc-dialog-surface {
+  border-radius: 12px !important;
+}
+
+/* ============================================
+   TABS
+   ============================================ */
+.mat-mdc-tab:not(.mdc-tab--active) {
+  color: var(--linear-text-secondary) !important;
+}
+
+.mdc-tab-indicator__content--underline {
+  border-color: var(--linear-accent) !important;
+}
+
+/* ============================================
+   CHECKBOX
+   ============================================ */
+.mdc-checkbox--selected .mdc-checkbox__background {
+  background-color: var(--linear-accent) !important;
+  border-color: var(--linear-accent) !important;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--linear-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--linear-text-muted);
+}
+
+/* ============================================
+   CODE BLOCKS
+   ============================================ */
+pre, code {
+  font-family: 'SF Mono', Monaco, Consolas, monospace !important;
+  background: var(--linear-bg-tertiary) !important;
+  border: 1px solid var(--linear-border) !important;
+  border-radius: 6px !important;
+}
+
+/* ============================================
+   PAGINATION
+   ============================================ */
+.mat-mdc-paginator {
+  background: transparent !important;
+}
+
+/* ============================================
+   EXPANSION PANEL
+   ============================================ */
+.mat-expansion-panel {
+  border: 1px solid var(--linear-border) !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
+/* ============================================
+   TOOLTIP
+   ============================================ */
+.mat-mdc-tooltip {
+  background: var(--linear-text) !important;
+  border-radius: 6px !important;
+}
+
+/* ============================================
+   SNACKBAR
+   ============================================ */
+.mat-mdc-snack-bar-container {
+  background: var(--linear-text) !important;
+  border-radius: 8px !important;
+}

@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - postgres
+  - nats
+  - redis
+  # Python services
+  - worker-agents-python
+  # - app-integrations-python  # disabled - replaced by app-integrations-go
+  # Go services
+  - app-api-go
+  - worker-processor-go
+  - worker-poller-go
+  - app-registry-go
+  - app-integrations-go
+  - app-auth-go
+  # TypeScript services
+  - app-landing-typescript
+  # Disabled Python services (replaced by Go)
+  # - app-api-python        # replaced by app-api-go
+  # - worker-processor-python  # replaced by worker-processor-go
+  # - worker-telegram-python  # replaced by worker-poller-go
+  # - worker-rss-python       # replaced by worker-poller-go
+  # - worker-web-python       # replaced by worker-poller-go
+  # worker-bot-python moved to prod overlay only (uses same Telegram token)

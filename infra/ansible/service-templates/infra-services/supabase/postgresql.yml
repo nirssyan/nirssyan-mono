@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: supabase-postgres-data
+  labels:
+    app: supabase-postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: supabase-postgres
+  labels:
+    app: supabase-postgres
+    service-type: infra
+spec:
+  serviceName: supabase-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supabase-postgres
+  template:
+    metadata:
+      labels:
+        app: supabase-postgres
+        backup.infra/enabled: "true"
+        backup.infra/type: "database"
+        backup.infra/db-type: "postgresql"
+    spec:
+      containers:
+        - name: postgres
+          image: supabase/postgres:15.1.0.147
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: postgres
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: supabase-postgres-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supabase-postgres
+  labels:
+    app: supabase-postgres
+spec:
+  selector:
+    app: supabase-postgres
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

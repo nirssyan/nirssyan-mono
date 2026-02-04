@@ -1,0 +1,108 @@
+# Traefik Helm values
+# Chart: traefik/traefik
+# Docs: https://doc.traefik.io/traefik/
+
+# CrowdSec Bouncer Plugin
+experimental:
+  plugins:
+    crowdsec-bouncer:
+      moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+      version: v1.3.5
+
+deployment:
+  kind: Deployment
+  replicas: 1
+  imagePullSecrets:
+    - name: dockerhub-registry
+
+tolerations:
+  - key: node-role
+    operator: Equal
+    value: infra
+    effect: NoSchedule
+
+service:
+  type: LoadBalancer
+  spec:
+    externalTrafficPolicy: Local
+  annotations:
+    metallb.universe.tf/address-pool: external
+
+ports:
+  web:
+    port: 80
+    expose:
+      default: true
+    redirections:
+      entryPoint:
+        to: websecure
+        scheme: https
+        permanent: true
+    http:
+      encodedCharacters:
+        allowEncodedSlash: true
+        allowEncodedQuestionMark: true
+  websecure:
+    port: 443
+    expose:
+      default: true
+    http:
+      encodedCharacters:
+        allowEncodedSlash: true
+        allowEncodedQuestionMark: true
+
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+
+providers:
+  kubernetesCRD:
+    enabled: true
+  kubernetesIngress:
+    enabled: true
+
+rbac:
+  enabled: true
+
+extraObjects:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: traefik-legacy-crds
+    rules:
+      - apiGroups:
+          - traefik.containo.us
+        resources:
+          - ingressroutes
+          - ingressroutetcps
+          - ingressrouteudps
+          - middlewares
+          - middlewaretcps
+          - serverstransports
+          - tlsoptions
+          - tlsstores
+          - traefikservices
+        verbs:
+          - get
+          - list
+          - watch
+      - apiGroups:
+          - ""
+        resources:
+          - endpoints
+        verbs:
+          - get
+          - list
+          - watch
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: traefik-legacy-crds
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: traefik-legacy-crds
+    subjects:
+      - kind: ServiceAccount
+        name: traefik
+        namespace: infrastructure

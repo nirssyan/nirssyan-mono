@@ -1,0 +1,21 @@
+---
+# Apps node specific configuration
+node_type: apps
+node_role: apps
+
+# k3s configuration for apps
+k3s_mode: agent
+
+# Node taints (dynamic based on product_name)
+node_taints:
+  - key: product
+    value: "{{ product_name }}"
+    effect: NoSchedule
+
+# Node labels
+node_labels:
+  product: "{{ product_name }}"
+  node-role: apps
+
+# Monitoring
+deploy_grafana_agent: true

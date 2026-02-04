@@ -1,0 +1,101 @@
+# Loki Helm values
+# Chart: grafana/loki
+# Docs: https://grafana.com/docs/loki/latest/setup/install/helm/
+
+loki:
+  auth_enabled: false
+
+  commonConfig:
+    replication_factor: 1
+
+  limits_config:
+    volume_enabled: true
+
+  storage:
+    type: filesystem
+
+  schemaConfig:
+    configs:
+      - from: 2024-01-01
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+
+  nodeSelector:
+    node-role: infra
+
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Disable components not needed in single binary mode
+read:
+  replicas: 0
+
+write:
+  replicas: 0
+
+backend:
+  replicas: 0
+
+# Gateway (nginx) - disabled for SingleBinary mode
+gateway:
+  enabled: false
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3100
+
+# Monitoring
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+
+# Disable test resources
+test:
+  enabled: false
+
+# Cache settings (reduced for small cluster)
+chunksCache:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+resultsCache:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      memory: 128Mi
+    limits:
+      memory: 256Mi

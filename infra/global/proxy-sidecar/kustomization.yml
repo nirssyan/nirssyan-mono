@@ -1,0 +1,64 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  # Add iptables init container
+  - target:
+      kind: Deployment
+      labelSelector: proxy-sidecar=enabled
+    patch: |
+      - op: add
+        path: /spec/template/spec/initContainers
+        value:
+          - name: iptables-init
+            image: alpine:3.19
+            command: ["sh", "-c"]
+            args:
+              - |
+                apk add --no-cache iptables
+                for ip in $(getent ahostsv4 openrouter.ai | awk '{print $1}' | sort -u); do
+                  echo "Redirecting $ip:443 -> :12345"
+                  iptables -t nat -A OUTPUT -p tcp -d "$ip" --dport 443 -j REDIRECT --to-port 12345
+                done
+                iptables -t nat -L -n -v
+            securityContext:
+              capabilities:
+                add: [NET_ADMIN, NET_RAW]
+              runAsUser: 0
+
+  # Add gost proxy sidecar
+  - target:
+      kind: Deployment
+      labelSelector: proxy-sidecar=enabled
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/-
+        value:
+          name: gost-proxy
+          image: gogost/gost:3.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - "exec /bin/gost -L=tcp://:12345/openrouter.ai:443 -F=$PROXY_URL >/dev/null 2>&1"
+          env:
+            - name: PROXY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: proxy-credentials
+                  key: HTTPS_PROXY
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            tcpSocket:
+              port: 12345
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 12345
+            initialDelaySeconds: 2
+            periodSeconds: 5

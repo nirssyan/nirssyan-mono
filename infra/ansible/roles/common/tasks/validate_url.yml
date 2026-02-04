@@ -1,0 +1,12 @@
+---
+# Validate URL format
+# Required vars: url_to_validate
+
+- name: Validate URL format
+  ansible.builtin.assert:
+    that:
+      - url_to_validate is defined
+      - url_to_validate | length > 0
+      - url_to_validate is match('^https?://')
+    fail_msg: "Invalid URL format: {{ url_to_validate }}. Must start with http:// or https://"
+    success_msg: "URL validation passed: {{ url_to_validate }}"

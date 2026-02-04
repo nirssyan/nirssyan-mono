@@ -1,0 +1,216 @@
+---
+# Verify metrics collection is working correctly
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/verify-metrics.yml
+# This playbook checks metrics-server, Prometheus scraping, and kubectl top commands
+
+- name: Verify Metrics Collection
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  vars:
+    kubeconfig_path: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
+
+  tasks:
+    - name: Check KUBECONFIG exists
+      ansible.builtin.stat:
+        path: "{{ kubeconfig_path }}"
+      register: kubeconfig_check
+      failed_when: not kubeconfig_check.stat.exists
+
+    # ============================================================
+    # Step 1: Verify metrics-server deployment
+    # ============================================================
+    - name: Check metrics-server deployment exists
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: metrics-server
+        namespace: kube-system
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metrics_server_deployment
+      when: not ansible_check_mode
+
+    - name: Check metrics-server pods are running
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: kube-system
+        label_selectors:
+          - k8s-app=metrics-server
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metrics_server_pods
+      when: not ansible_check_mode
+
+    - name: Display metrics-server status
+      ansible.builtin.debug:
+        msg:
+          - "Metrics-server deployment: {{ 'Found' if (metrics_server_deployment.resources | default([])) | length > 0 else 'NOT FOUND' }}"
+          - "Metrics-server pods running: {{ (metrics_server_pods.resources | default([])) | length }}"
+          - >-
+            Pod status:
+            {% if (metrics_server_pods.resources | default([])) | length > 0 %}
+            {{ metrics_server_pods.resources | map(attribute='status.phase') | list }}
+            {% else %}
+            No pods
+            {% endif %}
+
+    # ============================================================
+    # Step 2: Verify metrics API endpoint
+    # ============================================================
+    - name: Test metrics API endpoint (nodes)
+      ansible.builtin.command:
+        cmd: kubectl get --raw /apis/metrics.k8s.io/v1beta1/nodes
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metrics_api_nodes
+      changed_when: false
+      failed_when: false
+
+    - name: Test metrics API endpoint (pods)
+      ansible.builtin.command:
+        cmd: kubectl get --raw /apis/metrics.k8s.io/v1beta1/pods
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: metrics_api_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Display metrics API status
+      ansible.builtin.debug:
+        msg:
+          - "Metrics API (nodes): {{ 'Available' if metrics_api_nodes.rc == 0 else 'NOT AVAILABLE' }}"
+          - "Metrics API (pods): {{ 'Available' if metrics_api_pods.rc == 0 else 'NOT AVAILABLE' }}"
+
+    # ============================================================
+    # Step 3: Test kubectl top commands
+    # ============================================================
+    - name: Test kubectl top nodes
+      ansible.builtin.command:
+        cmd: kubectl top nodes
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: kubectl_top_nodes
+      changed_when: false
+      failed_when: false
+
+    - name: Test kubectl top pods (all namespaces)
+      ansible.builtin.command:
+        cmd: kubectl top pods -A
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: kubectl_top_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Display kubectl top output
+      ansible.builtin.debug:
+        msg:
+          - "kubectl top nodes:"
+          - "{{ kubectl_top_nodes.stdout_lines if kubectl_top_nodes.rc == 0 else 'FAILED: ' + kubectl_top_nodes.stderr }}"
+          - ""
+          - "kubectl top pods (first 10 lines):"
+          - "{{ kubectl_top_pods.stdout_lines[:10] if kubectl_top_pods.rc == 0 else 'FAILED: ' + kubectl_top_pods.stderr }}"
+
+    # ============================================================
+    # Step 4: Check Prometheus is scraping metrics
+    # ============================================================
+    - name: Check Prometheus deployment exists
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: prometheus
+        namespace: infrastructure
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: prometheus_deployment
+      when: not ansible_check_mode
+
+    - name: Get Prometheus pod name
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: infrastructure
+        label_selectors:
+          - app=prometheus
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: prometheus_pods
+      when: not ansible_check_mode and (prometheus_deployment.resources | default([]) | length > 0)
+
+    - name: Check Prometheus targets (via API)
+      ansible.builtin.command:
+        cmd: kubectl exec -n infrastructure {{ prometheus_pods.resources[0].metadata.name }} -- wget -qO- http://localhost:9090/api/v1/targets
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: prometheus_targets
+      changed_when: false
+      failed_when: false
+      when:
+        - (prometheus_deployment.resources | default([])) | length > 0
+        - (prometheus_pods.resources | default([])) | length > 0
+
+    - name: Display Prometheus status
+      ansible.builtin.debug:
+        msg:
+          - >-
+            Prometheus deployment:
+            {{ 'Found' if (prometheus_deployment.resources | default([])) | length > 0 else 'NOT FOUND' }}
+          - "Prometheus pods running: {{ (prometheus_pods.resources | default([])) | length }}"
+          - >-
+            Targets check:
+            {{ 'Success' if (prometheus_targets is defined and prometheus_targets.rc is defined
+            and prometheus_targets.rc == 0) else 'Failed'
+            if (prometheus_targets is defined and prometheus_targets.rc is defined
+            and prometheus_targets.rc != 0) else 'Skipped' }}
+      when: not ansible_check_mode
+
+    # ============================================================
+    # Step 5: Summary
+    # ============================================================
+    - name: Metrics verification summary
+      ansible.builtin.debug:
+        msg:
+          - "================================"
+          - "METRICS VERIFICATION SUMMARY"
+          - "================================"
+          - ""
+          - "✓ Metrics-server:"
+          - "  - Deployment: {{ 'OK' if metrics_server_deployment.resources | length > 0 else 'MISSING' }}"
+          - "  - Pods running: {{ metrics_server_pods.resources | length }}"
+          - >-
+            - Status:
+            {% if metrics_server_pods.resources | length > 0 and metrics_server_pods.resources[0].status.phase == 'Running' %}
+            READY
+            {% else %}
+            NOT READY
+            {% endif %}
+          - ""
+          - "✓ Metrics API:"
+          - "  - Nodes endpoint: {{ 'OK' if metrics_api_nodes.rc == 0 else 'FAILED' }}"
+          - "  - Pods endpoint: {{ 'OK' if metrics_api_pods.rc == 0 else 'FAILED' }}"
+          - ""
+          - "✓ kubectl top:"
+          - "  - kubectl top nodes: {{ 'OK' if kubectl_top_nodes.rc == 0 else 'FAILED' }}"
+          - "  - kubectl top pods: {{ 'OK' if kubectl_top_pods.rc == 0 else 'FAILED' }}"
+          - ""
+          - "✓ Prometheus:"
+          - "  - Deployment: {{ 'OK' if (prometheus_deployment.resources | default([])) | length > 0 else 'MISSING' }}"
+          - "  - Scraping targets: {{ 'OK' if prometheus_targets is defined and prometheus_targets.rc == 0 else 'CHECK MANUALLY' }}"
+          - ""
+          - "✓ Lens IDE:"
+          - "  - Expected status: {{ 'CPU/Memory should be visible' if metrics_api_nodes.rc == 0 else 'Will show N/A (metrics API not available)' }}"
+          - ""
+          - "Next steps:"
+          - "  - If metrics-server is not ready, wait 1-2 minutes for it to collect data"
+          - "  - If Prometheus targets failed, check: kubectl exec -n infrastructure <prometheus-pod> -- wget -qO- http://localhost:9090/targets"
+          - "  - If Lens still shows N/A after metrics API is OK, restart Lens IDE"
+          - "  - View Grafana dashboards: https://grafana.<your-domain>/d/kubernetes-cluster-overview"
+      when: not ansible_check_mode
+
+    - name: Fail if critical checks failed
+      ansible.builtin.fail:
+        msg: "Metrics verification failed. Check the summary above for details."
+      when:
+        - not ansible_check_mode
+        - metrics_server_deployment.resources | length == 0 or
+          metrics_api_nodes.rc != 0 or
+          kubectl_top_nodes.rc != 0

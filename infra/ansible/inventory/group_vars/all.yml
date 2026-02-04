@@ -1,0 +1,28 @@
+---
+# Global configuration
+team_name: nirssyan
+version: "2.1.0"
+
+# Cluster naming
+cluster_name: "{{ lookup('env', 'CLUSTER_NAME') | default(team_name + '-infra', true) }}"
+
+# Domains (from .env)
+infra_domain: "{{ lookup('env', 'INFRA_DOMAIN') | default('infra.example.com', true) }}"
+registry_domain: "{{ lookup('env', 'REGISTRY_DOMAIN') | default('registry.' + infra_domain, true) }}"
+grafana_domain: "{{ lookup('env', 'GRAFANA_DOMAIN') | default('grafana.' + infra_domain, true) }}"
+n8n_domain: "{{ lookup('env', 'N8N_DOMAIN') | default('n8n.' + infra_domain, true) }}"
+
+# Docker Hub (for registry setup)
+docker_hub_username: "{{ lookup('env', 'DOCKER_HUB_USERNAME') }}"
+docker_hub_token: "{{ lookup('env', 'DOCKER_HUB_TOKEN') }}"
+
+# MetalLB
+metallb_ip_range: "{{ lookup('env', 'METALLB_IP_RANGE') | default('192.168.1.240-192.168.1.250') }}"
+
+# ACME (cert-manager)
+acme_email: "{{ lookup('env', 'ACME_EMAIL') }}"
+
+# k3s
+k3s_version: "{{ lookup('env', 'K3S_VERSION') | default('latest') }}"
+k3s_token: "{{ lookup('env', 'K3S_TOKEN') }}"
+k3s_url: "{{ lookup('env', 'K3S_URL') }}"

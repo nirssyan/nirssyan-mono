@@ -1,0 +1,24 @@
+---
+# Generate secure random hex key
+# Required vars: key_var_name
+# Optional vars: key_bytes (default: 32)
+
+- name: Set key bytes length
+  ansible.builtin.set_fact:
+    _key_bytes: "{{ key_bytes | default(32) }}"
+
+- name: Generate random hex key
+  ansible.builtin.command:
+    cmd: openssl rand -hex {{ _key_bytes }}
+  register: _hex_key_result
+  delegate_to: localhost
+  become: false
+  changed_when: false
+
+- name: Set hex key variable
+  ansible.builtin.set_fact:
+    "{{ key_var_name }}": "{{ _hex_key_result.stdout }}"
+
+- name: Hex key generated
+  ansible.builtin.debug:
+    msg: "Generated hex key for {{ key_var_name }} ({{ _key_bytes }} bytes = {{ (_key_bytes | int) * 2 }} hex chars)"

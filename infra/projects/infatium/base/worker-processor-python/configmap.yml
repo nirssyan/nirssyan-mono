@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-processor-python-config
+data:
+  NATS_URL: "nats://nats:4222"
+  DATABASE_URL: "postgresql+asyncpg://makefeed:makefeed@postgres:5432/makefeed"
+  NATS_CONSUMER_ENABLED: "true"
+  CONSUMER_BATCH_SIZE: "10"
+  CONSUMER_ACK_WAIT_SECONDS: "60"
+  OTEL_ENABLED: "true"
+  OTEL_SERVICE_NAME: "makefeed-processor"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo.infrastructure.svc.cluster.local:4317"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  OTEL_EXPORTER_OTLP_INSECURE: "true"
+  OTEL_PROMETHEUS_PORT: "9464"
+  OTEL_DEPLOYMENT_ENVIRONMENT: "production"

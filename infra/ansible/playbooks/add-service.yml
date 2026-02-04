@@ -1,0 +1,54 @@
+---
+# Add service to existing project
+# Usage: ansible-playbook -i inventory/hosts.yml playbooks/add-service.yml
+# Required env: PROJECT_NAME, SERVICE_NAME, SERVICE_TYPE
+
+- name: Add Service to Project
+  hosts: localhost
+  gather_facts: false
+  vars:
+    project_name: "{{ lookup('env', 'PROJECT_NAME') }}"
+    service_name: "{{ lookup('env', 'SERVICE_NAME') }}"
+    service_type: "{{ lookup('env', 'SERVICE_TYPE') }}"
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - project_name is defined and project_name | length > 0
+          - service_name is defined and service_name | length > 0
+          - service_type is defined and service_type | length > 0
+        fail_msg: "PROJECT_NAME, SERVICE_NAME, and SERVICE_TYPE environment variables are required"
+
+    - name: Create project structure (if needed)
+      ansible.builtin.include_role:
+        name: kustomize_generator
+        tasks_from: create_project_structure.yml
+
+    - name: Add service to project
+      ansible.builtin.include_role:
+        name: kustomize_generator
+        tasks_from: add_service.yml
+
+    - name: Update base kustomization.yml
+      ansible.builtin.include_role:
+        name: kustomize_generator
+        tasks_from: update_kustomization.yml
+      vars:
+        kustomization_file_path: "{{ playbook_dir }}/../projects/{{ project_name }}/base/kustomization.yml"
+
+    - name: Service addition complete
+      ansible.builtin.debug:
+        msg:
+          - "✓ Service {{ service_name }} ({{ service_type }}) added to {{ project_name }}"
+          - ""
+          - "Generated:"
+          - "  - Kubernetes manifests in projects/{{ project_name }}/base/{{ service_name }}/"
+          - "  - Kubernetes Secret template for service configuration"
+          - ""
+          - "Next steps:"
+          - "1. Review generated files in projects/{{ project_name }}/base/{{ service_name }}/"
+          - "2. Update overlay-specific settings in projects/{{ project_name }}/overlays/*/{{ service_name }}/"
+          - "3. Add secrets to Kubernetes Secret: kubectl edit secret {{ service_name }}-secrets -n {{ project_name }}-prod"
+          - "4. Build and push Docker image to {{ registry_domain }}/{{ project_name }}/{{ service_name }}"
+          - "5. Deploy: ansible-playbook -i inventory/hosts.yml playbooks/deploy-project.yml"

@@ -1,0 +1,16 @@
+---
+# Generate secure random token (hex format)
+# Required vars: token_var_name
+# Optional vars: token_length (default: 64)
+
+- name: Set token length
+  ansible.builtin.set_fact:
+    _token_length: "{{ token_length | default(default_token_length) }}"
+
+- name: Generate random token
+  ansible.builtin.set_fact:
+    "{{ token_var_name }}": "{{ lookup('community.general.random_string', length=_token_length | int, base64=true) }}"
+
+- name: Token generated
+  ansible.builtin.debug:
+    msg: "Generated token for {{ token_var_name }} (length: {{ _token_length }})"

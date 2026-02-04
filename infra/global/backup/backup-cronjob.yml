@@ -1,0 +1,108 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup
+  namespace: infrastructure
+  labels:
+    app: backup
+spec:
+  suspend: true  # Временно отключено - DiskPressure на ноде
+  schedule: "0 3 * * *"  # 03:00 daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: backup
+        spec:
+          serviceAccountName: backup-sa
+          restartPolicy: OnFailure
+          hostPID: true
+          nodeSelector:
+            node-role: infra
+          tolerations:
+            - key: node-role
+              operator: Equal
+              value: infra
+              effect: NoSchedule
+          imagePullSecrets:
+            - name: docker-registry-creds
+          containers:
+            - name: backup
+              image: alpine:3.19
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  apk add --no-cache bash curl tar gzip zstd findutils age rclone util-linux jq >/dev/null 2>&1
+                  curl -sLO "https://dl.k8s.io/release/v1.28.5/bin/linux/amd64/kubectl"
+                  chmod +x kubectl && mv kubectl /usr/local/bin/
+                  /bin/bash /scripts/backup.sh
+              securityContext:
+                privileged: true
+              env:
+                - name: RETENTION_DAYS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: retention-days
+                - name: TEAM_NAME
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: team-name
+                - name: YANDEX_DISK_REMOTE
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: yandex-disk-remote
+                - name: AGE_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-encryption-key
+                      key: age-secret-key
+                      optional: true
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+                - name: scripts
+                  mountPath: /scripts
+                - name: rclone-config
+                  mountPath: /root/.config/rclone
+                  readOnly: true
+                - name: metrics
+                  mountPath: /var/lib/node_exporter/textfile_collector
+                - name: host-root
+                  mountPath: /host
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 2000m
+                  memory: 2Gi
+          volumes:
+            - name: backup-storage
+              hostPath:
+                path: /var/backups/kubernetes
+                type: DirectoryOrCreate
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0755
+            - name: rclone-config
+              secret:
+                secretName: rclone-config
+                optional: true
+            - name: metrics
+              hostPath:
+                path: /var/lib/node_exporter/textfile_collector
+                type: DirectoryOrCreate
+            - name: host-root
+              hostPath:
+                path: /
+                type: Directory

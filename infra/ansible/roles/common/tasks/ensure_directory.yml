@@ -1,0 +1,12 @@
+---
+# Ensure directory exists with proper permissions
+# Required vars: directory_path
+# Optional vars: directory_mode, directory_owner, directory_group
+
+- name: Ensure directory exists
+  ansible.builtin.file:
+    path: "{{ directory_path }}"
+    state: directory
+    mode: "{{ directory_mode | default(create_directories_mode) }}"
+    owner: "{{ directory_owner | default(omit) }}"
+    group: "{{ directory_group | default(omit) }}"

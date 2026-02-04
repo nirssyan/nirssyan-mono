@@ -1,0 +1,145 @@
+---
+# List and verify available backups
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/list-backups.yml
+
+- name: List and Verify Backups
+  hosts: infra_nodes
+  gather_facts: true
+  vars:
+    backup_base_dir: "/var/backups/kubernetes"
+    yandex_disk_remote: "ydisk"
+    team_name: "nirssyan"
+
+  tasks:
+    # ─────────────────────────────────────────────────────────────────
+    # Collect data silently
+    # ─────────────────────────────────────────────────────────────────
+    - name: Find local backup archives
+      ansible.builtin.find:
+        paths: "{{ backup_base_dir }}"
+        patterns:
+          - "backup-*.tar.zst"
+          - "backup-*.tar.zst.age"
+          - "backup-*.tar.gz"
+          - "backup-*.tar.gz.age"
+        file_type: file
+      register: local_backups
+
+    - name: Check backup contents
+      ansible.builtin.shell: |
+        FILE="{{ item.path }}"
+        if [[ "$FILE" == *.age ]]; then
+          echo "ENCRYPTED"
+        elif [[ "$FILE" == *.zst ]]; then
+          if zstd -d -c "$FILE" 2>/dev/null | tar -tf - > /dev/null 2>&1; then
+            echo "OK"
+          else
+            echo "CORRUPTED"
+          fi
+        else
+          if tar -tzf "$FILE" > /dev/null 2>&1; then
+            echo "OK"
+          else
+            echo "CORRUPTED"
+          fi
+        fi
+      args:
+        executable: /bin/bash
+      loop: "{{ local_backups.files | sort(attribute='mtime', reverse=true) }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      register: backup_analysis
+      changed_when: false
+      when: local_backups.files | length > 0
+
+    - name: Check rclone configuration
+      ansible.builtin.command:
+        cmd: rclone listremotes
+      register: rclone_remotes
+      changed_when: false
+      failed_when: false
+
+    - name: List Yandex Disk backups
+      ansible.builtin.shell: |
+        rclone lsl "{{ yandex_disk_remote }}:/{{ team_name }} Backups" \
+          --include "*.tar.zst*" 2>/dev/null | \
+          awk '{printf "%10.1f MB  %s %s  %s\n", $1/1024/1024, $2, substr($3,1,8), $4}' | \
+          sort -k2,3 -r | head -10
+      args:
+        executable: /bin/bash
+      register: ydisk_backups
+      changed_when: false
+      failed_when: false
+      when: rclone_remotes.rc == 0 and yandex_disk_remote in rclone_remotes.stdout
+
+  post_tasks:
+    - name: Display backup report
+      vars:
+        local_backup_lines: |-
+          {% if local_backups.files | length > 0 %}
+          {% for result in backup_analysis.results %}
+          {% set file = result.item %}
+          {% set name = file.path | basename %}
+          {% set size_mb = (file.size / 1024 / 1024) | round(1) %}
+          {% set date = '%Y-%m-%d %H:%M' | strftime(file.mtime) %}
+          {% set status = result.stdout | default('UNKNOWN') %}
+          {% if status == 'ENCRYPTED' %}
+          {% set icon = '🔒' %}
+          {% elif status == 'CORRUPTED' %}
+          {% set icon = '❌' %}
+          {% else %}
+          {% set icon = '✓' %}
+          {% endif %}
+           {{ '%2d' | format(loop.index) }}. {{ name }}
+               {{ size_mb }} MB | {{ date }} | {{ icon }} {{ status }}
+          {% endfor %}
+          {% else %}
+          No local backups found
+          {% endif %}
+        total_size_mb: "{{ (local_backups.files | map(attribute='size') | sum / 1024 / 1024) | round(1) if local_backups.files | length > 0 else 0 }}"
+        ydisk_lines: |-
+          {% if ydisk_backups.stdout_lines | default([]) | length > 0 %}
+          {% for line in ydisk_backups.stdout_lines %}
+          {{ line }}
+          {% endfor %}
+          {% else %}
+          No remote backups found
+          {% endif %}
+        ydisk_configured: "{{ rclone_remotes.rc == 0 and yandex_disk_remote in rclone_remotes.stdout }}"
+      ansible.builtin.shell:
+        cmd: |
+          cat << 'REPORT'
+
+          ╔══════════════════════════════════════════════════════════════════════════════╗
+          ║                              BACKUP REPORT                                   ║
+          ╚══════════════════════════════════════════════════════════════════════════════╝
+
+          📁 LOCAL BACKUPS ({{ backup_base_dir }})
+          ──────────────────────────────────────────────────────────────────────────────
+          {{ local_backup_lines }}
+          ──────────────────────────────────────────────────────────────────────────────
+          Total: {{ local_backups.files | length }} backup(s), {{ total_size_mb }} MB
+
+          ☁️  YANDEX DISK (/{{ team_name }} Backups)
+          ──────────────────────────────────────────────────────────────────────────────
+          {% if ydisk_configured %}
+          {{ ydisk_lines }}
+          {% else %}
+          ⚠️  Not configured (rclone remote '{{ yandex_disk_remote }}' not found)
+          {% endif %}
+          ──────────────────────────────────────────────────────────────────────────────
+
+          💡 COMMANDS
+          ──────────────────────────────────────────────────────────────────────────────
+          Create backup:  ansible-playbook playbooks/backups/backup.yml
+          Restore:        ansible-playbook playbooks/backups/restore.yml
+          ──────────────────────────────────────────────────────────────────────────────
+          REPORT
+      register: report_output
+      delegate_to: localhost
+      changed_when: false
+
+    - name: Show report
+      ansible.builtin.debug:
+        msg: "{{ report_output.stdout_lines }}"

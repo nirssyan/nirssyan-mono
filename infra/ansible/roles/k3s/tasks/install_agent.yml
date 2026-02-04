@@ -1,0 +1,57 @@
+---
+# Install k3s in agent mode
+
+- name: Validate required variables for agent mode
+  ansible.builtin.assert:
+    that:
+      - k3s_server_url is defined
+      - k3s_server_url | length > 0
+      - k3s_token is defined
+      - k3s_token | length > 0
+    fail_msg: "k3s agent requires K3S_URL and K3S_TOKEN environment variables"
+
+- name: Check if k3s is already installed (agent)
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Check if k3s-agent service is running
+  ansible.builtin.systemd:
+    name: "{{ k3s_service_name_agent }}"
+  register: k3s_service
+  failed_when: false
+  when: k3s_binary.stat.exists
+
+- name: k3s already installed
+  ansible.builtin.debug:
+    msg: "k3s agent is already installed and running (idempotent - skipping installation)"
+  when:
+    - k3s_binary.stat.exists
+    - k3s_service.status.ActiveState is defined
+    - k3s_service.status.ActiveState == 'active'
+
+- name: Install k3s agent  # noqa: command-instead-of-module
+  ansible.builtin.shell: |
+    curl -sfL {{ k3s_install_script_url }} | K3S_URL={{ k3s_server_url }} K3S_TOKEN={{ k3s_token }} sh -s - agent \
+      --kubelet-arg=image-gc-high-threshold={{ k3s_kubelet_gc_high_threshold }} \
+      --kubelet-arg=image-gc-low-threshold={{ k3s_kubelet_gc_low_threshold }}
+  args:
+    executable: /bin/bash
+  when: not (k3s_binary.stat.exists and k3s_service.status.ActiveState is defined and k3s_service.status.ActiveState == 'active')
+  register: k3s_install_result
+  no_log: true  # Don't log token
+
+- name: Wait for k3s agent to be ready
+  ansible.builtin.wait_for:
+    timeout: 30
+  when: k3s_install_result is changed
+
+- name: Verify k3s agent is running
+  ansible.builtin.systemd:
+    name: "{{ k3s_service_name_agent }}"
+    state: started
+    enabled: true
+
+- name: k3s agent installation complete
+  ansible.builtin.debug:
+    msg: "k3s agent is ready and connected to {{ k3s_server_url }}"

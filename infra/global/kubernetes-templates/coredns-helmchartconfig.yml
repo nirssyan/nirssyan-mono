@@ -1,0 +1,22 @@
+# HelmChartConfig for CoreDNS to tolerate infra node taint
+# This ensures CoreDNS starts after k3s restart on nodes with node-role=infra:NoSchedule taint
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: coredns
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role
+        operator: Equal
+        value: infra
+        effect: NoSchedule

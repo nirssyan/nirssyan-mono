@@ -1,0 +1,587 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-scripts
+  namespace: infrastructure
+data:
+  backup.sh: |
+    #!/bin/bash
+    set -e
+
+    # ═══════════════════════════════════════════════════════════════════
+    # CONFIGURATION
+    # ═══════════════════════════════════════════════════════════════════
+    DATE=$(date +%Y-%m-%d)
+    START_TIME=$(date +%s)
+    K3S_STATE_SUCCESS=0
+    VERIFY_ERRORS=0
+    BACKUP_SUCCESS=0
+    BACKUP_DIR="/backups/${DATE}"
+    ARCHIVE_NAME="backup-${DATE}.tar.zst"
+    ENCRYPTED_NAME="${ARCHIVE_NAME}.age"
+
+    RETENTION_DAYS="${RETENTION_DAYS:-3}"
+    TEAM_NAME="${TEAM_NAME:-default-team}"
+    YANDEX_DISK_REMOTE="${YANDEX_DISK_REMOTE:-ydisk}"
+    AGE_KEY="${AGE_SECRET_KEY:-}"
+    METRICS_FILE="/var/lib/node_exporter/textfile_collector/backup.prom"
+    DB_DUMP_TIMEOUT="${DB_DUMP_TIMEOUT:-300}"  # 5 minutes default
+    RCLONE_RETRIES="${RCLONE_RETRIES:-3}"
+    MIN_DISK_SPACE_MB="${MIN_DISK_SPACE_MB:-1024}"  # 1GB minimum
+
+    # System namespaces to skip
+    SKIP_NAMESPACES="kube-system kube-public kube-node-lease local-path-storage"
+
+    # Write "running" metric immediately
+    mkdir -p "$(dirname ${METRICS_FILE})"
+    echo "backup_running 1" > "${METRICS_FILE}"
+
+    echo "═══════════════════════════════════════════════════════════════════"
+    echo "[$(date)] BACKUP STARTED (opt-out mode - backing up EVERYTHING)"
+    echo "═══════════════════════════════════════════════════════════════════"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 0: Pre-flight checks
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    echo "[$(date)] STEP 0: Pre-flight checks..."
+
+    # Check available disk space
+    AVAILABLE_MB=$(df -m /backups | awk 'NR==2 {print $4}')
+    if [ "$AVAILABLE_MB" -lt "$MIN_DISK_SPACE_MB" ]; then
+      echo "[$(date)] ERROR: Not enough disk space! Available: ${AVAILABLE_MB}MB, Required: ${MIN_DISK_SPACE_MB}MB"
+      echo "backup_running 0" > "${METRICS_FILE}"
+      echo "backup_last_failure_timestamp $(date +%s)" >> "${METRICS_FILE}"
+      exit 1
+    fi
+    echo "[$(date)]   ✓ Disk space OK: ${AVAILABLE_MB}MB available"
+
+    mkdir -p "${BACKUP_DIR}"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 1: Get ALL namespaces (except system ones)
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    echo "[$(date)] STEP 1: Discovering all namespaces..."
+
+    ALL_NAMESPACES=$(kubectl get namespaces -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
+
+    NAMESPACES=""
+    for NS in $ALL_NAMESPACES; do
+      SKIP=false
+      for SKIP_NS in $SKIP_NAMESPACES; do
+        [ "$NS" = "$SKIP_NS" ] && SKIP=true && break
+      done
+      [ "$SKIP" = "false" ] && NAMESPACES="$NAMESPACES $NS"
+    done
+
+    echo "[$(date)]   Found namespaces: $NAMESPACES"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 2: Backup each namespace
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    echo "[$(date)] STEP 2: Backing up all namespaces..."
+
+    for NS in $NAMESPACES; do
+      echo ""
+      echo "[$(date)] ─────────────────────────────────────────────────────────"
+      echo "[$(date)] Processing namespace: ${NS}"
+      echo "[$(date)] ─────────────────────────────────────────────────────────"
+      NS_BACKUP_DIR="${BACKUP_DIR}/${NS}"
+      mkdir -p "${NS_BACKUP_DIR}"
+
+      # 2.1 Backup secrets (always)
+      echo "[$(date)]   → Backing up secrets..."
+      kubectl get secrets -n "${NS}" -o yaml > "${NS_BACKUP_DIR}/secrets.yaml" 2>/dev/null || true
+
+      # 2.2 Backup configmaps (always)
+      echo "[$(date)]   → Backing up configmaps..."
+      kubectl get configmaps -n "${NS}" -o yaml > "${NS_BACKUP_DIR}/configmaps.yaml" 2>/dev/null || true
+
+      # 2.3 Backup all deployments/statefulsets/daemonsets manifests
+      echo "[$(date)]   → Backing up workload manifests..."
+      kubectl get deployments,statefulsets,daemonsets -n "${NS}" -o yaml > "${NS_BACKUP_DIR}/workloads.yaml" 2>/dev/null || true
+
+      # 2.4 Backup services and ingresses
+      echo "[$(date)]   → Backing up services/ingresses..."
+      kubectl get services,ingresses -n "${NS}" -o yaml > "${NS_BACKUP_DIR}/networking.yaml" 2>/dev/null || true
+
+      # 2.5 Database dumps (requires label to identify db type)
+      DB_PODS=$(kubectl get pods -n "${NS}" -l backup.infra/type=database -o jsonpath='{range .items[*]}{.metadata.name}|{.metadata.labels.backup\.infra/db-type}{"\n"}{end}' 2>/dev/null)
+
+      for DB_INFO in $DB_PODS; do
+        [ -z "$DB_INFO" ] && continue
+        POD_NAME=$(echo "$DB_INFO" | cut -d'|' -f1)
+        DB_TYPE=$(echo "$DB_INFO" | cut -d'|' -f2)
+        [ -z "$POD_NAME" ] || [ -z "$DB_TYPE" ] && continue
+
+        echo "[$(date)]   → Dumping database: ${POD_NAME} (${DB_TYPE})"
+        mkdir -p "${NS_BACKUP_DIR}/db-dumps"
+        DUMP_FILE="${NS_BACKUP_DIR}/db-dumps/${POD_NAME}.sql.gz"
+
+        case "$DB_TYPE" in
+          postgresql)
+            timeout "${DB_DUMP_TIMEOUT}" kubectl exec -n "${NS}" "${POD_NAME}" -- sh -c 'pg_dumpall -U ${POSTGRES_USER:-postgres}' 2>/dev/null | gzip > "${DUMP_FILE}"
+            if [ $? -eq 124 ]; then
+              echo "[$(date)]     ⚠ pg_dump TIMEOUT for ${POD_NAME} (>${DB_DUMP_TIMEOUT}s)"
+            elif [ $? -ne 0 ]; then
+              echo "[$(date)]     ⚠ pg_dump failed for ${POD_NAME}"
+            fi
+            ;;
+          mysql)
+            timeout "${DB_DUMP_TIMEOUT}" kubectl exec -n "${NS}" "${POD_NAME}" -- sh -c 'mysqldump --all-databases -u root -p"${MYSQL_ROOT_PASSWORD}"' 2>/dev/null | gzip > "${DUMP_FILE}"
+            if [ $? -eq 124 ]; then
+              echo "[$(date)]     ⚠ mysqldump TIMEOUT for ${POD_NAME} (>${DB_DUMP_TIMEOUT}s)"
+            elif [ $? -ne 0 ]; then
+              echo "[$(date)]     ⚠ mysqldump failed for ${POD_NAME}"
+            fi
+            ;;
+          mongodb)
+            timeout "${DB_DUMP_TIMEOUT}" kubectl exec -n "${NS}" "${POD_NAME}" -- sh -c 'mongodump --archive --gzip' 2>/dev/null > "${NS_BACKUP_DIR}/db-dumps/${POD_NAME}.archive.gz"
+            if [ $? -eq 124 ]; then
+              echo "[$(date)]     ⚠ mongodump TIMEOUT for ${POD_NAME} (>${DB_DUMP_TIMEOUT}s)"
+            elif [ $? -ne 0 ]; then
+              echo "[$(date)]     ⚠ mongodump failed for ${POD_NAME}"
+            fi
+            ;;
+          redis)
+            kubectl exec -n "${NS}" "${POD_NAME}" -- redis-cli BGSAVE 2>/dev/null || true
+            sleep 5
+            timeout 60 kubectl exec -n "${NS}" "${POD_NAME}" -- cat /data/dump.rdb 2>/dev/null > "${NS_BACKUP_DIR}/db-dumps/${POD_NAME}.rdb" || \
+              echo "[$(date)]     ⚠ Redis backup failed for ${POD_NAME}"
+            ;;
+        esac
+      done
+
+      # 2.6 PVC data - backup ALL pods with PVCs (unless explicitly disabled)
+      echo "[$(date)]   → Finding pods with PVCs..."
+
+      # Get all pods in namespace
+      ALL_PODS=$(kubectl get pods -n "${NS}" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
+
+      for POD_NAME in $ALL_PODS; do
+        [ -z "$POD_NAME" ] && continue
+
+        # Check if pod is explicitly excluded
+        ENABLED=$(kubectl get pod -n "${NS}" "${POD_NAME}" -o jsonpath='{.metadata.labels.backup\.infra/enabled}' 2>/dev/null)
+        if [ "$ENABLED" = "false" ]; then
+          echo "[$(date)]     ⊘ Skipping ${POD_NAME} (backup.infra/enabled=false)"
+          continue
+        fi
+
+        # Check if pod has PVC mounts
+        HAS_PVC=$(kubectl get pod -n "${NS}" "${POD_NAME}" -o jsonpath='{.spec.volumes[*].persistentVolumeClaim.claimName}' 2>/dev/null)
+        [ -z "$HAS_PVC" ] && continue
+
+        # Check if pod is running
+        POD_PHASE=$(kubectl get pod -n "${NS}" "${POD_NAME}" -o jsonpath='{.status.phase}' 2>/dev/null)
+        if [ "$POD_PHASE" != "Running" ]; then
+          echo "[$(date)]     ⚠ Skipping ${POD_NAME} (not running: ${POD_PHASE})"
+          continue
+        fi
+
+        echo "[$(date)]   → Copying PVC data from: ${POD_NAME}"
+
+        # Get all containers in the pod
+        CONTAINERS=$(kubectl get pod -n "${NS}" "${POD_NAME}" -o jsonpath='{.spec.containers[*].name}' 2>/dev/null)
+
+        # Track processed PVCs to avoid duplicates (same PVC mounted in multiple containers)
+        PROCESSED_PVCS=""
+
+        for CONTAINER in $CONTAINERS; do
+          # Get volume mounts for this specific container
+          MOUNTS=$(kubectl get pod -n "${NS}" "${POD_NAME}" -o jsonpath="{.spec.containers[?(@.name=='${CONTAINER}')].volumeMounts[*]}" 2>/dev/null | jq -r '.mountPath + "|" + .name' 2>/dev/null)
+
+          # Fallback if jq not available or format differs
+          if [ -z "$MOUNTS" ]; then
+            MOUNTS=$(kubectl get pod -n "${NS}" "${POD_NAME}" -o go-template='{{range $i, $c := .spec.containers}}{{if eq $c.name "'"${CONTAINER}"'"}}{{range $c.volumeMounts}}{{.mountPath}}|{{.name}}{{"\n"}}{{end}}{{end}}{{end}}' 2>/dev/null)
+          fi
+
+          for MOUNT_INFO in $MOUNTS; do
+            [ -z "$MOUNT_INFO" ] && continue
+            MOUNT=$(echo "$MOUNT_INFO" | cut -d'|' -f1)
+            VOL_NAME=$(echo "$MOUNT_INFO" | cut -d'|' -f2)
+
+            # Skip system mounts
+            case "$MOUNT" in
+              /var/run/*|/dev/*|/proc/*|/sys/*|/etc/hosts|/etc/resolv.conf|/etc/hostname|/etc/mtab|/etc/localtime) continue ;;
+            esac
+
+            # Check if this volume is a PVC
+            IS_PVC=$(kubectl get pod -n "${NS}" "${POD_NAME}" -o jsonpath="{.spec.volumes[?(@.name=='${VOL_NAME}')].persistentVolumeClaim.claimName}" 2>/dev/null)
+            [ -z "$IS_PVC" ] && continue
+
+            # Skip if this PVC was already processed (mounted in another container)
+            echo "$PROCESSED_PVCS" | grep -q "^${IS_PVC}$" && continue
+            PROCESSED_PVCS="${PROCESSED_PVCS}${IS_PVC}\n"
+
+            MOUNT_SAFE=$(echo "$MOUNT" | tr '/' '_')
+            echo "[$(date)]     → ${MOUNT} (PVC: ${IS_PVC}, container: ${CONTAINER})"
+
+            DEST_DIR="${NS_BACKUP_DIR}/pvc-data/${POD_NAME}${MOUNT_SAFE}"
+            mkdir -p "${DEST_DIR}"
+
+            # Try kubectl cp first (requires tar in container)
+            if kubectl cp "${NS}/${POD_NAME}:${MOUNT}" "${DEST_DIR}/" -c "${CONTAINER}" 2>/dev/null; then
+              echo "[$(date)]       ✓ Copied via kubectl cp"
+            else
+              # Fallback: use exec with cat for individual files
+              echo "[$(date)]       → kubectl cp failed, trying file-by-file copy..."
+
+              # Get list of files in the mount
+              FILES=$(kubectl exec -n "${NS}" "${POD_NAME}" -c "${CONTAINER}" -- find "${MOUNT}" -type f -size -100M 2>/dev/null | head -1000)
+
+              if [ -n "$FILES" ]; then
+                FILE_COUNT=0
+                FAIL_COUNT=0
+                for FILE in $FILES; do
+                  REL_PATH="${FILE#${MOUNT}}"
+                  REL_PATH="${REL_PATH#/}"
+                  [ -z "$REL_PATH" ] && continue
+
+                  TARGET_FILE="${DEST_DIR}/${REL_PATH}"
+                  TARGET_DIR=$(dirname "${TARGET_FILE}")
+                  mkdir -p "${TARGET_DIR}"
+
+                  if kubectl exec -n "${NS}" "${POD_NAME}" -c "${CONTAINER}" -- cat "${FILE}" > "${TARGET_FILE}" 2>/dev/null; then
+                    FILE_COUNT=$((FILE_COUNT + 1))
+                  else
+                    FAIL_COUNT=$((FAIL_COUNT + 1))
+                  fi
+                done
+                echo "[$(date)]       ✓ Copied ${FILE_COUNT} files (${FAIL_COUNT} failed)"
+              else
+                echo "[$(date)]       ⚠ Could not list files in ${MOUNT}"
+              fi
+            fi
+          done
+        done
+      done
+    done
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 3: Backup K3s cluster state (SQLite or etcd)
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    echo "[$(date)] STEP 3: Backing up K3s cluster state..."
+
+    K3S_STATE_SUCCESS=0
+    K3S_DB_DIR="/host/var/lib/rancher/k3s/server/db"
+
+    # K3s uses SQLite by default (single-node), etcd for HA clusters
+    if [ -f "${K3S_DB_DIR}/state.db" ]; then
+      # SQLite mode - copy database files
+      echo "[$(date)]   → K3s using SQLite, copying state.db..."
+      mkdir -p "${BACKUP_DIR}/k3s-state"
+
+      # Copy SQLite database and WAL files
+      cp "${K3S_DB_DIR}/state.db" "${BACKUP_DIR}/k3s-state/" 2>/dev/null && \
+      cp "${K3S_DB_DIR}/state.db-shm" "${BACKUP_DIR}/k3s-state/" 2>/dev/null || true
+      cp "${K3S_DB_DIR}/state.db-wal" "${BACKUP_DIR}/k3s-state/" 2>/dev/null || true
+
+      if [ -f "${BACKUP_DIR}/k3s-state/state.db" ]; then
+        STATE_SIZE=$(stat -c%s "${BACKUP_DIR}/k3s-state/state.db" 2>/dev/null || echo 0)
+        K3S_STATE_SUCCESS=1
+        echo "[$(date)]   ✓ SQLite state backed up ($(( STATE_SIZE / 1024 / 1024 )) MB)"
+      else
+        echo "[$(date)]   ⚠ Failed to copy state.db"
+      fi
+    elif [ -d "${K3S_DB_DIR}/etcd" ]; then
+      # etcd mode - use etcd-snapshot
+      echo "[$(date)]   → K3s using etcd, creating snapshot..."
+      ETCD_SNAPSHOT_NAME="etcd-snapshot-${DATE}"
+
+      if nsenter -t 1 -m -u -i -n -p -- k3s etcd-snapshot save --name "${ETCD_SNAPSHOT_NAME}" 2>/dev/null; then
+        SNAPSHOT_PATH=$(find /host/var/lib/rancher/k3s/server/db/snapshots -name "${ETCD_SNAPSHOT_NAME}*" -type f 2>/dev/null | head -1)
+        if [ -n "${SNAPSHOT_PATH}" ] && [ -f "${SNAPSHOT_PATH}" ]; then
+          mkdir -p "${BACKUP_DIR}/k3s-state"
+          cp "${SNAPSHOT_PATH}" "${BACKUP_DIR}/k3s-state/"
+          K3S_STATE_SUCCESS=1
+          echo "[$(date)]   ✓ etcd snapshot created"
+        fi
+      else
+        echo "[$(date)]   ⚠ etcd snapshot command failed"
+      fi
+    else
+      echo "[$(date)]   ⚠ K3s database not found at ${K3S_DB_DIR}"
+    fi
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 4: Create archive
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    echo "[$(date)] STEP 4: Creating archive with zstd --ultra -20..."
+    cd /backups
+    # Remove existing archive if present (from previous failed runs)
+    rm -f "${ARCHIVE_NAME}" "${ENCRYPTED_NAME}"
+    tar -cf - "${DATE}/" | zstd --ultra -20 -T0 -o "${ARCHIVE_NAME}"
+
+    # Verify archive
+    echo "[$(date)]   → Verifying archive integrity..."
+    zstd -d -c "${ARCHIVE_NAME}" | tar -tf - > /dev/null || { echo "ERROR: Archive corrupted!"; exit 1; }
+
+    # Validate size
+    ARCHIVE_SIZE=$(stat -c%s "${ARCHIVE_NAME}" 2>/dev/null || echo 0)
+    if [ "$ARCHIVE_SIZE" -lt 1024 ]; then
+      echo "[$(date)] ERROR: Archive too small (${ARCHIVE_SIZE} bytes)!"
+      exit 1
+    fi
+    echo "[$(date)]   → Archive size: $(( ARCHIVE_SIZE / 1024 / 1024 )) MB"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 4.5: Verify backup contents
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    echo "[$(date)] STEP 4.5: Verifying backup contents..."
+
+    VERIFY_ERRORS=0
+
+    # Count backed up namespaces (directories with workloads.yaml = actual namespace backups)
+    NS_COUNT=$(find "${BACKUP_DIR}" -maxdepth 2 -name "workloads.yaml" | wc -l)
+    echo "[$(date)]   → Namespaces backed up: ${NS_COUNT}"
+
+    # Check each namespace has required files
+    for NS_DIR in "${BACKUP_DIR}"/*/; do
+      [ ! -d "$NS_DIR" ] && continue
+      NS=$(basename "$NS_DIR")
+
+      # Detect directory type by content (not by name)
+      # Namespace backups have workloads.yaml, k3s-state has state.db
+      if [ ! -f "${NS_DIR}/workloads.yaml" ]; then
+        # Not a namespace backup (e.g., k3s-state with state.db)
+        # K3s state is verified separately below
+        continue
+      fi
+
+      # Check secrets.yaml exists and has content
+      if [ -f "${NS_DIR}/secrets.yaml" ]; then
+        SECRET_SIZE=$(stat -c%s "${NS_DIR}/secrets.yaml" 2>/dev/null || echo 0)
+        if [ "$SECRET_SIZE" -lt 50 ]; then
+          echo "[$(date)]   ⚠ ${NS}: secrets.yaml is empty or too small"
+          VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+        fi
+      else
+        echo "[$(date)]   ⚠ ${NS}: secrets.yaml missing"
+        VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+      fi
+
+      # Check configmaps.yaml exists
+      if [ ! -f "${NS_DIR}/configmaps.yaml" ]; then
+        echo "[$(date)]   ⚠ ${NS}: configmaps.yaml missing"
+        VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+      fi
+
+      # Check db-dumps if database pods exist
+      if [ -d "${NS_DIR}/db-dumps" ]; then
+        for DUMP in "${NS_DIR}/db-dumps"/*; do
+          [ ! -f "$DUMP" ] && continue
+          DUMP_SIZE=$(stat -c%s "$DUMP" 2>/dev/null || echo 0)
+          if [ "$DUMP_SIZE" -lt 100 ]; then
+            echo "[$(date)]   ⚠ ${NS}: $(basename $DUMP) is empty or too small"
+            VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+          fi
+        done
+      fi
+
+      # Check PVC data directories are not empty
+      if [ -d "${NS_DIR}/pvc-data" ]; then
+        for POD_DIR in "${NS_DIR}/pvc-data"/*/; do
+          [ ! -d "$POD_DIR" ] && continue
+          FILE_COUNT=$(find "$POD_DIR" -type f 2>/dev/null | wc -l)
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "[$(date)]   ⚠ ${NS}: PVC data for $(basename $POD_DIR) is empty"
+            VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+          fi
+        done
+      fi
+    done
+
+    # Check K3s state backup
+    if [ "$K3S_STATE_SUCCESS" -eq 1 ]; then
+      echo "[$(date)]   ✓ K3s state backup present"
+    else
+      echo "[$(date)]   ⚠ K3s state backup missing"
+      VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+    fi
+
+    if [ "$VERIFY_ERRORS" -gt 0 ]; then
+      echo "[$(date)]   ⚠ Verification completed with ${VERIFY_ERRORS} warnings"
+    else
+      echo "[$(date)]   ✓ Verification passed"
+    fi
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 5: Encrypt archive
+    # ═══════════════════════════════════════════════════════════════════
+    ENCRYPTION_SUCCESS=0
+    if [ -n "$AGE_KEY" ]; then
+      echo ""
+      echo "[$(date)] STEP 5: Encrypting archive..."
+      # Create secure temp file for age key (only readable by owner)
+      AGE_KEY_FILE=$(mktemp -p /tmp age.XXXXXX)
+      chmod 600 "${AGE_KEY_FILE}"
+      echo "$AGE_KEY" > "${AGE_KEY_FILE}"
+
+      AGE_PUB=$(age-keygen -y "${AGE_KEY_FILE}" 2>/dev/null)
+      if age -r "$AGE_PUB" -o "${ENCRYPTED_NAME}" "${ARCHIVE_NAME}" 2>/dev/null; then
+        rm -f "${ARCHIVE_NAME}"
+        FINAL_ARCHIVE="${ENCRYPTED_NAME}"
+        ENCRYPTION_SUCCESS=1
+        echo "[$(date)]   ✓ Encrypted successfully"
+      else
+        echo "[$(date)]   ⚠ Encryption failed, keeping unencrypted"
+        FINAL_ARCHIVE="${ARCHIVE_NAME}"
+      fi
+      # Always clean up the key file
+      rm -f "${AGE_KEY_FILE}"
+    else
+      echo ""
+      echo "[$(date)] STEP 5: Skipping encryption (no key provided)"
+      FINAL_ARCHIVE="${ARCHIVE_NAME}"
+    fi
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 5.5: Remove raw backup data (archive created successfully)
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    echo "[$(date)] STEP 5.5: Removing raw backup data..."
+    RAW_DATA_SIZE_BYTES=$(du -sb "${BACKUP_DIR}" 2>/dev/null | cut -f1 || echo "0")
+    RAW_DATA_SIZE_HUMAN=$(du -sh "${BACKUP_DIR}" 2>/dev/null | cut -f1 || echo "unknown")
+    rm -rf "${BACKUP_DIR}"
+    echo "[$(date)]   ✓ Removed ${BACKUP_DIR} (${RAW_DATA_SIZE_HUMAN})"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 6: Sync to Yandex Disk (with retry and verification)
+    # ═══════════════════════════════════════════════════════════════════
+    SYNC_SUCCESS=0
+    if command -v rclone &> /dev/null && rclone listremotes 2>/dev/null | grep -q "${YANDEX_DISK_REMOTE}:"; then
+      echo ""
+      echo "[$(date)] STEP 6: Syncing to Yandex Disk..."
+      YEAR=$(date +%Y)
+      MONTH=$(date +%m)
+      REMOTE_PATH="/${TEAM_NAME} Backups/${YEAR}/${MONTH}"
+      LOCAL_SIZE=$(stat -c%s "/backups/${FINAL_ARCHIVE}" 2>/dev/null || echo 0)
+
+      # Create remote directory
+      rclone mkdir "${YANDEX_DISK_REMOTE}:${REMOTE_PATH}" 2>/dev/null || true
+
+      # Retry loop
+      for ATTEMPT in $(seq 1 ${RCLONE_RETRIES}); do
+        echo "[$(date)]   → Attempt ${ATTEMPT}/${RCLONE_RETRIES}..."
+
+        if rclone copy "/backups/${FINAL_ARCHIVE}" "${YANDEX_DISK_REMOTE}:${REMOTE_PATH}/" --progress 2>/dev/null; then
+          # Verify upload by checking remote file size
+          REMOTE_SIZE=$(rclone size "${YANDEX_DISK_REMOTE}:${REMOTE_PATH}/${FINAL_ARCHIVE}" --json 2>/dev/null | grep -o '"bytes":[0-9]*' | cut -d: -f2 || echo 0)
+
+          if [ "$REMOTE_SIZE" -eq "$LOCAL_SIZE" ] && [ "$LOCAL_SIZE" -gt 0 ]; then
+            SYNC_SUCCESS=1
+            echo "[$(date)]   ✓ Synced and verified (${LOCAL_SIZE} bytes)"
+            break
+          else
+            echo "[$(date)]   ⚠ Size mismatch: local=${LOCAL_SIZE}, remote=${REMOTE_SIZE}"
+          fi
+        else
+          echo "[$(date)]   ⚠ Upload failed on attempt ${ATTEMPT}"
+        fi
+
+        # Wait before retry (exponential backoff)
+        if [ "$ATTEMPT" -lt "$RCLONE_RETRIES" ]; then
+          WAIT_TIME=$((ATTEMPT * 10))
+          echo "[$(date)]   → Waiting ${WAIT_TIME}s before retry..."
+          sleep "$WAIT_TIME"
+        fi
+      done
+
+      if [ "$SYNC_SUCCESS" -eq 0 ]; then
+        echo "[$(date)]   ✗ Sync failed after ${RCLONE_RETRIES} attempts"
+      fi
+    else
+      echo ""
+      echo "[$(date)] STEP 6: Skipping Yandex Disk sync (rclone not configured)"
+    fi
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 7: Cleanup old backups (only if current backup succeeded)
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    # Mark backup as successful if archive exists and is valid
+    if [ -f "/backups/${FINAL_ARCHIVE}" ] && [ "$(stat -c%s "/backups/${FINAL_ARCHIVE}" 2>/dev/null || echo 0)" -gt 1024 ]; then
+      BACKUP_SUCCESS=1
+    fi
+
+    if [ "$BACKUP_SUCCESS" -eq 1 ]; then
+      echo "[$(date)] STEP 7: Cleaning up old backups (retention: ${RETENTION_DAYS} days)..."
+      find /backups -maxdepth 1 -type d -name "20*" -mtime +${RETENTION_DAYS} -exec rm -rf {} \; 2>/dev/null || true
+      find /backups -maxdepth 1 -name "backup-*.tar.zst*" -mtime +${RETENTION_DAYS} -delete 2>/dev/null || true
+      find /backups -maxdepth 1 -name "backup-*.tar.gz*" -mtime +${RETENTION_DAYS} -delete 2>/dev/null || true
+      echo "[$(date)]   ✓ Cleanup completed"
+    else
+      echo "[$(date)] STEP 7: Skipping cleanup (current backup not successful)"
+      echo "[$(date)]   ⚠ Old backups preserved to prevent data loss"
+    fi
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 8: Export metrics
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    echo "[$(date)] STEP 8: Exporting metrics..."
+    END_TIME=$(date +%s)
+    DURATION=$((END_TIME - START_TIME))
+    BACKUP_SIZE=$(stat -c%s "/backups/${FINAL_ARCHIVE}" 2>/dev/null || echo 0)
+
+    mkdir -p "$(dirname ${METRICS_FILE})"
+    {
+      echo "# HELP backup_running Whether backup is currently running"
+      echo "# TYPE backup_running gauge"
+      echo "backup_running 0"
+      echo "# HELP backup_last_success_timestamp Unix timestamp of last successful backup"
+      echo "# TYPE backup_last_success_timestamp gauge"
+      if [ "$BACKUP_SUCCESS" -eq 1 ]; then
+        echo "backup_last_success_timestamp $(date +%s)"
+      fi
+      echo "# HELP backup_size_bytes Size of backup archive in bytes"
+      echo "# TYPE backup_size_bytes gauge"
+      echo "backup_size_bytes ${BACKUP_SIZE}"
+      echo "# HELP backup_raw_size_bytes Size of raw backup data before compression in bytes"
+      echo "# TYPE backup_raw_size_bytes gauge"
+      echo "backup_raw_size_bytes ${RAW_DATA_SIZE_BYTES:-0}"
+      echo "# HELP backup_compression_ratio Compression ratio (raw/archive)"
+      echo "# TYPE backup_compression_ratio gauge"
+      if [ "${BACKUP_SIZE}" -gt 0 ] && [ "${RAW_DATA_SIZE_BYTES:-0}" -gt 0 ]; then
+        echo "backup_compression_ratio $(awk "BEGIN {printf \"%.2f\", ${RAW_DATA_SIZE_BYTES}/${BACKUP_SIZE}}")"
+      else
+        echo "backup_compression_ratio 0"
+      fi
+      echo "# HELP backup_duration_seconds Duration of backup in seconds"
+      echo "# TYPE backup_duration_seconds gauge"
+      echo "backup_duration_seconds ${DURATION}"
+      echo "# HELP backup_encryption_success Whether encryption succeeded"
+      echo "# TYPE backup_encryption_success gauge"
+      echo "backup_encryption_success ${ENCRYPTION_SUCCESS}"
+      echo "# HELP backup_yandex_disk_sync_success Whether Yandex Disk sync succeeded"
+      echo "# TYPE backup_yandex_disk_sync_success gauge"
+      echo "backup_yandex_disk_sync_success ${SYNC_SUCCESS}"
+      echo "# HELP backup_k3s_state_success Whether K3s state backup succeeded"
+      echo "# TYPE backup_k3s_state_success gauge"
+      echo "backup_k3s_state_success ${K3S_STATE_SUCCESS}"
+      echo "# HELP backup_verification_errors Number of verification errors"
+      echo "# TYPE backup_verification_errors gauge"
+      echo "backup_verification_errors ${VERIFY_ERRORS}"
+      echo "# HELP backup_success Whether the entire backup was successful"
+      echo "# TYPE backup_success gauge"
+      echo "backup_success ${BACKUP_SUCCESS}"
+    } > "${METRICS_FILE}"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # DONE
+    # ═══════════════════════════════════════════════════════════════════
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════════"
+    echo "[$(date)] BACKUP COMPLETED"
+    echo "  Duration: ${DURATION} seconds"
+    echo "  Archive: ${FINAL_ARCHIVE}"
+    echo "  Size: $(( BACKUP_SIZE / 1024 / 1024 )) MB"
+    echo "  Encrypted: $([ $ENCRYPTION_SUCCESS -eq 1 ] && echo 'yes' || echo 'no')"
+    echo "  Synced: $([ $SYNC_SUCCESS -eq 1 ] && echo 'yes' || echo 'no')"
+    echo "═══════════════════════════════════════════════════════════════════"

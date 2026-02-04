@@ -1,0 +1,46 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-bucket-init
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              echo "Configuring MinIO alias..."
+              mc alias set myminio http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
+
+              echo "Creating buckets..."
+              mc mb --ignore-existing myminio/telegram-media
+              mc mb --ignore-existing myminio/telegram-sessions
+              mc mb --ignore-existing myminio/permanent-media
+
+              echo "Setting public access for media buckets..."
+              mc anonymous set download myminio/telegram-media
+              mc anonymous set download myminio/permanent-media
+
+              echo "telegram-sessions remains private (no anonymous access)"
+
+              echo "Bucket initialization complete!"
+              mc ls myminio/
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secrets
+                  key: rootUser
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-secrets
+                  key: rootPassword

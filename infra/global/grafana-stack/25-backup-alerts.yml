@@ -1,0 +1,459 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-backup-alerts
+  namespace: infrastructure
+  labels:
+    grafana_alert: "1"
+data:
+  backup-alerts.yaml: |
+    apiVersion: 1
+    groups:
+      - orgId: 1
+        name: backup-alerts
+        folder: Infrastructure
+        interval: 5m
+        rules:
+          - uid: backup_not_running
+            title: Backup Not Running
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 90000
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  expr: (time() - backup_last_success_timestamp)
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 90000
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 90000
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - B
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: B
+                  type: threshold
+              - refId: C
+                relativeTimeRange:
+                  from: 90000
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: reduce
+                  reducer: last
+            noDataState: NoData
+            execErrState: Alerting
+            for: 5m
+            annotations:
+              summary: Backup not running for {{ $labels.node }}
+              description: 'Backup has not run successfully for more than 25 hours on {{ $labels.node }}'
+            labels:
+              severity: critical
+
+          - uid: yandex_disk_sync_failed
+            title: Yandex Disk Sync Failed
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  expr: backup_yandex_disk_sync_success
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 1
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - B
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: B
+                  type: threshold
+              - refId: C
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: reduce
+                  reducer: last
+            noDataState: NoData
+            execErrState: Alerting
+            for: 15m
+            annotations:
+              summary: Yandex Disk sync failed
+              description: 'Backup synchronization to Yandex Disk has failed'
+            labels:
+              severity: critical
+
+          - uid: backup_encryption_failed
+            title: Backup Encryption Failed
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  expr: backup_encryption_success
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 1
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - B
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: B
+                  type: threshold
+              - refId: C
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: reduce
+                  reducer: last
+            noDataState: NoData
+            execErrState: Alerting
+            for: 5m
+            annotations:
+              summary: Backup encryption failed
+              description: 'Backup encryption has failed. Backups are not being encrypted.'
+            labels:
+              severity: critical
+
+          - uid: backup_size_anomaly
+            title: Backup Size Anomaly
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 172800
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  expr: abs(backup_size_bytes - backup_size_bytes offset 1d) / backup_size_bytes
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 172800
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0.5
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - B
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: B
+                  type: threshold
+              - refId: C
+                relativeTimeRange:
+                  from: 172800
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: reduce
+                  reducer: last
+            noDataState: OK
+            execErrState: OK
+            for: 5m
+            annotations:
+              summary: Backup size changed significantly on {{ $labels.node }}
+              description: 'Backup size changed by more than 50% compared to yesterday'
+            labels:
+              severity: warning
+
+          - uid: k3s_state_backup_failed
+            title: K3s State Backup Failed
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  expr: backup_k3s_state_success
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 1
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - B
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: B
+                  type: threshold
+              - refId: C
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: reduce
+                  reducer: last
+            noDataState: NoData
+            execErrState: Alerting
+            for: 5m
+            annotations:
+              summary: K3s state backup failed
+              description: 'K3s state backup (SQLite/etcd) failed. Cluster state is not being backed up.'
+            labels:
+              severity: critical
+
+          - uid: backup_verification_errors
+            title: Backup Verification Errors
+            condition: C
+            data:
+              - refId: A
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  expr: backup_verification_errors
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: A
+              - refId: B
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - B
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: A
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: B
+                  type: threshold
+              - refId: C
+                relativeTimeRange:
+                  from: 900
+                  to: 0
+                datasourceUid: __expr__
+                model:
+                  conditions:
+                    - evaluator:
+                        params:
+                          - 0
+                        type: gt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                          - C
+                        type: query
+                  datasource:
+                    type: __expr__
+                    uid: __expr__
+                  expression: B
+                  intervalMs: 1000
+                  maxDataPoints: 43200
+                  refId: C
+                  type: reduce
+                  reducer: last
+            noDataState: OK
+            execErrState: OK
+            for: 5m
+            annotations:
+              summary: Backup has verification errors
+              description: 'Backup verification found {{ $value }} issues. Some data may not be backed up correctly.'
+            labels:
+              severity: warning

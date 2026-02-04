@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: SERVICE_NAME
+  labels:
+    app: SERVICE_NAME
+    service-type: cronjob
+spec:
+  schedule: "0 * * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: SERVICE_NAME
+        spec:
+          imagePullSecrets:
+            - name: regcred
+          containers:
+            - name: SERVICE_NAME
+              image: REGISTRY_URL/PRODUCT_NAME/SERVICE_NAME:prod
+              imagePullPolicy: Always
+              envFrom:
+                - secretRef:
+                    name: SERVICE_NAME-secrets
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          restartPolicy: OnFailure

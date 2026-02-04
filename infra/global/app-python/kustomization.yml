@@ -1,0 +1,51 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  - target:
+      kind: Deployment
+      labelSelector: "service-template=app-python"
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/ports
+        value:
+          - containerPort: 8000
+            name: http
+          - containerPort: 9464
+            name: metrics
+      - op: add
+        path: /spec/template/spec/containers/0/livenessProbe
+        value:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      - op: add
+        path: /spec/template/spec/containers/0/readinessProbe
+        value:
+          httpGet:
+            path: /healthz
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      - op: add
+        path: /spec/template/spec/containers/0/lifecycle
+        value:
+          preStop:
+            exec:
+              command: ["sh", "-c", "sleep 10"]
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          node-role: infra
+      - op: add
+        path: /spec/template/spec/tolerations
+        value:
+          - key: node-role
+            operator: Equal
+            value: infra
+            effect: NoSchedule
+      - op: add
+        path: /spec/template/spec/terminationGracePeriodSeconds
+        value: 30

@@ -1,0 +1,38 @@
+# CrowdSec Helm values
+# Chart: crowdsec/crowdsec
+# Docs: https://docs.crowdsec.net/
+
+# Image pull secrets for Docker Hub rate limits
+image:
+  pullSecrets:
+    - name: dockerhub-registry
+
+# LAPI - Local API (decision engine)
+lapi:
+  replicas: 1
+
+  tolerations:
+    - key: node-role
+      operator: Equal
+      value: infra
+      effect: NoSchedule
+
+  nodeSelector:
+    node-role: infra
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  persistentVolume:
+    enabled: true
+    size: 1Gi
+    storageClassName: local-path
+
+# Disable agent for now - use only LAPI with community blocklist
+agent:
+  enabled: false

@@ -1,0 +1,36 @@
+---
+# Kustomize generator role default variables
+
+# Projects directory
+projects_base_dir: "{{ playbook_dir }}/../projects"
+
+# Service templates directory
+templates_base_dir: "{{ playbook_dir }}/../service-templates"
+
+# Kustomize structure
+kustomize_base_dir: "base"
+kustomize_overlays_dir: "overlays"
+
+# Default overlays
+default_overlays:
+  - prod
+  - dev
+
+# Service types (exact template directory names)
+available_service_types:
+  - backend-nodejs
+  - backend-python
+  - frontend-nextjs
+  - frontend-react
+  - worker
+  - cronjob
+  - postgresql
+  - redis
+  - nats
+  - rabbitmq
+  - supabase
+
+# Service type aliases (for convenience)
+service_type_aliases:
+  backend: backend-nodejs
+  frontend: frontend-react

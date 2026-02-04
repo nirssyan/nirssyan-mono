@@ -1,0 +1,262 @@
+basePath: /
+definitions:
+  internal_handlers.DemoLoginRequest:
+    properties:
+      email:
+        type: string
+    type: object
+  internal_handlers.DemoLoginResponse:
+    properties:
+      access_token:
+        type: string
+      expires_at:
+        type: integer
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/internal_handlers.SupabaseUser'
+      user_id:
+        type: string
+    type: object
+  internal_handlers.FeedResponse:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      is_creating_finished:
+        type: boolean
+      is_marketplace:
+        type: boolean
+      name:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      type:
+        type: string
+      unread_count:
+        type: integer
+    type: object
+  internal_handlers.SourceInput:
+    properties:
+      type:
+        type: string
+      url:
+        type: string
+    type: object
+  internal_handlers.SupabaseUser:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+    type: object
+  internal_handlers.UpdateFeedRequest:
+    properties:
+      description:
+        type: string
+      digest_interval_hours:
+        type: integer
+      filters_raw:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      raw_prompt:
+        type: string
+      sources:
+        items:
+          $ref: '#/definitions/internal_handlers.SourceInput'
+        type: array
+      tags:
+        items:
+          type: string
+        type: array
+      views_raw:
+        items:
+          type: string
+        type: array
+    type: object
+  internal_handlers.UpdateFeedResponse:
+    properties:
+      feed_id:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+      updated_fields:
+        items:
+          type: string
+        type: array
+    type: object
+host: makefeed.nirssyan.ru
+info:
+  contact:
+    email: support@makefeed.app
+    name: Makefeed Support
+    url: https://makefeed.app/support
+  description: Backend API for Makefeed - AI-powered personalized news feeds
+  termsOfService: https://makefeed.app/terms
+  title: Makefeed API
+  version: "1.0"
+paths:
+  /auth/demo-login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate with demo account credentials (for testing purposes)
+      parameters:
+      - description: Optional email validation
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/internal_handlers.DemoLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handlers.DemoLoginResponse'
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "403":
+          description: invalid demo account
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+        "503":
+          description: demo login not configured
+          schema:
+            type: string
+      summary: Demo login
+      tags:
+      - auth
+  /feeds:
+    get:
+      consumes:
+      - application/json
+      description: Returns all feeds belonging to the authenticated user with unread
+        counts
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_handlers.FeedResponse'
+            type: array
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get user feeds
+      tags:
+      - feeds
+  /feeds/{feed_id}:
+    patch:
+      consumes:
+      - application/json
+      description: Update feed properties (name, description, tags, sources, prompts)
+      parameters:
+      - description: Feed ID
+        in: path
+        name: feed_id
+        required: true
+        type: string
+      - description: Update feed request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handlers.UpdateFeedRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handlers.UpdateFeedResponse'
+        "400":
+          description: invalid request
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "403":
+          description: forbidden
+          schema:
+            type: string
+        "500":
+          description: internal error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Update feed
+      tags:
+      - feeds
+  /healthz:
+    get:
+      description: Returns OK if the service is alive
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Liveness probe
+      tags:
+      - health
+  /readyz:
+    get:
+      description: Returns OK if the service is ready to accept traffic (database
+        connected)
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "503":
+          description: Service unavailable
+          schema:
+            type: string
+      summary: Readiness probe
+      tags:
+      - health
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT token from Supabase Auth (format: "Bearer {token}")'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

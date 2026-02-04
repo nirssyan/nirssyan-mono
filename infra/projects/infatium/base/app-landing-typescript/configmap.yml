@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-landing-typescript-config
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  HOSTNAME: "0.0.0.0"
+  NEXT_PUBLIC_YANDEX_METRIKA_ID: "106276196"
+  NEXT_PUBLIC_ENABLE_YANDEX_METRIKA: "true"
+  NEXT_PUBLIC_SENTRY_DSN: "https://f3a86334caf4467da51f2f4d60ae7186@glitchtip.infra.makekod.ru/1"

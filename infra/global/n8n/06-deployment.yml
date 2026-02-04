@@ -1,0 +1,147 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+  namespace: infrastructure
+  labels:
+    app: n8n
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+        backup.infra/enabled: "true"
+        backup.infra/type: "pvc"
+    spec:
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      imagePullSecrets:
+        - name: docker-registry-creds
+      initContainers:
+        - name: iptables-init
+          image: alpine:3.19
+          command: ["sh", "-c"]
+          args:
+            - |
+              apk add --no-cache iptables
+              # Redirect openrouter.ai:443 to local gost proxy using REDIRECT
+              for ip in $(getent ahostsv4 openrouter.ai | awk '{print $1}' | sort -u); do
+                echo "Redirecting $ip:443 -> :12345"
+                iptables -t nat -A OUTPUT -p tcp -d "$ip" --dport 443 -j REDIRECT --to-port 12345
+              done
+              iptables -t nat -L -n -v
+          securityContext:
+            capabilities:
+              add: [NET_ADMIN, NET_RAW]
+            runAsUser: 0
+      containers:
+        - name: n8n
+          image: n8nio/n8n:2.1.1
+          ports:
+            - containerPort: 5678
+              name: http
+          env:
+            - name: DB_TYPE
+              value: postgresdb
+            - name: DB_POSTGRESDB_HOST
+              value: n8n-postgres
+            - name: DB_POSTGRESDB_PORT
+              value: "5432"
+            - name: DB_POSTGRESDB_DATABASE
+              value: n8n
+            - name: DB_POSTGRESDB_USER
+              value: n8n
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-postgres
+                  key: password
+            - name: N8N_HOST
+              value: "n8n.infra.makekod.ru"
+            - name: N8N_PROTOCOL
+              value: https
+            - name: N8N_PORT
+              value: "5678"
+            - name: WEBHOOK_URL
+              value: "https://n8n.infra.makekod.ru/"
+            - name: GENERIC_TIMEZONE
+              value: UTC
+            - name: N8N_BASIC_AUTH_ACTIVE
+              value: "true"
+            - name: N8N_BASIC_AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-auth
+                  key: username
+            - name: N8N_BASIC_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-auth
+                  key: password
+          volumeMounts:
+            - name: n8n-data
+              mountPath: /home/node/.n8n
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5678
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+        - name: gost-proxy
+          image: gogost/gost:3.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - "exec /bin/gost -L=tcp://:12345/openrouter.ai:443 -F=$PROXY_URL >/dev/null 2>&1"
+          env:
+            - name: PROXY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: proxy-credentials
+                  key: HTTPS_PROXY
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            tcpSocket:
+              port: 12345
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 12345
+            initialDelaySeconds: 2
+            periodSeconds: 5
+      volumes:
+        - name: n8n-data
+          persistentVolumeClaim:
+            claimName: n8n-data

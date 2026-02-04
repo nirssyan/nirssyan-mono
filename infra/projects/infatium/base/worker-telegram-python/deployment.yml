@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-telegram-python
+  labels:
+    app: worker-telegram-python
+    service-template: worker-python
+    service-type: worker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: worker-telegram-python
+  template:
+    metadata:
+      labels:
+        app: worker-telegram-python
+    spec:
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: worker-telegram-python
+          image: registry.infra.makekod.ru/makefeed:microservices
+          imagePullPolicy: Always
+          command: ["makefeed-telegram"]
+          envFrom:
+            - configMapRef:
+                name: worker-telegram-python-config
+            - secretRef:
+                name: service-secrets
+          volumeMounts:
+            - name: pyrogram-sessions
+              mountPath: /app/sessions
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          resources:
+            requests:
+              cpu: 20m
+              memory: 192Mi
+            limits:
+              cpu: 300m
+              memory: 384Mi
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: pyrogram-sessions
+          persistentVolumeClaim:
+            claimName: telegram-sessions

@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - auth.yml
+  - configmap.yml
+  - email-templates-configmap.yml
+  - email-templates-server.yml
+  - imgproxy.yml
+  - kong.yml
+  - meta.yml
+  - postgres-init.yml
+  - postgres-init-user-job.yml
+  - postgres-init-demo-user-job.yml
+  - postgres-init-pgvector-job.yml
+  - postgresql.yml
+  - realtime.yml
+  - rest.yml
+  - storage-init-configmap.yml
+  - storage-init-job.yml
+  - storage.yml
+  - studio.yml
+  - telegram-media-cleanup-cronjob.yml
+  - grafana-postgres-sealed-secret.yml
+  - postgres-init-grafana-user-job.yml
+

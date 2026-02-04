@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-resources
+  namespace: infatium-prod
+  labels:
+    product: infatium
+    environment: prod
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    limits.cpu: "20"
+    limits.memory: 40Gi
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+    count/deployments.apps: "40"
+    count/statefulsets.apps: "10"
+    count/jobs.batch: "10"
+    count/cronjobs.batch: "5"

@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: app-api-python
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: app-api-python
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      metricRelabelings:
+        - action: drop
+          regex: _INBOX\..*
+          sourceLabels: [messaging_destination_name]
+        - action: drop
+          regex: _INBOX\..*
+          sourceLabels: [messaging_destination_publish_name]

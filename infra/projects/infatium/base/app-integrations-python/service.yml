@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-integrations-python
+  labels:
+    app: app-integrations-python
+spec:
+  selector:
+    app: app-integrations-python
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      name: http
+  type: ClusterIP

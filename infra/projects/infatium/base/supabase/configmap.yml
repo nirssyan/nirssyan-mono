@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kong-config
+  labels:
+    app: supabase-kong
+data:
+  kong.yml: |
+    _format_version: "3.0"
+
+    services:
+      - name: auth-v1-open
+        url: http://supabase-auth:9999/verify
+        routes:
+          - name: auth-v1-open
+            strip_path: true
+            paths:
+              - /auth/v1/verify
+        plugins:
+          - name: cors
+
+      - name: auth-v1-open-callback
+        url: http://supabase-auth:9999/callback
+        routes:
+          - name: auth-v1-open-callback
+            strip_path: true
+            paths:
+              - /auth/v1/callback
+        plugins:
+          - name: cors
+
+      - name: auth-v1-open-authorize
+        url: http://supabase-auth:9999/authorize
+        routes:
+          - name: auth-v1-open-authorize
+            strip_path: true
+            paths:
+              - /auth/v1/authorize
+        plugins:
+          - name: cors
+
+      - name: auth-v1
+        _comment: "GoTrue: /auth/v1/* -> http://supabase-auth:9999/*"
+        url: http://supabase-auth:9999
+        routes:
+          - name: auth-v1-all
+            strip_path: true
+            paths:
+              - /auth/v1/
+        plugins:
+          - name: cors
+          - name: rate-limiting
+            config:
+              minute: 100
+              policy: local
+
+      - name: realtime-v1
+        _comment: "Realtime: /realtime/v1/* -> ws://supabase-realtime:4000/socket/*"
+        url: http://supabase-realtime:4000/socket
+        routes:
+          - name: realtime-v1-all
+            strip_path: true
+            paths:
+              - /realtime/v1/
+        plugins:
+          - name: cors
+          - name: rate-limiting
+            config:
+              minute: 100
+              policy: local
+
+      - name: storage-v1
+        _comment: "Storage: /storage/v1/* -> http://supabase-storage:5000/*"
+        url: http://supabase-storage:5000
+        routes:
+          - name: storage-v1-all
+            strip_path: true
+            paths:
+              - /storage/v1/
+        plugins:
+          - name: cors
+          - name: rate-limiting
+            config:
+              minute: 200
+              policy: local
+
+      - name: dashboard
+        _comment: "Studio: /* -> http://supabase-studio:3000/*"
+        url: http://supabase-studio:3000/
+        routes:
+          - name: dashboard-all
+            strip_path: true
+            paths:
+              - /
+        plugins:
+          - name: cors
+          - name: basic-auth
+            config:
+              hide_credentials: true
+
+    consumers:
+      - username: DASHBOARD
+        basicauth_credentials:
+          - username: admin
+            password: DTKuIP0Sx3mf9EjOdR5OPYrM
+
+      - username: anon
+        keyauth_credentials:
+          - key: "3T6FDcaWrJF1UosWinZkrx45040cvNiszhAcQFXYPgdIpWsm"
+
+      - username: service_role
+        keyauth_credentials:
+          - key: "UxKHmKZeXnM2qWOne73VFQK2Wcq3Kq8LO8ANLwaBILMps05S"

@@ -1,0 +1,5 @@
+---
+# Kustomize generator tasks
+
+# This role provides tasks for generating kustomize structures
+# Include specific task files as needed

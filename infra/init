@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Root-level project initialization wrapper
+
+cd "$(dirname "$0")/ansible"
+./init "$@"

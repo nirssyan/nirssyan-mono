@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supabase-imgproxy
+  labels:
+    app: supabase-imgproxy
+    service-type: infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supabase-imgproxy
+  template:
+    metadata:
+      labels:
+        app: supabase-imgproxy
+    spec:
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      containers:
+        - name: imgproxy
+          image: darthsim/imgproxy:v3.8.0
+          ports:
+            - containerPort: 5001
+              name: http
+          env:
+            - name: IMGPROXY_BIND
+              value: ":5001"
+            - name: IMGPROXY_LOCAL_FILESYSTEM_ROOT
+              value: "/"
+            - name: IMGPROXY_USE_ETAG
+              value: "true"
+            - name: IMGPROXY_ENABLE_WEBP_DETECTION
+              value: "true"
+          volumeMounts:
+            - name: storage-data
+              mountPath: /var/lib/storage
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            exec:
+              command:
+                - imgproxy
+                - health
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - imgproxy
+                - health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: storage-data
+          persistentVolumeClaim:
+            claimName: supabase-storage-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supabase-imgproxy
+  labels:
+    app: supabase-imgproxy
+spec:
+  selector:
+    app: supabase-imgproxy
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 5001
+      targetPort: 5001

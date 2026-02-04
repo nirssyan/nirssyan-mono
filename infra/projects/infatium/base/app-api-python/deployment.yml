@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-api-python
+  labels:
+    app: app-api-python
+    service-template: app-python
+    service-type: app
+    proxy-sidecar: enabled
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: app-api-python
+  template:
+    metadata:
+      labels:
+        app: app-api-python
+        expose: ingress
+    spec:
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: app-api-python
+          image: registry.infra.makekod.ru/makefeed:microservices
+          imagePullPolicy: Always
+          command: ["makefeed-api"]
+          ports:
+            - containerPort: 8000
+              name: http
+            - containerPort: 9464
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: app-api-python-config
+            - secretRef:
+                name: service-secrets
+          volumeMounts:
+            - name: rustore-key
+              mountPath: /app/secrets
+              readOnly: true
+            - name: firebase-credentials
+              mountPath: /app/firebase
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          resources:
+            requests:
+              cpu: 20m
+              memory: 320Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: rustore-key
+          secret:
+            secretName: service-secrets
+            items:
+              - key: rustore_private_key.pem
+                path: rustore_private_key.pem
+                mode: 0400
+        - name: firebase-credentials
+          secret:
+            secretName: firebase-credentials
+            items:
+              - key: firebase-sa.json
+                path: firebase-sa.json
+                mode: 0444

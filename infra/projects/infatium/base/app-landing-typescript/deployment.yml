@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-landing-typescript
+  labels:
+    app: app-landing-typescript
+    service-type: app
+    service-template: app-typescript
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: app-landing-typescript
+  template:
+    metadata:
+      labels:
+        app: app-landing-typescript
+        expose: ingress
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: app-landing-typescript
+          image: registry.infra.makekod.ru/infatium-landing:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-landing-typescript-config
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

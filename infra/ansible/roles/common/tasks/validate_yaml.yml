@@ -1,0 +1,20 @@
+---
+# Validate YAML file syntax
+# Required vars: yaml_file_path
+
+- name: Check if YAML file exists
+  ansible.builtin.stat:
+    path: "{{ yaml_file_path }}"
+  register: yaml_file_stat
+
+- name: Validate YAML syntax
+  ansible.builtin.command:
+    cmd: "python3 -c 'import yaml; yaml.safe_load(open(\"{{ yaml_file_path }}\"))'"
+  when: yaml_file_stat.stat.exists
+  changed_when: false
+  register: yaml_validation
+
+- name: YAML validation result
+  ansible.builtin.debug:
+    msg: "YAML syntax valid: {{ yaml_file_path }}"
+  when: yaml_validation.rc == 0
