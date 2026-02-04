@@ -58,3 +58,4 @@ credentials.json
 # Kubernetes
 kubeconfig
 *.kubeconfig
+telegram-auth
