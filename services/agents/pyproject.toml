@@ -47,8 +47,9 @@ dev-dependencies = [
     "ruff>=0.1.6",
 ]
 
-[tool.rye.sources]
-shared = { path = "../shared-python", editable = true }
+[[tool.rye.sources]]
+name = "shared"
+url = "file://../shared-python"
 
 [tool.rye.scripts]
 lint = { chain = ["lint:ruff-check", "lint:ruff-format"] }
