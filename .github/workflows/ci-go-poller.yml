@@ -62,6 +62,9 @@ jobs:
         id: build_end
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
       - name: Record deploy start time
         id: deploy_start
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
