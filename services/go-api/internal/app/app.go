@@ -151,6 +151,7 @@ func (a *App) Run(ctx context.Context) error {
 	sourceValidationHandler := handlers.NewSourceValidationHandler(validationClient)
 	telegramLinkHandler := handlers.NewTelegramLinkHandler(telegramUserRepo, telegramLinkCodeRepo, a.cfg.TelegramBotUsername, a.cfg.TelegramLinkExpiryMins)
 	telegramSyncHandler := handlers.NewTelegramSyncHandler(telegramClient)
+	authHandler := handlers.NewAuthHandler(a.cfg)
 	healthHandler := handlers.NewHealthHandler(pool.Pool)
 	wsHandler := websocket.NewHandler(a.wsManager, a.cfg.JWTSecret)
 
@@ -175,6 +176,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	router.Get("/ws/feeds", wsHandler.HandleFeedNotifications)
 
+	router.Mount("/auth", authHandler.Routes())
 	router.Mount("/marketplace", marketplaceHandler.Routes())
 	router.Mount("/suggestions", suggestionsHandler.Routes())
 	router.Mount("/tags", tagsHandler.Routes())
