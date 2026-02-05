@@ -82,8 +82,8 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl rollout restart deployment/makelanding -n infatium-dev
-          kubectl rollout status deployment/makelanding -n infatium-dev --timeout=5m
+          kubectl rollout restart deployment/app-landing-typescript -n infatium-dev
+          kubectl rollout status deployment/app-landing-typescript -n infatium-dev --timeout=5m
 
       - name: Record deploy end time
         id: deploy_end

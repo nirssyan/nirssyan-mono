@@ -95,8 +95,8 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl rollout restart deployment/makefeed-agents -n infatium-dev
-          kubectl rollout status deployment/makefeed-agents -n infatium-dev --timeout=5m
+          kubectl rollout restart deployment/worker-agents-python -n infatium-dev
+          kubectl rollout status deployment/worker-agents-python -n infatium-dev --timeout=5m
 
       - name: Record deploy end time
         id: deploy_end

@@ -78,8 +78,8 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl rollout restart deployment/go-api -n infatium-dev
-          kubectl rollout status deployment/go-api -n infatium-dev --timeout=5m
+          kubectl rollout restart deployment/app-api-go -n infatium-dev
+          kubectl rollout status deployment/app-api-go -n infatium-dev --timeout=5m
 
       - name: Record deploy end time
         id: deploy_end

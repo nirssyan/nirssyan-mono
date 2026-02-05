@@ -78,8 +78,8 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl rollout restart deployment/auth-service -n infatium-dev
-          kubectl rollout status deployment/auth-service -n infatium-dev --timeout=5m
+          kubectl rollout restart deployment/app-auth-go -n infatium-dev
+          kubectl rollout status deployment/app-auth-go -n infatium-dev --timeout=5m
 
       - name: Record deploy end time
         id: deploy_end
