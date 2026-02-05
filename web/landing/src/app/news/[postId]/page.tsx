@@ -185,6 +185,7 @@ export default async function NewsPage({
                 className="object-cover"
                 sizes="(max-width: 768px) 100vw, 896px"
                 priority
+                unoptimized
               />
             </div>
             {/* Image gradient overlay */}
