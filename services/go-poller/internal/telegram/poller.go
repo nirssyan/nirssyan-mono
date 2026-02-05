@@ -377,7 +377,10 @@ func (p *Poller) messageToRawPostData(msg *Message, feed domain.RawFeed) domain.
 	messageID := int64(msg.MessageID)
 
 	var sourceURL *string
-	if feed.SiteURL != nil {
+	if feed.SiteURL != nil && msg.MessageID > 0 {
+		fullURL := fmt.Sprintf("%s/%d", *feed.SiteURL, msg.MessageID)
+		sourceURL = &fullURL
+	} else if feed.SiteURL != nil {
 		sourceURL = feed.SiteURL
 	}
 
