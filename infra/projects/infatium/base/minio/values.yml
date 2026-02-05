@@ -1,0 +1,39 @@
+mode: standalone
+replicas: 1
+
+existingSecret: minio-secrets
+
+persistence:
+  enabled: true
+  size: 50Gi
+  storageClass: local-path
+
+service:
+  type: ClusterIP
+  port: 9000
+
+consoleService:
+  type: ClusterIP
+  port: 9001
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+nodeSelector:
+  node-role: infra
+
+tolerations:
+  - key: node-role
+    operator: Equal
+    value: infra
+    effect: NoSchedule
+
+podLabels:
+  expose: ingress
+
+buckets: []
