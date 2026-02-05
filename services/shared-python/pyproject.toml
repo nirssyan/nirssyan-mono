@@ -22,11 +22,12 @@ dependencies = [
 requires-python = ">= 3.10"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.hatch.build.targets.wheel]
-packages = ["shared"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["shared*"]
 
 [tool.rye]
 managed = true
