@@ -1,5 +1,18 @@
 -- Migration: Auth service initial schema
--- Add auth fields to existing users table
+
+-- Create users table if not exists
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    provider TEXT DEFAULT 'email',
+    provider_id TEXT,
+    password_hash TEXT,
+    email_verified_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add auth fields if table already existed without them
 ALTER TABLE users ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'email';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_id TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
