@@ -22,8 +22,8 @@ WORKDIR /app/agents
 # Create modified pyproject.toml with correct path for Docker context
 RUN sed -i 's|file://../shared-python|file:///app/shared-python|g' pyproject.toml
 
-# Install dependencies using uv
-RUN uv pip install --system -e /app/shared-python && \
+# Install dependencies using uv (non-editable install to avoid hatchling issues)
+RUN uv pip install --system /app/shared-python && \
     uv pip install --system -e .
 
 # Final stage
