@@ -10,10 +10,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - dev.service.infatium.ru
-      secretName: service-tls
+        - dev.api.infatium.ru
+      secretName: api-tls
   rules:
-    - host: dev.service.infatium.ru
+    - host: dev.api.infatium.ru
       http:
         paths:
           - path: /auth
