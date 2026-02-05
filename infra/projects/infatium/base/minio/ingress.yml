@@ -7,10 +7,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - storage.dev.makefeed.nirssyan.ru
+        - storage.infatium.ru
       secretName: minio-tls
   rules:
-    - host: storage.dev.makefeed.nirssyan.ru
+    - host: storage.infatium.ru
       http:
         paths:
           - path: /

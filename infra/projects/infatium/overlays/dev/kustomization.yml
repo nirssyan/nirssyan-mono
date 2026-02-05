@@ -28,7 +28,6 @@ resources:
   - dockerhub-registry-sealed.yml
   - integrations-secrets-sealed.yml
   - minio-secrets-sealed.yml
-  - minio-ingress.yml
   - ../../base/minio
 
 commonLabels:
