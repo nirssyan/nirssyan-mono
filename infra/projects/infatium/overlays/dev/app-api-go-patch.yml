@@ -59,6 +59,11 @@ spec:
                   key: S3_SECRET_KEY
             - name: S3_BUCKET
               value: "infatium"
+            - name: S3_PUBLIC_URL
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: S3_PUBLIC_URL
             # Dummy values - Supabase removed from dev
             - name: SUPABASE_URL
               value: "http://disabled:8000"
