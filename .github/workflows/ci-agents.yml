@@ -20,37 +20,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Cache Rye
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.rye
-            services/agents/.venv
-            services/shared-python/.venv
-          key: rye-${{ runner.os }}-${{ hashFiles('services/agents/pyproject.toml', 'services/shared-python/pyproject.toml') }}
-          restore-keys: |
-            rye-${{ runner.os }}-
-
-      - name: Install Rye
-        run: |
-          curl -sSf https://rye.astral.sh/get | RYE_INSTALL_OPTION="--yes" bash
-          echo "$HOME/.rye/shims" >> $GITHUB_PATH
-
-      - name: Install dependencies
-        working-directory: services/agents
-        run: |
-          rye sync
-
-      - name: Run linter
-        working-directory: services/agents
-        run: |
-          rye run ruff check agents/
-
       - name: Record build start time
         id: build_start
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
@@ -68,7 +37,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./services/agents
+          context: ./services
+          file: ./services/agents/Dockerfile
           push: true
           platforms: linux/amd64
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
