@@ -10,4 +10,4 @@ data:
   ACCESS_TOKEN_TTL: "15m"
   REFRESH_TOKEN_TTL: "336h"
   MAGIC_LINK_TTL: "15m"
-  EMAIL_FROM: "noreply@infatium.ru"
+  EMAIL_FROM: "noreply@nirssyan.ru"
