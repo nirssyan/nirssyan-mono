@@ -13,6 +13,7 @@ spec:
     metadata:
       labels:
         app: app-auth-go
+        expose: ingress
     spec:
       containers:
         - name: app-auth-go
