@@ -5,6 +5,7 @@ export const translations = {
     // Header
     header: {
       howItWorks: 'Как это работает',
+      marketplace: 'Маркетплейс',
       tryIt: 'Попробовать',
     },
 
@@ -157,6 +158,30 @@ export const translations = {
       },
     },
 
+    // Marketplace
+    marketplace: {
+      badge: 'Подборки лент',
+      title: 'Маркетплейс готовых лент',
+      subtitle:
+        'Выбирайте тематические ленты, комбинируйте DIGEST и SINGLE_POST и открывайте их в приложении infatium.',
+      searchPlaceholder: 'Поиск по названию, описанию или тегам',
+      allTypes: 'Все типы',
+      allTags: 'Все теги',
+      singlePost: 'SINGLE_POST',
+      digest: 'DIGEST',
+      openApp: 'Открыть приложение',
+      noDescription: 'Описание скоро появится',
+      resultsLabel: 'лент в каталоге',
+      clearFilters: 'Сбросить фильтры',
+      emptyTitle: 'По вашему запросу ничего не найдено',
+      emptyHint: 'Попробуйте изменить фильтры или поисковый запрос.',
+      errorTitle: 'Каталог временно недоступен',
+      errorHint: 'Не удалось загрузить ленты. Обновите страницу и попробуйте снова.',
+      retry: 'Обновить',
+      desktopDownload: 'Скачайте infatium',
+      partialDataWarning: 'Показаны последние доступные данные.',
+    },
+
     // About
     about: {
       comparison: {
@@ -216,6 +241,7 @@ export const translations = {
     // Header
     header: {
       howItWorks: 'How it works',
+      marketplace: 'Marketplace',
       tryIt: 'Try it',
     },
 
@@ -366,6 +392,30 @@ export const translations = {
         briefTab: 'Brief',
         fullTab: 'Full',
       },
+    },
+
+    // Marketplace
+    marketplace: {
+      badge: 'Feed collections',
+      title: 'Marketplace of ready-to-use feeds',
+      subtitle:
+        'Browse curated feeds, combine DIGEST and SINGLE_POST formats, and open them in the infatium app.',
+      searchPlaceholder: 'Search by name, description, or tags',
+      allTypes: 'All types',
+      allTags: 'All tags',
+      singlePost: 'SINGLE_POST',
+      digest: 'DIGEST',
+      openApp: 'Open app',
+      noDescription: 'Description coming soon',
+      resultsLabel: 'feeds in catalog',
+      clearFilters: 'Reset filters',
+      emptyTitle: 'Nothing found for your request',
+      emptyHint: 'Try adjusting filters or your search query.',
+      errorTitle: 'Catalog is temporarily unavailable',
+      errorHint: 'We could not load feeds right now. Please refresh and try again.',
+      retry: 'Refresh',
+      desktopDownload: 'Download infatium',
+      partialDataWarning: 'Showing the last available data snapshot.',
     },
 
     // About

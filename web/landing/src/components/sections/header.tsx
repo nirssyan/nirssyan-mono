@@ -75,23 +75,36 @@ function NavLink({
   onTrack?: (linkText: string, destination: string) => void
 }) {
   const [isHovered, setIsHovered] = useState(false)
+  const isHashLink = href.startsWith('#')
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
-    onTrack?.(children as string, href.replace('#', ''))
+    onTrack?.(children as string, href.replace('#', '').replace('/', ''))
 
-    if (pathname === '/') {
-      // На главной странице - скроллим к секции
-      const element = document.getElementById(href.replace('#', ''))
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' })
+    if (isHashLink) {
+      if (pathname === '/') {
+        // На главной странице - скроллим к секции
+        const element = document.getElementById(href.replace('#', ''))
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' })
+          onClick?.()
+        }
+      } else {
+        // На других страницах - переходим на главную с хешем
+        router.push(`/${href}`)
         onClick?.()
       }
-    } else {
-      // На других страницах - переходим на главную с хешем
-      router.push(`/${href}`)
-      onClick?.()
+
+      return
     }
+
+    if (pathname !== href) {
+      router.push(href)
+      onClick?.()
+      return
+    }
+
+    onClick?.()
   }
 
   return (
@@ -254,6 +267,20 @@ export function Header() {
     }
   }
 
+  const goToAbout = () => {
+    setIsMobileMenuOpen(false)
+
+    if (pathname === '/') {
+      const aboutSection = document.getElementById('about')
+      if (aboutSection) {
+        aboutSection.scrollIntoView({ behavior: 'smooth' })
+      }
+      return
+    }
+
+    router.push('/#about')
+  }
+
   return (
     <>
       <motion.header
@@ -296,6 +323,22 @@ export function Header() {
                   {t.header.howItWorks}
                 </NavLink>
               </li>
+              <li>
+                <NavLink
+                  href="/marketplace"
+                  router={router}
+                  pathname={pathname}
+                  onTrack={(linkText, destination) =>
+                    trackCTAClick({
+                      button_text: linkText,
+                      section: 'navigation',
+                      destination,
+                    })
+                  }
+                >
+                  {t.header.marketplace}
+                </NavLink>
+              </li>
             </ul>
 
             {/* CTA Button + Language Switcher - Desktop */}
@@ -307,10 +350,7 @@ export function Header() {
                     section: 'header',
                     destination: 'about',
                   })
-                  const aboutSection = document.getElementById('about')
-                  if (aboutSection) {
-                    aboutSection.scrollIntoView({ behavior: 'smooth' })
-                  }
+                  goToAbout()
                 }}
                 className="group relative px-6 py-2.5 bg-white text-black rounded-full text-sm font-medium transition-all duration-300 hover:bg-white/90 overflow-hidden cursor-pointer"
               >
@@ -397,6 +437,30 @@ export function Header() {
                     {t.header.howItWorks}
                   </a>
                 </motion.li>
+                <motion.li
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.15 }}
+                >
+                  <a
+                    href="/marketplace"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      trackCTAClick({
+                        button_text: t.header.marketplace,
+                        section: 'navigation-mobile',
+                        destination: 'marketplace',
+                      })
+                      setIsMobileMenuOpen(false)
+                      if (pathname !== '/marketplace') {
+                        router.push('/marketplace')
+                      }
+                    }}
+                    className="block text-white/70 hover:text-white transition-colors duration-300 text-lg font-medium"
+                  >
+                    {t.header.marketplace}
+                  </a>
+                </motion.li>
 
               </ul>
 
@@ -423,11 +487,7 @@ export function Header() {
                         section: 'header-mobile',
                         destination: 'about',
                       })
-                      setIsMobileMenuOpen(false)
-                      const aboutSection = document.getElementById('about')
-                      if (aboutSection) {
-                        aboutSection.scrollIntoView({ behavior: 'smooth' })
-                      }
+                      goToAbout()
                     }}
                     className="w-full px-6 py-3 bg-white text-black rounded-full text-base font-medium transition-all duration-300 hover:bg-white/90 cursor-pointer"
                   >
