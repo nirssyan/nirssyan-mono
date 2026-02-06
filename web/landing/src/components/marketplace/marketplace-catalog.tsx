@@ -100,9 +100,7 @@ export function MarketplaceCatalog({ initialFeeds, hasError }: MarketplaceCatalo
         return true
       }
 
-      const haystack = normalize(
-        `${feed.name} ${feed.description ?? ''} ${feed.tags.join(' ')}`
-      )
+      const haystack = normalize(`${feed.name} ${feed.description ?? ''} ${feed.tags.join(' ')}`)
       return haystack.includes(query)
     })
   }, [initialFeeds, searchQuery, selectedType, selectedTag])

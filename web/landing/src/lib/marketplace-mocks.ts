@@ -1,0 +1,88 @@
+import { MarketplaceFeed } from '@/types/marketplace'
+
+export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
+  {
+    id: 'startup-digest',
+    name: 'Startup Daily Digest',
+    type: 'DIGEST',
+    description: 'Главные новости стартапов, инвестиций и продуктов за день.',
+    tags: ['startups', 'venture', 'product'],
+  },
+  {
+    id: 'ai-single-post',
+    name: 'AI Research Highlights',
+    type: 'SINGLE_POST',
+    description: 'Новые модели, papers и важные апдейты индустрии AI.',
+    tags: ['ai', 'research', 'tech'],
+  },
+  {
+    id: 'product-weekly',
+    name: 'Product Weekly',
+    type: 'DIGEST',
+    description: 'Короткий weekly обзор продуктовых практик и кейсов.',
+    tags: ['product', 'management', 'growth'],
+  },
+  {
+    id: 'engineering-radar',
+    name: 'Engineering Radar',
+    type: 'SINGLE_POST',
+    description: 'Точечные апдейты по backend, frontend и инфраструктуре.',
+    tags: ['engineering', 'backend', 'frontend'],
+  },
+  {
+    id: 'crypto-digest',
+    name: 'Crypto & Markets',
+    type: 'DIGEST',
+    description: 'Сводка по рынку, регуляторике и ключевым крипто-событиям.',
+    tags: ['crypto', 'markets', 'finance'],
+  },
+  {
+    id: 'media-watch',
+    name: 'Media Watch',
+    type: 'SINGLE_POST',
+    description: 'Заметные медиа-тренды, платформы и изменения алгоритмов.',
+    tags: ['media', 'platforms', 'trends'],
+  },
+  {
+    id: 'founder-ops',
+    name: 'Founder Ops',
+    type: 'DIGEST',
+    description: 'Операционные инсайты для фаундеров и лидеров команд.',
+    tags: ['founders', 'operations', 'leadership'],
+  },
+  {
+    id: 'devtools-brief',
+    name: 'DevTools Brief',
+    type: 'SINGLE_POST',
+    description: 'Новые релизы инструментов разработчика и полезные тулзы.',
+    tags: ['devtools', 'productivity', 'engineering'],
+  },
+  {
+    id: 'marketing-digest',
+    name: 'Marketing Signals',
+    type: 'DIGEST',
+    description: 'Сильные маркетинговые кейсы и сигналы по каналам роста.',
+    tags: ['marketing', 'growth', 'analytics'],
+  },
+  {
+    id: 'design-pulse',
+    name: 'Design Pulse',
+    type: 'SINGLE_POST',
+    description: 'Примеры интерфейсов, UX-решений и визуальных паттернов.',
+    tags: ['design', 'ux', 'ui'],
+  },
+  {
+    id: 'global-news-lite',
+    name: 'Global News Lite',
+    type: 'DIGEST',
+    description: 'Сжатая международная повестка без шума и кликбейта.',
+    tags: ['news', 'world', 'digest'],
+  },
+  {
+    id: 'creator-economy',
+    name: 'Creator Economy',
+    type: 'SINGLE_POST',
+    description: 'Монетизация, платформы и тренды экономики создателей.',
+    tags: ['creators', 'platforms', 'business'],
+  },
+]

@@ -11,12 +11,7 @@ interface FeedCardProps {
   onOpenApp: (feed: MarketplaceFeed) => void
 }
 
-export function FeedCard({
-  feed,
-  openAppLabel,
-  noDescriptionLabel,
-  onOpenApp,
-}: FeedCardProps) {
+export function FeedCard({ feed, openAppLabel, noDescriptionLabel, onOpenApp }: FeedCardProps) {
   const visibleTags = feed.tags.slice(0, 3)
   const hiddenTagsCount = Math.max(0, feed.tags.length - visibleTags.length)
   const isDigest = feed.type === 'DIGEST'
@@ -77,4 +72,3 @@ export function FeedCard({
     </motion.article>
   )
 }
-

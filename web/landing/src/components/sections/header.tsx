@@ -267,20 +267,6 @@ export function Header() {
     }
   }
 
-  const goToAbout = () => {
-    setIsMobileMenuOpen(false)
-
-    if (pathname === '/') {
-      const aboutSection = document.getElementById('about')
-      if (aboutSection) {
-        aboutSection.scrollIntoView({ behavior: 'smooth' })
-      }
-      return
-    }
-
-    router.push('/#about')
-  }
-
   return (
     <>
       <motion.header
@@ -328,13 +314,11 @@ export function Header() {
                   href="/marketplace"
                   router={router}
                   pathname={pathname}
-                  onTrack={(linkText, destination) =>
-                    trackCTAClick({
-                      button_text: linkText,
-                      section: 'navigation',
-                      destination,
-                    })
-                  }
+                  onTrack={(linkText, destination) => trackCTAClick({
+                    button_text: linkText,
+                    section: 'navigation',
+                    destination,
+                  })}
                 >
                   {t.header.marketplace}
                 </NavLink>
@@ -350,7 +334,10 @@ export function Header() {
                     section: 'header',
                     destination: 'about',
                   })
-                  goToAbout()
+                  const aboutSection = document.getElementById('about')
+                  if (aboutSection) {
+                    aboutSection.scrollIntoView({ behavior: 'smooth' })
+                  }
                 }}
                 className="group relative px-6 py-2.5 bg-white text-black rounded-full text-sm font-medium transition-all duration-300 hover:bg-white/90 overflow-hidden cursor-pointer"
               >
@@ -449,7 +436,7 @@ export function Header() {
                       trackCTAClick({
                         button_text: t.header.marketplace,
                         section: 'navigation-mobile',
-                        destination: 'marketplace',
+                        destination: 'marketplace'
                       })
                       setIsMobileMenuOpen(false)
                       if (pathname !== '/marketplace') {
@@ -487,7 +474,11 @@ export function Header() {
                         section: 'header-mobile',
                         destination: 'about',
                       })
-                      goToAbout()
+                      setIsMobileMenuOpen(false)
+                      const aboutSection = document.getElementById('about')
+                      if (aboutSection) {
+                        aboutSection.scrollIntoView({ behavior: 'smooth' })
+                      }
                     }}
                     className="w-full px-6 py-3 bg-white text-black rounded-full text-base font-medium transition-all duration-300 hover:bg-white/90 cursor-pointer"
                   >

@@ -3,6 +3,7 @@ name: Deploy PROD
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 env:
   REGISTRY: registry.infra.makekod.ru
@@ -20,6 +21,18 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y curl jq
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm
+
+    - name: Validate code quality
+      run: |
+        npm ci
+        npm run lint
+        npm run type-check
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -76,10 +89,23 @@ jobs:
       id: deploy_start
       run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
+    - name: Detect deployment name
+      id: deployment_name
+      run: |
+        if timeout 30s kubectl get deployment app-landing-typescript -n infatium-prod --request-timeout=20s >/dev/null 2>&1; then
+          echo "name=app-landing-typescript" >> $GITHUB_OUTPUT
+        elif timeout 30s kubectl get deployment landing -n infatium-prod --request-timeout=20s >/dev/null 2>&1; then
+          echo "name=landing" >> $GITHUB_OUTPUT
+        else
+          echo "No landing deployment found in namespace infatium-prod"
+          timeout 30s kubectl get deployment -n infatium-prod --request-timeout=20s || true
+          exit 1
+        fi
+
     - name: Deploy to Kubernetes (prod)
       run: |
-        kubectl rollout restart deployment/landing -n infatium-prod
-        kubectl rollout status deployment/landing -n infatium-prod --timeout=5m
+        timeout 30s kubectl rollout restart deployment/${{ steps.deployment_name.outputs.name }} -n infatium-prod --request-timeout=20s
+        timeout 330s kubectl rollout status deployment/${{ steps.deployment_name.outputs.name }} -n infatium-prod --request-timeout=20s --timeout=5m
 
     - name: Record deploy end time
       id: deploy_end
@@ -89,9 +115,9 @@ jobs:
       if: always()
       run: |
         echo "=== infatium-prod: Deployment Status ==="
-        kubectl get deployment landing -n infatium-prod || echo "Deployment not found"
+        timeout 30s kubectl get deployment ${{ steps.deployment_name.outputs.name }} -n infatium-prod --request-timeout=20s || echo "Deployment not found"
         echo "=== infatium-prod: Pods Status ==="
-        kubectl get pods -n infatium-prod -l app=landing || echo "No pods found"
+        timeout 30s kubectl get pods -n infatium-prod -l app=${{ steps.deployment_name.outputs.name }} --request-timeout=20s || echo "No pods found"
 
     - name: Send Telegram notification
       if: always()

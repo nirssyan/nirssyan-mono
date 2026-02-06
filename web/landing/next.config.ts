@@ -10,13 +10,20 @@ const nextConfig: NextConfig = {
   },
 
   // Image optimization
-  // SECURITY: No remote patterns - external images use unoptimized mode
-  // This prevents SSRF via /_next/image endpoint
   images: {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    remotePatterns: [],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**', // Allow all HTTPS domains for news images
+      },
+      {
+        protocol: 'http',
+        hostname: '**', // Allow all HTTP domains (some news sources may use HTTP)
+      },
+    ],
   },
 
   // Compression and caching

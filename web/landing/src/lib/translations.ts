@@ -397,9 +397,9 @@ export const translations = {
     // Marketplace
     marketplace: {
       badge: 'Feed collections',
-      title: 'Marketplace of ready-to-use feeds',
+      title: 'Ready-made feed marketplace',
       subtitle:
-        'Browse curated feeds, combine DIGEST and SINGLE_POST formats, and open them in the infatium app.',
+        'Choose topic-based feeds, combine DIGEST and SINGLE_POST formats, and open them in the infatium app.',
       searchPlaceholder: 'Search by name, description, or tags',
       allTypes: 'All types',
       allTags: 'All tags',
@@ -408,14 +408,14 @@ export const translations = {
       openApp: 'Open app',
       noDescription: 'Description coming soon',
       resultsLabel: 'feeds in catalog',
-      clearFilters: 'Reset filters',
-      emptyTitle: 'Nothing found for your request',
-      emptyHint: 'Try adjusting filters or your search query.',
+      clearFilters: 'Clear filters',
+      emptyTitle: 'No feeds found for your query',
+      emptyHint: 'Try changing filters or search query.',
       errorTitle: 'Catalog is temporarily unavailable',
-      errorHint: 'We could not load feeds right now. Please refresh and try again.',
+      errorHint: 'Failed to load feeds. Refresh the page and try again.',
       retry: 'Refresh',
       desktopDownload: 'Download infatium',
-      partialDataWarning: 'Showing the last available data snapshot.',
+      partialDataWarning: 'Showing last available data.',
     },
 
     // About

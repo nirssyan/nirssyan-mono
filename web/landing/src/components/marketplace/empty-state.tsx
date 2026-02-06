@@ -9,12 +9,7 @@ interface EmptyStateProps {
   onAction?: () => void
 }
 
-export function EmptyState({
-  title,
-  description,
-  actionLabel,
-  onAction,
-}: EmptyStateProps) {
+export function EmptyState({ title, description, actionLabel, onAction }: EmptyStateProps) {
   return (
     <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-8 sm:p-10">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(255,255,255,0.1),transparent_45%)]" />
@@ -39,4 +34,3 @@ export function EmptyState({
     </div>
   )
 }
-
