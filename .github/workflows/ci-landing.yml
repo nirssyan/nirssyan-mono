@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: registry.infra.makekod.ru
-  IMAGE_NAME: makelanding
+  IMAGE_NAME: infatium-landing
   IMAGE_TAG: dev
 
 jobs:
