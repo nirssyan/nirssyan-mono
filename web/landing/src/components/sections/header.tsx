@@ -3,6 +3,7 @@
 import { motion, useMotionValue, useSpring, AnimatePresence } from 'framer-motion'
 import { useEffect, useState, useRef } from 'react'
 import { Menu, X } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useMatomo } from '@/hooks/use-matomo'
 import { useLanguage } from '@/lib/language-context'
@@ -430,24 +431,20 @@ export function Header() {
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.15 }}
                 >
-                  <a
+                  <Link
                     href="/marketplace"
-                    onClick={(e) => {
-                      e.preventDefault()
+                    onClick={() => {
                       trackCTAClick({
                         button_text: t.header.marketplace,
                         section: 'navigation-mobile',
                         destination: 'marketplace'
                       })
                       setIsMobileMenuOpen(false)
-                      if (pathname !== '/marketplace') {
-                        router.push('/marketplace')
-                      }
                     }}
                     className="block text-white/70 hover:text-white transition-colors duration-300 text-lg font-medium"
                   >
                     {t.header.marketplace}
-                  </a>
+                  </Link>
                 </motion.li>
 
               </ul>
