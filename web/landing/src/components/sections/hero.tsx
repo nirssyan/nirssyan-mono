@@ -126,9 +126,9 @@ export function Hero() {
             }}
           />
 
-          {/* Single massive floating orb - ultra subtle */}
+          {/* Single floating orb — reduced size for GPU performance */}
           <motion.div
-            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[1400px] h-[1400px] bg-white/[0.02] rounded-full blur-3xl"
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-white/[0.02] rounded-full blur-2xl"
             animate={{
               scale: [1, 1.03, 1],
               opacity: [0.02, 0.04, 0.02],
@@ -151,7 +151,7 @@ export function Hero() {
             loop
             muted
             playsInline
-            preload="auto"
+            preload="metadata"
             className="w-full h-full object-cover"
           />
         ) : (
@@ -161,7 +161,7 @@ export function Hero() {
             loop
             muted
             playsInline
-            preload="auto"
+            preload="metadata"
             className="w-full h-full object-cover"
           />
         )}
@@ -196,7 +196,6 @@ export function Hero() {
           {/* Typewriter demo - the hero */}
           <motion.div
             className="relative"
-            style={{ willChange: 'auto' }}
           >
             <MemoizedTypewriterText phrases={t.hero.phrases} prefix={t.hero.iDecide} />
           </motion.div>

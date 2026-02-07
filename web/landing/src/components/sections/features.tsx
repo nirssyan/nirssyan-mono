@@ -15,6 +15,7 @@ import { useMatomo } from '@/hooks/use-matomo'
 import { useIsMobile } from '@/hooks/use-is-mobile'
 import { useLanguage } from '@/lib/language-context'
 import { throttle } from '@/lib/throttle'
+import { useIsSafari } from '@/hooks/use-safari-detect'
 
 const problemIcons = [Layers, Bot, ScrollText, Volume2]
 const problemGradients = [
@@ -159,7 +160,7 @@ const ProblemCard = memo(({
         rotateY,
         transformStyle: "preserve-3d",
       }}
-      className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-black/40 backdrop-blur-sm sm:backdrop-blur-xl border border-white/10"
+      className="group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gray-900/80 border border-white/10"
     >
       <motion.div
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl sm:rounded-3xl"
@@ -193,7 +194,7 @@ const ProblemCard = memo(({
               background: `linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1))`,
             }}
           />
-          <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:border-white/30 transition-colors duration-300">
+          <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-white/30 transition-colors duration-300">
             <Icon className="w-7 h-7 sm:w-8 sm:h-8 text-white/70 group-hover:text-white transition-colors duration-300" strokeWidth={1.5} />
           </div>
         </motion.div>
@@ -254,7 +255,7 @@ function StatCard({
   onTrackClick?: (sourceText: string, url: string) => void
 }) {
   return (
-    <div className="text-center p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-colors">
+    <div className="text-center p-6 rounded-2xl bg-gray-800/60 border border-white/10 hover:border-white/20 transition-colors">
       <div className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-2">
         {stat.value}
       </div>
@@ -277,10 +278,11 @@ function StatCard({
 }
 
 export function Features() {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const { t } = useLanguage()
   const { trackExternalLink } = useMatomo()
   const isMobile = useIsMobile()
+  const isSafari = useIsSafari()
+  const cursorRef = useRef<HTMLDivElement>(null)
   const sectionRef = useIntersectionTracking({
     sectionName: 'problems',
     threshold: 0.3,
@@ -295,17 +297,19 @@ export function Features() {
     })
   }
 
-  // Mouse tracking for cursor glow - desktop only (no mouse on mobile)
   useEffect(() => {
-    if (isMobile) return
+    if (isMobile || isSafari) return
 
     const handleMouseMove = throttle((e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY })
-    }, 100)
+      if (cursorRef.current) {
+        cursorRef.current.style.left = `${e.clientX - 200}px`
+        cursorRef.current.style.top = `${e.clientY - 200}px`
+      }
+    }, 16)
 
     window.addEventListener('mousemove', handleMouseMove)
     return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [isMobile])
+  }, [isMobile, isSafari])
 
   return (
     <section
@@ -316,7 +320,7 @@ export function Features() {
 
       {/* Seamless color gradient - animated on desktop, static on mobile */}
       <div
-        className={`absolute inset-0 opacity-20 z-[0] ${isMobile ? '' : 'animate-gradient-shift blur-[120px]'}`}
+        className={`absolute inset-0 opacity-20 z-[0] ${isMobile ? '' : 'animate-gradient-shift blur-[60px]'}`}
         style={{
           background: isMobile
             ? 'linear-gradient(90deg, rgba(168,85,247,0.3) 0%, rgba(59,130,246,0.3) 50%, rgba(168,85,247,0.3) 100%)'
@@ -327,12 +331,12 @@ export function Features() {
         }}
       />
 
-      {/* Animated color blobs - desktop only (conditionally rendered to save GPU) */}
-      {!isMobile && (
+      {/* Animated color blobs — disabled on Safari for GPU performance */}
+      {!isMobile && !isSafari && (
         <div className="absolute inset-0">
           {/* Purple blob - top left */}
           <motion.div
-            className="absolute w-[800px] h-[800px] rounded-full opacity-30 blur-[120px]"
+            className="absolute w-[400px] h-[400px] rounded-full opacity-30 blur-[60px]"
             style={{
               background: 'radial-gradient(circle, rgba(168, 85, 247, 0.4) 0%, rgba(147, 51, 234, 0.2) 50%, transparent 100%)',
             }}
@@ -350,7 +354,7 @@ export function Features() {
 
           {/* Blue blob - top right */}
           <motion.div
-            className="absolute right-0 w-[700px] h-[700px] rounded-full opacity-30 blur-[100px]"
+            className="absolute right-0 w-[350px] h-[350px] rounded-full opacity-30 blur-[50px]"
             style={{
               background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(37, 99, 235, 0.2) 50%, transparent 100%)',
             }}
@@ -382,7 +386,7 @@ export function Features() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 mb-6 sm:mb-8"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-800/60 border border-white/10 mb-6 sm:mb-8"
           >
             <TrendingUp className="w-4 h-4 text-white/60" />
             <span className="text-xs sm:text-sm text-white/60 font-light">{t.problems.badge}</span>
@@ -450,7 +454,7 @@ export function Features() {
           transition={{ delay: 0.8 }}
           className="text-center mt-16 sm:mt-24"
         >
-          <div className="inline-flex flex-col items-start gap-3 px-6 py-5 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 max-w-3xl">
+          <div className="inline-flex flex-col items-start gap-3 px-6 py-5 rounded-2xl bg-gray-800/60 border border-white/10 max-w-3xl">
             <div className="flex items-start gap-3">
               <Quote className="w-5 h-5 text-white/30 flex-shrink-0 mt-0.5" />
               <p className="text-sm sm:text-base text-white/60 font-light italic text-left">
@@ -475,24 +479,15 @@ export function Features() {
         </motion.div>
       </div>
 
-      {/* Cursor glow - desktop only (conditionally rendered) */}
-      {!isMobile && (
-        <motion.div
-          className="pointer-events-none fixed rounded-full blur-3xl opacity-20"
+      {/* Cursor glow — direct DOM positioning, no React re-render */}
+      {!isMobile && !isSafari && (
+        <div
+          ref={cursorRef}
+          className="pointer-events-none fixed rounded-full blur-3xl opacity-20 animate-glow-pulse"
           style={{
             width: 400,
             height: 400,
-            left: mousePosition.x - 200,
-            top: mousePosition.y - 200,
             background: 'radial-gradient(circle, rgba(100, 150, 255, 0.3), transparent 70%)',
-          }}
-          animate={{
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut"
           }}
         />
       )}

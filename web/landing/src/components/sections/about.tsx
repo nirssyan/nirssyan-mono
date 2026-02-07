@@ -7,6 +7,7 @@ import { useIntersectionTracking } from '@/hooks/use-intersection-tracking'
 import { useMatomo } from '@/hooks/use-matomo'
 import { useLanguage } from '@/lib/language-context'
 import { throttle } from '@/lib/throttle'
+import { useIsSafari } from '@/hooks/use-safari-detect'
 import Image from 'next/image'
 
 const platformStyles = [
@@ -46,12 +47,14 @@ type PlatformData = {
 // Floating Particles Component - disabled on mobile for performance
 const FloatingParticles = memo(({ isHovered, glowColor }: { isHovered: boolean; glowColor: string }) => {
   const [isMobile, setIsMobile] = useState(false)
+  const isSafari = useIsSafari()
 
   useEffect(() => {
     setIsMobile(window.innerWidth < 640)
   }, [])
 
-  // Pre-generate random values for each particle to avoid hydration issues
+  const particleCount = isMobile ? 0 : isSafari ? 2 : 6
+
   const [particles] = useState(() =>
     [...Array(6)].map(() => ({
       initialX: Math.random() * 100 - 50,
@@ -61,14 +64,13 @@ const FloatingParticles = memo(({ isHovered, glowColor }: { isHovered: boolean; 
     }))
   )
 
-  // Don't render particles on mobile
-  if (isMobile) return null
+  if (particleCount === 0) return null
 
   return (
     <AnimatePresence>
       {isHovered && (
         <>
-          {particles.map((particle, i) => (
+          {particles.slice(0, particleCount).map((particle, i) => (
             <motion.div
               key={i}
               initial={{
@@ -196,7 +198,7 @@ const PlatformCard = memo(({
         rotateY,
         transformStyle: "preserve-3d",
       }}
-      className={`group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-black/40 backdrop-blur-xl border border-white/10 hover:border-white/20 transition-colors duration-500 ${platform.href ? 'cursor-pointer block' : ''}`}
+      className={`group relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gray-900/90 border border-white/10 hover:border-white/20 transition-colors duration-500 ${platform.href ? 'cursor-pointer block' : ''}`}
     >
       {/* Animated gradient background */}
       <motion.div
@@ -249,13 +251,10 @@ const PlatformCard = memo(({
           />
 
           {/* Icon container */}
-          <motion.div
-            className="relative w-10 h-10 xs:w-12 xs:h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg sm:rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:border-white/30 transition-all duration-300"
-            animate={isHovered ? {
-              boxShadow: `0 0 30px ${platform.glowColor}, inset 0 0 15px ${platform.glowColor}`
-            } : {
-              boxShadow: 'none'
-            }}
+          <div
+            className={`relative w-10 h-10 xs:w-12 xs:h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-lg sm:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-white/30 transition-all duration-300 ${
+              isHovered ? (platform.id === 'ios' ? 'shadow-glow-blue' : 'shadow-glow-green') : ''
+            }`}
           >
             {platform.id === 'ios' ? (
               <svg
@@ -279,7 +278,7 @@ const PlatformCard = memo(({
                 strokeWidth={1.5}
               />
             )}
-          </motion.div>
+          </div>
 
           {/* Rotating ring */}
           <motion.div
@@ -316,7 +315,7 @@ const PlatformCard = memo(({
 
         {/* Status badge */}
         <motion.div
-          className="mt-auto inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10"
+          className="mt-auto inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gray-800/60 border border-white/10"
           whileHover={{ scale: 1.05 }}
           style={{ transform: "translateZ(10px)" }}
         >
@@ -325,39 +324,20 @@ const PlatformCard = memo(({
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
             </svg>
           ) : (
-            <motion.div
-              className="w-1.5 h-1.5 rounded-full"
+            <div
+              className="w-1.5 h-1.5 rounded-full animate-pulse-dot"
               style={{ backgroundColor: platform.glowColor }}
-              animate={{
-                scale: [1, 1.3, 1],
-                opacity: [0.6, 1, 0.6]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
             />
           )}
           <span className="text-[10px] sm:text-xs text-white/60 font-medium">{platform.status}</span>
         </motion.div>
 
-        {/* Animated border gradient */}
-        <motion.div
-          className="absolute inset-0 rounded-2xl sm:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+        {/* Animated border gradient — CSS animation for Safari performance */}
+        <div
+          className={`absolute inset-0 rounded-2xl sm:rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${isHovered ? 'animate-gradient-shift' : ''}`}
           style={{
             background: `linear-gradient(135deg, ${platform.glowColor}, transparent, ${platform.glowColor})`,
             backgroundSize: '200% 200%'
-          }}
-          animate={isHovered ? {
-            backgroundPosition: ['0% 0%', '100% 100%', '0% 0%']
-          } : {
-            backgroundPosition: '0% 0%'
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "linear"
           }}
         />
       </div>

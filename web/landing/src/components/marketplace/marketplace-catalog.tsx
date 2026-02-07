@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
 import { useMatomo } from '@/hooks/use-matomo'
+import { useUpvotes } from '@/hooks/use-upvotes'
 import { MarketplaceFeed, MarketplaceFeedTypeFilter } from '@/types/marketplace'
 import { FeedCard } from './feed-card'
 import { FiltersBar } from './filters-bar'
@@ -54,6 +55,16 @@ export function MarketplaceCatalog({ initialFeeds, hasError }: MarketplaceCatalo
   const { t } = useLanguage()
   const { trackCTAClick, trackCustomEvent } = useMatomo()
 
+  const initialVotesMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const feed of initialFeeds) {
+      map[feed.id] = feed.initialVotes ?? 0
+    }
+    return map
+  }, [initialFeeds])
+
+  const { votes, toggleVote, hasVoted, mounted: upvoteMounted } = useUpvotes(initialVotesMap)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedType, setSelectedType] = useState<MarketplaceFeedTypeFilter>('ALL')
   const [selectedTag, setSelectedTag] = useState<string>('ALL')
@@ -87,7 +98,7 @@ export function MarketplaceCatalog({ initialFeeds, hasError }: MarketplaceCatalo
   const filteredFeeds = useMemo(() => {
     const query = normalize(searchQuery)
 
-    return initialFeeds.filter((feed) => {
+    const filtered = initialFeeds.filter((feed) => {
       if (selectedType !== 'ALL' && feed.type !== selectedType) {
         return false
       }
@@ -103,7 +114,9 @@ export function MarketplaceCatalog({ initialFeeds, hasError }: MarketplaceCatalo
       const haystack = normalize(`${feed.name} ${feed.description ?? ''} ${feed.tags.join(' ')}`)
       return haystack.includes(query)
     })
-  }, [initialFeeds, searchQuery, selectedType, selectedTag])
+
+    return filtered.sort((a, b) => (votes[b.id] ?? 0) - (votes[a.id] ?? 0))
+  }, [initialFeeds, searchQuery, selectedType, selectedTag, votes])
 
   const hasActiveFilters =
     searchQuery.trim().length > 0 || selectedType !== 'ALL' || selectedTag !== 'ALL'
@@ -153,6 +166,14 @@ export function MarketplaceCatalog({ initialFeeds, hasError }: MarketplaceCatalo
     openInAppWithStoreFallback(t.marketplace.desktopDownload)
   }
 
+  const handleToggleVote = (feedId: string) => {
+    toggleVote(feedId)
+    trackCustomEvent('marketplace_upvote', {
+      feed_id: feedId,
+      action: hasVoted(feedId) ? 'remove' : 'add',
+    })
+  }
+
   return (
     <>
       <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/35 p-7 backdrop-blur-xl sm:p-10">
@@ -181,6 +202,7 @@ export function MarketplaceCatalog({ initialFeeds, hasError }: MarketplaceCatalo
           allTagsLabel={t.marketplace.allTags}
           singlePostLabel={t.marketplace.singlePost}
           digestLabel={t.marketplace.digest}
+          filtersLabel={t.marketplace.filtersLabel}
           onSearchChange={handleSearchChange}
           onTypeChange={handleTypeChange}
           onTagChange={handleTagChange}
@@ -233,7 +255,11 @@ export function MarketplaceCatalog({ initialFeeds, hasError }: MarketplaceCatalo
                 feed={feed}
                 openAppLabel={t.marketplace.openApp}
                 noDescriptionLabel={t.marketplace.noDescription}
+                votes={votes[feed.id] ?? 0}
+                hasVoted={hasVoted(feed.id)}
+                upvoteMounted={upvoteMounted}
                 onOpenApp={handleOpenApp}
+                onToggleVote={handleToggleVote}
               />
             ))}
           </div>

@@ -11,6 +11,7 @@ import {
 import { useIntersectionTracking } from '@/hooks/use-intersection-tracking'
 import { useMatomo } from '@/hooks/use-matomo'
 import { useLanguage } from '@/lib/language-context'
+import { useIsSafari } from '@/hooks/use-safari-detect'
 
 const availableSources = [
   {
@@ -223,7 +224,8 @@ function FeedCard({
   const [activeTab, setActiveTab] = useState<'brief' | 'full'>('brief')
   const [isHovered, setIsHovered] = useState(false)
 
-  // Pre-generate random values for particles to avoid hydration issues (fewer on mobile)
+  const isSafari = useIsSafari()
+
   const [particles] = useState(() =>
     [...Array(isMobile ? 0 : 5)].map(() => ({
       initialX: Math.random() * 100 - 50,
@@ -247,14 +249,12 @@ function FeedCard({
       className="relative group"
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      layout
     >
       {/* Main card with gradient border */}
       <motion.div
-        layout
         whileHover={{ x: 4 }}
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        className="relative bg-black/40 backdrop-blur-md rounded-xl sm:rounded-2xl p-4 sm:p-5 overflow-hidden border border-white/10"
+        className="relative bg-[#1a1a2e]/90 rounded-xl sm:rounded-2xl p-4 sm:p-5 overflow-hidden border border-white/10"
       >
         {/* Animated gradient border on hover */}
         <motion.div
@@ -286,7 +286,7 @@ function FeedCard({
           {/* Source info */}
           <motion.div layout="position" className="flex items-center gap-2">
             <motion.div
-              className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center backdrop-blur-sm border border-white/10"
+              className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center border border-white/10"
               whileHover={{ scale: 1.1, rotate: 5 }}
               transition={{ type: "spring", stiffness: 400 }}
             >
@@ -309,8 +309,7 @@ function FeedCard({
 
           {/* Modern toggle switch with glow */}
           <motion.div
-            layout="position"
-            className="relative flex items-center bg-white/[0.02] rounded-full p-1 backdrop-blur-md border border-white/10"
+                       className="relative flex items-center bg-white/[0.02] rounded-full p-1 border border-white/10"
           >
             {/* Animated glow background */}
             <motion.div
@@ -365,13 +364,12 @@ function FeedCard({
             {activeTab === 'brief' ? (
               <motion.div
                 key="brief"
-                initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 transition={{
                   duration: 0.4,
-                  ease: [0.25, 0.1, 0.25, 1],
-                  filter: { duration: 0.3 }
+                  ease: [0.25, 0.1, 0.25, 1]
                 }}
               >
                 <p className="text-white/90 text-sm sm:text-base font-medium leading-relaxed tracking-tight">
@@ -381,13 +379,12 @@ function FeedCard({
             ) : (
               <motion.div
                 key="full"
-                initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
-                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 transition={{
                   duration: 0.4,
-                  ease: [0.25, 0.1, 0.25, 1],
-                  filter: { duration: 0.3 }
+                  ease: [0.25, 0.1, 0.25, 1]
                 }}
               >
                 <p className="text-white/70 text-xs sm:text-sm leading-relaxed font-light tracking-wide">
@@ -398,9 +395,9 @@ function FeedCard({
           </AnimatePresence>
         </motion.div>
 
-        {/* Floating particles on hover */}
+        {/* Floating particles on hover — reduced on Safari */}
         <AnimatePresence>
-          {isHovered && (
+          {isHovered && !isSafari && (
             <>
               {particles.map((particle, i) => (
                 <motion.div
@@ -630,11 +627,7 @@ function SourceSelectionDemo({
       <div className="mb-4 pb-4 border-b border-white/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <motion.div
-              animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="w-2 h-2 bg-white rounded-full"
-            />
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse-dot" />
             <span className="text-white/60 text-xs font-light">{translations.sourceSelection}</span>
           </div>
           <span className="text-white/30 text-[10px] font-light">
@@ -654,7 +647,7 @@ function SourceSelectionDemo({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
-              className={`relative bg-black/40 backdrop-blur-md rounded-xl p-3 border transition-all duration-300 flex flex-col ${
+              className={`relative bg-[#1a1a2e]/90 rounded-xl p-3 border transition-all duration-300 flex flex-col ${
                 isEnabled
                   ? 'border-white/20 bg-white/5'
                   : 'border-white/10'
@@ -771,11 +764,7 @@ function SettingsDemo({
       <div className="mb-4 pb-4 border-b border-white/5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <motion.div
-              animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="w-2 h-2 bg-white rounded-full"
-            />
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse-dot" />
             <span className="text-white/60 text-xs font-light">{translations.settingsTitle}</span>
           </div>
           <motion.span
@@ -877,11 +866,7 @@ function FilteredFeedDemo({
         <div className="mb-4 pb-4 border-b border-white/5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <motion.div
-                animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="w-2 h-2 bg-white rounded-full"
-              />
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse-dot" />
               <span className="text-white/60 text-xs font-light">{translations.yourFeed}</span>
             </div>
             <span className="text-white/30 text-[10px] font-light">
@@ -984,18 +969,13 @@ function ProcessStepItem({
         <motion.div
           className={`relative w-10 h-10 rounded-full border-2 flex items-center justify-center mb-3 transition-all duration-500 bg-black overflow-hidden ${
             index === currentStep
-              ? 'border-white'
+              ? 'border-white shadow-[0_0_20px_rgba(59,130,246,0.5),0_0_40px_rgba(139,92,246,0.3)]'
               : index < currentStep
-              ? 'border-white/40'
+              ? 'border-white/40 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
               : 'border-white/10'
           }`}
           style={{
             scale: stepScale,
-            boxShadow: index === currentStep
-              ? '0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(139, 92, 246, 0.3)'
-              : index < currentStep
-              ? '0 0 10px rgba(59, 130, 246, 0.2)'
-              : 'none'
           }}
         >
           {/* Fill animation - градиентное наполнение */}
@@ -1009,42 +989,20 @@ function ProcessStepItem({
             }}
           />
 
-          {/* Shimmer effect - вращающийся блик */}
-          <AnimatePresence>
-            {index === currentStep && (
-              <motion.div
-                initial={{ opacity: 0, rotate: 0 }}
-                animate={{
-                  opacity: [0, 1, 1, 0],
-                  rotate: 360
-                }}
-                exit={{ opacity: 0 }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "linear"
-                }}
-                className="absolute inset-0 rounded-full z-[1]"
-                style={{
-                  background: 'linear-gradient(135deg, transparent 20%, rgba(255, 255, 255, 0.4) 50%, transparent 80%)'
-                }}
-              />
-            )}
-          </AnimatePresence>
-
-          {/* Pulsing glow overlay */}
+          {/* Shimmer effect — CSS animation for Safari performance */}
           {index === currentStep && (
-            <motion.div
-              className="absolute inset-0 rounded-full z-0"
-              animate={{
-                opacity: [0.3, 0.6, 0.3],
-                scale: [0.95, 1, 0.95]
+            <div
+              className="absolute inset-0 rounded-full z-[1] animate-shimmer-rotate"
+              style={{
+                background: 'linear-gradient(135deg, transparent 20%, rgba(255, 255, 255, 0.4) 50%, transparent 80%)'
               }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
+            />
+          )}
+
+          {/* Pulsing glow overlay — CSS animation */}
+          {index === currentStep && (
+            <div
+              className="absolute inset-0 rounded-full z-0 animate-glow-pulse"
               style={{
                 background: 'radial-gradient(circle, rgba(139, 92, 246, 0.4), transparent 70%)'
               }}
@@ -1057,43 +1015,6 @@ function ProcessStepItem({
             {String(index + 1).padStart(2, '0')}
           </span>
 
-          {/* Ripple effect */}
-          <AnimatePresence>
-            {index === currentStep && (
-              <>
-                <motion.div
-                  initial={{ scale: 1, opacity: 0.8 }}
-                  animate={{ scale: 2.2, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                  className="absolute inset-0 rounded-full border-2 border-white"
-                />
-                <motion.div
-                  initial={{ scale: 1, opacity: 0.6 }}
-                  animate={{ scale: 2.8, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1, delay: 0.1, ease: "easeOut" }}
-                  className="absolute inset-0 rounded-full border border-white/60"
-                />
-              </>
-            )}
-          </AnimatePresence>
-
-          {/* Glow effect */}
-          {index === currentStep && (
-            <motion.div
-              className="absolute inset-0 rounded-full bg-white/20"
-              animate={{
-                scale: [1, 1.2, 1],
-                opacity: [0.3, 0.6, 0.3]
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            />
-          )}
         </motion.div>
       </div>
 

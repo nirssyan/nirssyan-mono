@@ -180,6 +180,11 @@ export const translations = {
       retry: 'Обновить',
       desktopDownload: 'Скачайте infatium',
       partialDataWarning: 'Показаны последние доступные данные.',
+      filtersLabel: 'Фильтры',
+      sourcesTitle: 'Источники',
+      personalStory: 'Личная история',
+      backToCatalog: 'Назад в каталог',
+      viewCount: 'просмотров',
     },
 
     // About
@@ -416,6 +421,11 @@ export const translations = {
       retry: 'Refresh',
       desktopDownload: 'Download infatium',
       partialDataWarning: 'Showing last available data.',
+      filtersLabel: 'Filters',
+      sourcesTitle: 'Sources',
+      personalStory: 'Personal Story',
+      backToCatalog: 'Back to catalog',
+      viewCount: 'views',
     },
 
     // About

@@ -90,29 +90,13 @@ export function TypingText() {
     <section className="py-20 bg-gradient-to-br from-slate-900 via-gray-900 to-slate-900 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0">
-        <motion.div
-          animate={{
-            rotate: [0, 360],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-          className="absolute top-1/4 left-1/4 w-32 h-32 border border-blue-500/20 rounded-full"
+        <div
+          className="absolute top-1/4 left-1/4 w-32 h-32 border border-blue-500/20 rounded-full animate-shimmer-rotate"
+          style={{ animationDuration: '20s' }}
         />
-        <motion.div
-          animate={{
-            rotate: [360, 0],
-            scale: [1.1, 1, 1.1],
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-          className="absolute bottom-1/4 right-1/4 w-24 h-24 border border-purple-500/20 rounded-full"
+        <div
+          className="absolute bottom-1/4 right-1/4 w-24 h-24 border border-purple-500/20 rounded-full animate-shimmer-rotate"
+          style={{ animationDuration: '15s', animationDirection: 'reverse' }}
         />
       </div>
 
@@ -144,7 +128,7 @@ export function TypingText() {
             transition={{ duration: 0.8 }}
             className="relative"
           >
-            <div className="bg-black/90 backdrop-blur-sm rounded-2xl border border-slate-700 p-6 shadow-2xl">
+            <div className="bg-black/90 rounded-2xl border border-slate-700 p-6 shadow-2xl">
               {/* Terminal header */}
               <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-700">
                 <div className="flex gap-2">
@@ -203,38 +187,13 @@ export function TypingText() {
               </div>
             </div>
 
-            {/* Floating code elements */}
-            <motion.div
-              animate={{
-                y: [-10, 10, -10],
-                rotate: [0, 5, -5, 0],
-              }}
-              transition={{
-                type: "tween",
-                duration: 6,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="absolute -top-6 -left-6 bg-slate-800/90 p-3 rounded-lg border border-slate-700"
-            >
+            <div className="absolute -top-6 -left-6 bg-slate-800/90 p-3 rounded-lg border border-slate-700">
               <Code className="w-6 h-6 text-green-400" />
-            </motion.div>
+            </div>
 
-            <motion.div
-              animate={{
-                y: [10, -10, 10],
-                rotate: [0, -5, 5, 0],
-              }}
-              transition={{
-                type: "tween",
-                duration: 8,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="absolute -bottom-6 -right-6 bg-slate-800/90 p-3 rounded-lg border border-slate-700"
-            >
+            <div className="absolute -bottom-6 -right-6 bg-slate-800/90 p-3 rounded-lg border border-slate-700">
               <Zap className="w-6 h-6 text-yellow-400" />
-            </motion.div>
+            </div>
           </motion.div>
 
           {/* Categories */}

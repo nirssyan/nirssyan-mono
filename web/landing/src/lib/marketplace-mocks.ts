@@ -7,6 +7,14 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'DIGEST',
     description: 'Главные новости стартапов, инвестиций и продуктов за день.',
     tags: ['startups', 'venture', 'product'],
+    sources: [
+      { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', type: 'rss' },
+      { name: 'Стартап дня', url: 'https://t.me/startupoftheday', type: 'telegram' },
+      { name: 'Product Hunt', url: 'https://www.producthunt.com', type: 'web' },
+    ],
+    viewCount: 4820,
+    initialVotes: 87,
+    story: 'Каждое утро я тратил 40 минут, чтобы просмотреть 6 источников и понять, что произошло в мире стартапов. Теперь всё это приходит в одном дайджесте.\n\nЯ сделал эту ленту для себя, но оказалось, что она полезна десяткам людей вокруг — фаундерам, инвесторам, продактам. Здесь нет хайпа, только сигнал.',
   },
   {
     id: 'ai-single-post',
@@ -14,6 +22,14 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'SINGLE_POST',
     description: 'Новые модели, papers и важные апдейты индустрии AI.',
     tags: ['ai', 'research', 'tech'],
+    sources: [
+      { name: 'AI News', url: 'https://t.me/ai_newz', type: 'telegram' },
+      { name: 'arXiv CS.AI', url: 'https://arxiv.org/rss/cs.AI', type: 'rss' },
+      { name: 'The Batch', url: 'https://www.deeplearning.ai/the-batch/', type: 'web' },
+    ],
+    viewCount: 3150,
+    initialVotes: 112,
+    story: 'Следить за AI-индустрией — как пить из пожарного шланга. Каждый день десятки papers, анонсов, продуктов. Я создал эту ленту, чтобы видеть только то, что реально двигает индустрию.\n\nФильтрую шум руками и алгоритмами. Остаётся 3-5 постов в день, но каждый стоит внимания.',
   },
   {
     id: 'product-weekly',
@@ -21,6 +37,13 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'DIGEST',
     description: 'Короткий weekly обзор продуктовых практик и кейсов.',
     tags: ['product', 'management', 'growth'],
+    sources: [
+      { name: 'Lenny\'s Newsletter', url: 'https://www.lennysnewsletter.com', type: 'web' },
+      { name: 'Продакт на районе', url: 'https://t.me/productdistrict', type: 'telegram' },
+    ],
+    viewCount: 2340,
+    initialVotes: 64,
+    story: 'Раз в неделю — подборка лучших продуктовых кейсов. Не пересказ, а выжимка: что сработало, что нет, какие метрики.\n\nИдеально для продактов, которые хотят расти, но не хотят тонуть в контенте.',
   },
   {
     id: 'engineering-radar',
@@ -28,6 +51,14 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'SINGLE_POST',
     description: 'Точечные апдейты по backend, frontend и инфраструктуре.',
     tags: ['engineering', 'backend', 'frontend'],
+    sources: [
+      { name: 'Hacker News', url: 'https://news.ycombinator.com/rss', type: 'rss' },
+      { name: 'DevOps Channel', url: 'https://t.me/devops_channel', type: 'telegram' },
+      { name: 'InfoQ', url: 'https://www.infoq.com', type: 'web' },
+    ],
+    viewCount: 1870,
+    initialVotes: 53,
+    story: 'Как CTO, я должен быть в курсе всего: новые фреймворки, уязвимости, best practices. Но читать 15 источников каждый день — невозможно.\n\nЭта лента — мой радар. Важные апдейты по backend, frontend и инфре в одном месте.',
   },
   {
     id: 'crypto-digest',
@@ -35,6 +66,14 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'DIGEST',
     description: 'Сводка по рынку, регуляторике и ключевым крипто-событиям.',
     tags: ['crypto', 'markets', 'finance'],
+    sources: [
+      { name: 'CoinDesk', url: 'https://www.coindesk.com', type: 'web' },
+      { name: 'Crypto Lenta', url: 'https://t.me/cryptolenta', type: 'telegram' },
+      { name: 'The Block', url: 'https://www.theblock.co/rss', type: 'rss' },
+    ],
+    viewCount: 3680,
+    initialVotes: 45,
+    story: 'Крипторынок — это хаос. FUD, шиллинг, бесконечные «to the moon». Я устал от этого и сделал ленту, которая фильтрует весь шум.\n\nТолько факты: регуляторика, крупные сделки, технические обновления протоколов. Без эмоций.',
   },
   {
     id: 'media-watch',
@@ -42,6 +81,13 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'SINGLE_POST',
     description: 'Заметные медиа-тренды, платформы и изменения алгоритмов.',
     tags: ['media', 'platforms', 'trends'],
+    sources: [
+      { name: 'Axios Media', url: 'https://www.axios.com/media-deals', type: 'web' },
+      { name: 'Медиатренды', url: 'https://t.me/mediatrends', type: 'telegram' },
+    ],
+    viewCount: 920,
+    initialVotes: 28,
+    story: 'Медиа меняется быстрее, чем мы думаем. Алгоритмы обновляются, платформы рождаются и умирают, аудитория мигрирует.\n\nЭта лента — для тех, кто работает с контентом и хочет понимать, куда движется индустрия.',
   },
   {
     id: 'founder-ops',
@@ -49,6 +95,14 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'DIGEST',
     description: 'Операционные инсайты для фаундеров и лидеров команд.',
     tags: ['founders', 'operations', 'leadership'],
+    sources: [
+      { name: 'First Round Review', url: 'https://review.firstround.com', type: 'web' },
+      { name: 'Фаундер будущего', url: 'https://t.me/foundersfuture', type: 'telegram' },
+      { name: 'SaaStr Blog', url: 'https://www.saastr.com/feed/', type: 'rss' },
+    ],
+    viewCount: 1540,
+    initialVotes: 71,
+    story: 'Быть фаундером — значит принимать 100 решений в день без достаточного контекста. Я собрал ленту, которая даёт этот контекст.\n\nОперационные кейсы, ошибки других фаундеров, тактики масштабирования. Всё, чему не учат в акселераторах.',
   },
   {
     id: 'devtools-brief',
@@ -56,6 +110,13 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'SINGLE_POST',
     description: 'Новые релизы инструментов разработчика и полезные тулзы.',
     tags: ['devtools', 'productivity', 'engineering'],
+    sources: [
+      { name: 'GitHub Trending', url: 'https://github.com/trending', type: 'web' },
+      { name: 'DevTools Weekly', url: 'https://t.me/devtoolsweekly', type: 'telegram' },
+    ],
+    viewCount: 2100,
+    initialVotes: 95,
+    story: 'Каждый день появляются новые инструменты для разработчиков. 99% из них — мусор. Но 1% может изменить ваш workflow.\n\nЯ тестирую десятки тулзов и оставляю только те, которые реально экономят время. Здесь — мои находки.',
   },
   {
     id: 'marketing-digest',
@@ -63,6 +124,14 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'DIGEST',
     description: 'Сильные маркетинговые кейсы и сигналы по каналам роста.',
     tags: ['marketing', 'growth', 'analytics'],
+    sources: [
+      { name: 'Marketing Examples', url: 'https://marketingexamples.com', type: 'web' },
+      { name: 'Growth Channel', url: 'https://t.me/growthchannel', type: 'telegram' },
+      { name: 'Moz Blog', url: 'https://moz.com/blog/feed', type: 'rss' },
+    ],
+    viewCount: 1780,
+    initialVotes: 38,
+    story: 'Маркетинг — это не про бюджеты, а про сигналы. Я ищу паттерны: что работает, на каких каналах, с какими креативами.\n\nЭта лента — коллекция реальных кейсов, а не теорий из книг.',
   },
   {
     id: 'design-pulse',
@@ -70,6 +139,13 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'SINGLE_POST',
     description: 'Примеры интерфейсов, UX-решений и визуальных паттернов.',
     tags: ['design', 'ux', 'ui'],
+    sources: [
+      { name: 'Dribbble', url: 'https://dribbble.com', type: 'web' },
+      { name: 'Дизайн Кабак', url: 'https://t.me/designcabak', type: 'telegram' },
+    ],
+    viewCount: 1320,
+    initialVotes: 42,
+    story: 'Я дизайнер, и мне важно видеть лучшие работы каждый день. Но Pinterest и Dribbble — это бесконечный скроллинг.\n\nЗдесь — курированная подборка: 3-5 сильных интерфейсов в день с разбором, почему они работают.',
   },
   {
     id: 'global-news-lite',
@@ -77,6 +153,15 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'DIGEST',
     description: 'Сжатая международная повестка без шума и кликбейта.',
     tags: ['news', 'world', 'digest'],
+    sources: [
+      { name: 'Reuters', url: 'https://www.reuters.com', type: 'web' },
+      { name: 'Мировые новости', url: 'https://t.me/worldnews_ru', type: 'telegram' },
+      { name: 'AP News', url: 'https://apnews.com/feed', type: 'rss' },
+      { name: 'BBC World', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', type: 'rss' },
+    ],
+    viewCount: 4950,
+    initialVotes: 120,
+    story: 'Новости — самый токсичный контент в интернете. Кликбейт, сенсации, манипуляции. Но быть в курсе событий всё равно нужно.\n\nЭта лента даёт сжатую международную повестку без эмоций. Факты, контекст, ноль кликбейта. 5 минут утром — и вы в курсе.',
   },
   {
     id: 'creator-economy',
@@ -84,5 +169,13 @@ export const MOCK_MARKETPLACE_FEEDS: MarketplaceFeed[] = [
     type: 'SINGLE_POST',
     description: 'Монетизация, платформы и тренды экономики создателей.',
     tags: ['creators', 'platforms', 'business'],
+    sources: [
+      { name: 'Creator Economy', url: 'https://t.me/creatoreconomy', type: 'telegram' },
+      { name: 'The Information', url: 'https://www.theinformation.com', type: 'web' },
+      { name: 'Creator Science', url: 'https://creatorscience.com/feed/', type: 'rss' },
+    ],
+    viewCount: 1150,
+    initialVotes: 33,
+    story: 'Creator economy — это уже не тренд, а индустрия. Но информация о ней разбросана по десяткам источников.\n\nЗдесь — всё в одном месте: новые инструменты монетизации, кейсы креаторов, изменения платформ.',
   },
 ]

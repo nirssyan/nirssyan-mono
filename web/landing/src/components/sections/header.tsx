@@ -278,6 +278,7 @@ export function Header() {
             ? 'bg-black/50 backdrop-blur-xl border-b border-white/5'
             : 'bg-transparent'
         }`}
+        style={{ transform: 'translate3d(0,0,0)' }}
       >
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative flex items-center justify-between h-16 sm:h-20">
@@ -394,7 +395,7 @@ export function Header() {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="md:hidden border-t border-white/5 bg-black/95 backdrop-blur-xl overflow-hidden"
+              className="md:hidden border-t border-white/5 bg-gray-950/95 overflow-hidden"
             >
               <ul className="px-4 py-6 space-y-6 list-none m-0 p-0">
                 <motion.li
