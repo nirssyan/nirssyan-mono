@@ -19,3 +19,8 @@ k3s_mode: server
 k3s_disable_services:
   - traefik
 k3s_flannel_backend: none  # We use Calico CNI
+
+# Private registry mirror (NodePort 30500)
+registry_mirror_enabled: true
+registry_username: "{{ lookup('env', 'REGISTRY_USERNAME') | default(docker_hub_username, true) }}"
+registry_password: "{{ lookup('env', 'REGISTRY_PASSWORD') }}"

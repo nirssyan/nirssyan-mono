@@ -1,0 +1,9 @@
+mirrors:
+  registry.infra.makekod.ru:
+    endpoint:
+      - "http://127.0.0.1:30500"
+configs:
+  "127.0.0.1:30500":
+    auth:
+      username: "{{ registry_username }}"
+      password: "{{ registry_password }}"
