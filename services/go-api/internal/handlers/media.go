@@ -57,26 +57,6 @@ func (h *MediaHandler) Routes() chi.Router {
 	return r
 }
 
-// isMTProtoFileID checks if file_id is in MTProto format (id_accessHash).
-// Bot API file_ids are base64 encoded and contain letters.
-func isMTProtoFileID(fileID string) bool {
-	// MTProto format: {id}_{accessHash} where both are integers
-	// Example: "1234567890_9876543210"
-	// Bot API format: base64 encoded, starts with letters like "AgACAgI..."
-	parts := strings.Split(fileID, "_")
-	if len(parts) != 2 {
-		return false
-	}
-	// Check if both parts are valid integers
-	if _, err := strconv.ParseInt(parts[0], 10, 64); err != nil {
-		return false
-	}
-	if _, err := strconv.ParseInt(parts[1], 10, 64); err != nil {
-		return false
-	}
-	return true
-}
-
 func (h *MediaHandler) GetTelegramMedia(w http.ResponseWriter, r *http.Request) {
 	fileID := chi.URLParam(r, "file_id")
 	fileType := chi.URLParam(r, "type")
@@ -85,7 +65,6 @@ func (h *MediaHandler) GetTelegramMedia(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Parse query params for chat_id and msg_id
 	var chatID int64
 	var msgID int
 	if chatStr := r.URL.Query().Get("chat"); chatStr != "" {
@@ -95,7 +74,6 @@ func (h *MediaHandler) GetTelegramMedia(w http.ResponseWriter, r *http.Request) 
 		msgID, _ = strconv.Atoi(msgStr)
 	}
 
-	// Strip query params from fileID if present
 	if idx := strings.Index(fileID, "?"); idx != -1 {
 		fileID = fileID[:idx]
 	}
@@ -108,17 +86,12 @@ func (h *MediaHandler) GetTelegramMedia(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Check file_id format: MTProto (id_accessHash) vs Bot API (base64)
-	// For Bot API file_ids, try Bot API first, then fallback to MTProto refetch
-	if !isMTProtoFileID(fileID) {
-		log.Info().Str("file_id", fileID[:min(30, len(fileID))]).Msg("Bot API file_id detected")
-		h.serveTelegramFileViaBotAPI(ctx, w, fileID, fileType, chatID, msgID)
-		return
-	}
+	h.serveTelegramFile(ctx, w, fileID, fileType, chatID, msgID)
+}
 
-	log.Info().Str("file_id", fileID[:min(30, len(fileID))]).Msg("MTProto file_id detected, using NATS")
-
-	// S3 cache-first: check if file is already warmed in S3
+// serveTelegramFile serves media via unified flow: S3 cache → MTProto (NATS) → refresh → write-through.
+func (h *MediaHandler) serveTelegramFile(ctx context.Context, w http.ResponseWriter, fileID, fileType string, chatID int64, msgID int) {
+	// S3 cache-first
 	if h.s3Client != nil {
 		s3Key := fmt.Sprintf("%s/%s", fileType, fileID)
 		if exists, _ := h.s3Client.Exists(ctx, h.s3Bucket, s3Key); exists {
@@ -134,51 +107,28 @@ func (h *MediaHandler) GetTelegramMedia(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// Try to get file via NATS (MTProto) - only for MTProto format file_ids
+	// Try MTProto via NATS
 	data, mimeType, err := h.telegramClient.GetFile(ctx, fileID, fileType, chatID, msgID)
 	if err != nil {
-		errStr := err.Error()
+		log.Warn().Err(err).Str("file_id", fileID[:min(30, len(fileID))]).Str("file_type", fileType).Msg("GetFile failed, trying refresh")
 
-		// Check for FILE_REFERENCE_EXPIRED error
-		if strings.Contains(errStr, "FILE_REFERENCE_EXPIRED") || strings.Contains(errStr, "file reference") {
-			log.Warn().Str("file_id", fileID).Msg("FILE_REFERENCE_EXPIRED detected, attempting refresh")
-
-			refreshedData, refreshedMime, refreshErr := h.refreshFileReference(ctx, fileID, fileType, chatID, msgID)
-			if refreshErr == nil && len(refreshedData) > 0 {
-				h.writeThroughS3(fileType, fileID, refreshedData, refreshedMime)
-				if refreshedMime != "" {
-					w.Header().Set("Content-Type", refreshedMime)
-				}
-				w.Header().Set("Cache-Control", "public, max-age=3600")
-				w.Header().Set("Content-Length", fmt.Sprintf("%d", len(refreshedData)))
-				w.WriteHeader(http.StatusOK)
-				w.Write(refreshedData)
-				return
-			}
-			log.Warn().Err(refreshErr).Msg("Failed to refresh file reference")
-		}
-
-		log.Warn().Err(err).Str("file_id", fileID).Str("file_type", fileType).Int64("chat_id", chatID).Int("msg_id", msgID).Msg("Failed to get file via NATS, trying Bot API")
-
-		// Fallback to Bot API
-		fileURL, err := h.telegramClient.GetFileURL(ctx, fileID)
-		if err != nil {
-			log.Warn().Err(err).Str("file_id", fileID).Msg("Failed to get file from Telegram")
+		refreshedData, refreshedMime, refreshErr := h.refreshFileReference(ctx, fileID, fileType, chatID, msgID)
+		if refreshErr != nil || len(refreshedData) == 0 {
+			log.Warn().Err(refreshErr).Str("file_id", fileID[:min(30, len(fileID))]).Msg("Refresh also failed")
 			http.Error(w, "file not found", http.StatusNotFound)
 			return
 		}
 
-		if h.proxyTelegramFile(ctx, w, fileURL) {
-			return
-		}
-		http.Error(w, "file not found", http.StatusNotFound)
+		h.writeThroughS3(fileType, fileID, refreshedData, refreshedMime)
+		h.serveBytes(w, refreshedData, refreshedMime)
 		return
 	}
 
-	// Write-through: save to S3 in background
 	h.writeThroughS3(fileType, fileID, data, mimeType)
+	h.serveBytes(w, data, mimeType)
+}
 
-	// Serve file from NATS response
+func (h *MediaHandler) serveBytes(w http.ResponseWriter, data []byte, mimeType string) {
 	if mimeType != "" {
 		w.Header().Set("Content-Type", mimeType)
 	}
@@ -188,73 +138,6 @@ func (h *MediaHandler) GetTelegramMedia(w http.ResponseWriter, r *http.Request) 
 	w.Write(data)
 }
 
-// serveTelegramFileViaBotAPI downloads and serves a file using Telegram Bot API.
-// Used for Bot API file_ids (base64 format from Python/pyrogram).
-// If Bot API fails (expired file_id), it will try to refetch via MTProto if chatID/msgID available.
-func (h *MediaHandler) serveTelegramFileViaBotAPI(ctx context.Context, w http.ResponseWriter, fileID string, fileType string, chatID int64, msgID int) {
-	// First try Bot API directly
-	fileURL, err := h.telegramClient.GetFileURL(ctx, fileID)
-	if err == nil {
-		// Bot API returned URL, fetch the file
-		if h.proxyTelegramFile(ctx, w, fileURL) {
-			return
-		}
-	}
-
-	log.Warn().Err(err).Str("file_id", fileID[:min(30, len(fileID))]).Msg("Bot API failed, trying MTProto refetch")
-
-	// Bot API failed (likely expired file_id)
-	// Try to refetch via MTProto - refreshFileReference will find chat_id/msg_id from DB if not provided
-	data, mimeType, refreshErr := h.refreshFileReference(ctx, fileID, fileType, chatID, msgID)
-	if refreshErr == nil && len(data) > 0 {
-		log.Info().Str("file_id", fileID[:min(30, len(fileID))]).Msg("Successfully refreshed file via MTProto")
-		if mimeType != "" {
-			w.Header().Set("Content-Type", mimeType)
-		}
-		w.Header().Set("Cache-Control", "public, max-age=3600")
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
-		w.WriteHeader(http.StatusOK)
-		w.Write(data)
-		return
-	}
-	log.Warn().Err(refreshErr).Msg("MTProto refetch also failed")
-
-	http.Error(w, "file not found", http.StatusNotFound)
-}
-
-// proxyTelegramFile fetches and proxies a file from Telegram URL.
-func (h *MediaHandler) proxyTelegramFile(ctx context.Context, w http.ResponseWriter, fileURL string) bool {
-	tgReq, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to create telegram request")
-		return false
-	}
-
-	tgResp, err := http.DefaultClient.Do(tgReq)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to fetch from telegram")
-		return false
-	}
-	defer tgResp.Body.Close()
-
-	if tgResp.StatusCode != http.StatusOK {
-		log.Warn().Int("status", tgResp.StatusCode).Msg("Telegram returned non-OK status")
-		return false
-	}
-
-	contentType := tgResp.Header.Get("Content-Type")
-	if contentType != "" {
-		w.Header().Set("Content-Type", contentType)
-	}
-	contentLength := tgResp.Header.Get("Content-Length")
-	if contentLength != "" {
-		w.Header().Set("Content-Length", contentLength)
-	}
-	w.Header().Set("Cache-Control", "public, max-age=3600")
-	w.WriteHeader(http.StatusOK)
-	io.Copy(w, tgResp.Body)
-	return true
-}
 
 func (h *MediaHandler) refreshFileReference(ctx context.Context, fileID, fileType string, chatID int64, msgID int) ([]byte, string, error) {
 	// Try to get metadata from URL params first
@@ -379,12 +262,10 @@ func (h *MediaHandler) updateFileIDInDB(ctx context.Context, chatID int64, msgID
 }
 
 func (h *MediaHandler) handleTelegramMediaFromPath(w http.ResponseWriter, r *http.Request, path string) {
-	// Normalize tg:// to tg/
 	if strings.HasPrefix(path, "tg://") {
 		path = "tg/" + path[5:]
 	}
 
-	// Split off query parameters
 	var chatID int64
 	var msgID int
 	basePath := path
@@ -400,7 +281,6 @@ func (h *MediaHandler) handleTelegramMediaFromPath(w http.ResponseWriter, r *htt
 		}
 	}
 
-	// Parse tg/type/file_id
 	parts := strings.SplitN(strings.TrimPrefix(basePath, "tg/"), "/", 2)
 	if len(parts) != 2 {
 		http.Error(w, "invalid tg path format", http.StatusBadRequest)
@@ -417,84 +297,7 @@ func (h *MediaHandler) handleTelegramMediaFromPath(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Check file_id format: MTProto (id_accessHash) vs Bot API (base64)
-	// For Bot API file_ids, skip NATS and use Bot API directly
-	if !isMTProtoFileID(fileID) {
-		log.Info().Str("file_id", fileID[:min(30, len(fileID))]).Msg("Bot API file_id detected")
-		h.serveTelegramFileViaBotAPI(ctx, w, fileID, fileType, chatID, msgID)
-		return
-	}
-
-	log.Info().Str("file_id", fileID[:min(30, len(fileID))]).Msg("MTProto file_id detected, using NATS")
-
-	// S3 cache-first
-	if h.s3Client != nil {
-		s3Key := fmt.Sprintf("%s/%s", fileType, fileID)
-		if exists, _ := h.s3Client.Exists(ctx, h.s3Bucket, s3Key); exists {
-			reader, err := h.s3Client.Download(ctx, h.s3Bucket, s3Key)
-			if err == nil {
-				defer reader.Close()
-				w.Header().Set("Content-Type", mimeForType(fileType))
-				w.Header().Set("Cache-Control", "public, max-age=86400")
-				w.WriteHeader(http.StatusOK)
-				io.Copy(w, reader)
-				return
-			}
-		}
-	}
-
-	// Try to get file via NATS (MTProto) - only for MTProto format file_ids
-	data, mimeType, err := h.telegramClient.GetFile(ctx, fileID, fileType, chatID, msgID)
-	if err != nil {
-		errStr := err.Error()
-
-		// Check for FILE_REFERENCE_EXPIRED error
-		if strings.Contains(errStr, "FILE_REFERENCE_EXPIRED") || strings.Contains(errStr, "file reference") {
-			log.Warn().Str("file_id", fileID).Msg("FILE_REFERENCE_EXPIRED detected, attempting refresh")
-
-			refreshedData, refreshedMime, refreshErr := h.refreshFileReference(ctx, fileID, fileType, chatID, msgID)
-			if refreshErr == nil && len(refreshedData) > 0 {
-				h.writeThroughS3(fileType, fileID, refreshedData, refreshedMime)
-				if refreshedMime != "" {
-					w.Header().Set("Content-Type", refreshedMime)
-				}
-				w.Header().Set("Cache-Control", "public, max-age=3600")
-				w.Header().Set("Content-Length", fmt.Sprintf("%d", len(refreshedData)))
-				w.WriteHeader(http.StatusOK)
-				w.Write(refreshedData)
-				return
-			}
-			log.Warn().Err(refreshErr).Msg("Failed to refresh file reference")
-		}
-
-		log.Warn().Err(err).Str("file_id", fileID).Str("file_type", fileType).Int64("chat_id", chatID).Int("msg_id", msgID).Msg("Failed to get file via NATS, trying Bot API")
-
-		// Fallback to Bot API
-		fileURL, err := h.telegramClient.GetFileURL(ctx, fileID)
-		if err != nil {
-			log.Warn().Err(err).Str("file_id", fileID).Msg("Failed to get file from Telegram")
-			http.Error(w, "file not found", http.StatusNotFound)
-			return
-		}
-
-		if h.proxyTelegramFile(ctx, w, fileURL) {
-			return
-		}
-		http.Error(w, "file not found", http.StatusNotFound)
-		return
-	}
-
-	// Write-through: save to S3 in background
-	h.writeThroughS3(fileType, fileID, data, mimeType)
-
-	// Serve file from NATS response
-	if mimeType != "" {
-		w.Header().Set("Content-Type", mimeType)
-	}
-	w.Header().Set("Cache-Control", "public, max-age=3600")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
-	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	h.serveTelegramFile(ctx, w, fileID, fileType, chatID, msgID)
 }
 
 func (h *MediaHandler) GetMedia(w http.ResponseWriter, r *http.Request) {
@@ -553,44 +356,6 @@ func (h *MediaHandler) GetMedia(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "public, max-age=86400")
 		w.WriteHeader(http.StatusOK)
 		io.Copy(w, resp.Body)
-		return
-	}
-
-	if h.telegramClient != nil {
-		fileURL, err := h.telegramClient.GetFileURL(ctx, decodedFileID)
-		if err != nil {
-			log.Warn().Err(err).Str("file_id", decodedFileID).Msg("Failed to get file from Telegram")
-			http.Error(w, "file not found", http.StatusNotFound)
-			return
-		}
-
-		tgReq, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create telegram request")
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		tgResp, err := http.DefaultClient.Do(tgReq)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to fetch from telegram")
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		defer tgResp.Body.Close()
-
-		if tgResp.StatusCode != http.StatusOK {
-			http.Error(w, "file not found", http.StatusNotFound)
-			return
-		}
-
-		contentType := tgResp.Header.Get("Content-Type")
-		if contentType != "" {
-			w.Header().Set("Content-Type", contentType)
-		}
-		w.Header().Set("Cache-Control", "public, max-age=3600")
-		w.WriteHeader(http.StatusOK)
-		io.Copy(w, tgResp.Body)
 		return
 	}
 
