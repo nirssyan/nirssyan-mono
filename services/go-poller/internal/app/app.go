@@ -160,7 +160,7 @@ func (a *App) Run(ctx context.Context) error {
 				if err != nil {
 					log.Warn().Err(err).Msg("Failed to initialize S3 client for media warming")
 				} else {
-					mediaWarmer = telegram.NewMediaWarmer(a.cfg, telegramClient, s3Client)
+					mediaWarmer = telegram.NewMediaWarmer(a.cfg, telegramClient, s3Client, a.dbPool.Pool)
 					if err := mediaWarmer.Register(natsClient.NC()); err != nil {
 						log.Warn().Err(err).Msg("Failed to register media warm NATS handler")
 					} else {
@@ -192,7 +192,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	if a.telegramClient != nil && a.telegramClient.IsConnected() {
-		fileHandler := telegram.NewFileHandler(a.telegramClient)
+		fileHandler := telegram.NewFileHandler(a.telegramClient, a.dbPool.Pool)
 		if err := fileHandler.Register(natsClient.NC()); err != nil {
 			log.Warn().Err(err).Msg("Failed to register Telegram file handler")
 		}

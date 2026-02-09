@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gotd/td/tg"
+	"github.com/jackc/pgx/v5/pgxpool"
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/rs/zerolog/log"
 )
@@ -21,10 +22,11 @@ const (
 
 type FileHandler struct {
 	client *Client
+	dbPool *pgxpool.Pool
 }
 
-func NewFileHandler(client *Client) *FileHandler {
-	return &FileHandler{client: client}
+func NewFileHandler(client *Client, dbPool *pgxpool.Pool) *FileHandler {
+	return &FileHandler{client: client, dbPool: dbPool}
 }
 
 type GetFileRequest struct {
@@ -106,10 +108,10 @@ func (h *FileHandler) handleRequest(msg *natsgo.Msg) {
 }
 
 func (h *FileHandler) downloadFile(ctx context.Context, req GetFileRequest) GetFileResponse {
-	return downloadTelegramFile(ctx, h.client, req)
+	return downloadTelegramFile(ctx, h.client, req, h.dbPool)
 }
 
-func downloadTelegramFile(ctx context.Context, client *Client, req GetFileRequest) GetFileResponse {
+func downloadTelegramFile(ctx context.Context, client *Client, req GetFileRequest, dbPool *pgxpool.Pool) GetFileResponse {
 	if client == nil || !client.IsConnected() {
 		return GetFileResponse{Error: "telegram client not connected"}
 	}
@@ -120,6 +122,21 @@ func downloadTelegramFile(ctx context.Context, client *Client, req GetFileReques
 		fileID = strings.TrimPrefix(fileID, "thumb_")
 	}
 
+	// If we have chat_id + msg_id, try message-based download first.
+	// This works with any file_id format (pyrogram base64 or id_accessHash).
+	if req.ChatID != 0 && req.MsgID != 0 {
+		fh := &FileHandler{client: client, dbPool: dbPool}
+		data, mimeType, err := fh.downloadViaMessage(ctx, req.ChatID, req.MsgID, 0, req.FileType, isThumb)
+		if err == nil {
+			return GetFileResponse{
+				Data:     base64.StdEncoding.EncodeToString(data),
+				MimeType: mimeType,
+			}
+		}
+		log.Warn().Err(err).Msg("downloadViaMessage failed, trying direct download")
+	}
+
+	// Parse id_accessHash format for direct download (fallback)
 	parts := strings.Split(fileID, "_")
 	if len(parts) != 2 {
 		return GetFileResponse{Error: fmt.Sprintf("invalid file_id format: %s", req.FileID)}
@@ -136,20 +153,6 @@ func downloadTelegramFile(ctx context.Context, client *Client, req GetFileReques
 	}
 
 	var mimeType string
-	var data []byte
-
-	if req.ChatID != 0 && req.MsgID != 0 {
-		fh := &FileHandler{client: client}
-		data, mimeType, err = fh.downloadViaMessage(ctx, req.ChatID, req.MsgID, id, req.FileType, isThumb)
-		if err == nil {
-			return GetFileResponse{
-				Data:     base64.StdEncoding.EncodeToString(data),
-				MimeType: mimeType,
-			}
-		}
-		log.Warn().Err(err).Msg("Failed to download via message, trying direct download")
-	}
-
 	var location tg.InputFileLocationClass
 
 	switch req.FileType {
@@ -190,7 +193,7 @@ func downloadTelegramFile(ctx context.Context, client *Client, req GetFileReques
 		mimeType = "image/jpeg"
 	}
 
-	data, err = client.DownloadFile(ctx, location)
+	data, err := client.DownloadFile(ctx, location)
 	if err != nil {
 		return GetFileResponse{Error: fmt.Sprintf("download failed: %v", err)}
 	}
@@ -235,7 +238,11 @@ func (h *FileHandler) downloadViaMessage(ctx context.Context, chatID int64, msgI
 	h.client.chatCacheMu.RUnlock()
 
 	if peer == nil {
-		return nil, "", fmt.Errorf("channel %d not in cache", channelID)
+		resolved, err := h.resolveChannelFromDB(ctx, channelID)
+		if err != nil {
+			return nil, "", fmt.Errorf("channel %d not in cache and DB resolution failed: %w", channelID, err)
+		}
+		peer = resolved
 	}
 
 	// Get the specific message
@@ -444,7 +451,11 @@ func (h *FileHandler) refetchMessage(ctx context.Context, req RefetchMessageRequ
 	h.client.chatCacheMu.RUnlock()
 
 	if peer == nil {
-		return RefetchMessageResponse{Error: fmt.Sprintf("channel %d not in cache", channelID)}
+		resolved, resolveErr := h.resolveChannelFromDB(ctx, channelID)
+		if resolveErr != nil {
+			return RefetchMessageResponse{Error: fmt.Sprintf("channel %d not in cache and DB resolution failed: %v", channelID, resolveErr)}
+		}
+		peer = resolved
 	}
 
 	// Get the specific message
@@ -544,6 +555,35 @@ func (h *FileHandler) respondRefetchError(msg *natsgo.Msg, errMsg string) {
 	if err := msg.Respond(respData); err != nil {
 		log.Error().Err(err).Msg("Failed to send refetch error response")
 	}
+}
+
+func (h *FileHandler) resolveChannelFromDB(ctx context.Context, channelID int64) (*tg.InputPeerChannel, error) {
+	if h.dbPool == nil {
+		return nil, fmt.Errorf("no database pool")
+	}
+
+	var username string
+	err := h.dbPool.QueryRow(ctx,
+		"SELECT telegram_username FROM raw_feeds WHERE telegram_chat_id = $1 LIMIT 1",
+		channelID,
+	).Scan(&username)
+	if err != nil {
+		negativeID := -1000000000000 - channelID
+		err = h.dbPool.QueryRow(ctx,
+			"SELECT telegram_username FROM raw_feeds WHERE telegram_chat_id = $1 LIMIT 1",
+			negativeID,
+		).Scan(&username)
+		if err != nil {
+			return nil, fmt.Errorf("channel %d not found in DB: %w", channelID, err)
+		}
+	}
+
+	if username == "" {
+		return nil, fmt.Errorf("channel %d has no username in DB", channelID)
+	}
+
+	log.Info().Int64("channel_id", channelID).Str("username", username).Msg("Resolving channel from DB")
+	return h.client.ResolveUsername(ctx, username)
 }
 
 // DownloadFile downloads a file from Telegram using MTProto.

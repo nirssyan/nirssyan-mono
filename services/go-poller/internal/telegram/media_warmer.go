@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	natsgo "github.com/nats-io/nats.go"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/time/rate"
@@ -30,6 +31,7 @@ type MediaWarmer struct {
 	s3Client *storage.S3Client
 	bucket   string
 	limiter  *rate.Limiter
+	dbPool   *pgxpool.Pool
 }
 
 type WarmMediaRequest struct {
@@ -49,13 +51,14 @@ type WarmMediaResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
-func NewMediaWarmer(cfg *config.Config, client *Client, s3Client *storage.S3Client) *MediaWarmer {
+func NewMediaWarmer(cfg *config.Config, client *Client, s3Client *storage.S3Client, dbPool *pgxpool.Pool) *MediaWarmer {
 	return &MediaWarmer{
 		cfg:      cfg,
 		client:   client,
 		s3Client: s3Client,
 		bucket:   cfg.S3Bucket,
 		limiter:  rate.NewLimiter(rate.Limit(cfg.MediaWarmingRatePerSec), 1),
+		dbPool:   dbPool,
 	}
 }
 
@@ -180,7 +183,7 @@ func (w *MediaWarmer) warmSingleMedia(ctx context.Context, mediaURL string) bool
 		FileType: fileType,
 		ChatID:   chatID,
 		MsgID:    msgID,
-	})
+	}, w.dbPool)
 
 	if resp.Error != "" {
 		log.Warn().Str("error", resp.Error).Str("file_id", fileID).Msg("Failed to download file for warming")
