@@ -28,7 +28,8 @@ resources:
   - dockerhub-registry-sealed.yml
   - integrations-secrets-sealed.yml
   - minio-secrets-sealed.yml
-  - ../../base/minio
+  # init job disabled — MinIO not yet deployed
+  # - ../../base/minio
 
 commonLabels:
   product: infatium

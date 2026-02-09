@@ -407,7 +407,7 @@ data:
                   conditions:
                     - evaluator:
                         params:
-                          - 0
+                          - 3
                         type: gt
                       operator:
                         type: and
