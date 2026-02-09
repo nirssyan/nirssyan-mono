@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Eye, Globe, Layers2, MessageCircle, Newspaper, Rss } from 'lucide-react'
+import { ArrowLeft, Globe, Layers2, MessageCircle, Newspaper, Rss } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { MOCK_MARKETPLACE_FEEDS } from '@/lib/marketplace-mocks'
+import { getMarketplaceFeedBySlug } from '@/lib/marketplace-api'
 import { FeedDetailClient } from '@/components/marketplace/feed-detail-client'
 
 interface PageProps {
@@ -12,7 +12,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { feedId } = await params
-  const feed = MOCK_MARKETPLACE_FEEDS.find((f) => f.id === feedId)
+  const feed = await getMarketplaceFeedBySlug(feedId)
 
   if (!feed) {
     return { title: 'Лента не найдена | infatium' }
@@ -22,21 +22,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: `${feed.name} | infatium`,
     description: feed.description ?? 'Лента infatium',
     alternates: {
-      canonical: `/marketplace/${feed.id}`,
+      canonical: `/marketplace/${feed.slug}`,
     },
     openGraph: {
       title: `${feed.name} | infatium`,
       description: feed.description ?? 'Лента infatium',
-      url: `https://infatium.ru/marketplace/${feed.id}`,
+      url: `https://infatium.ru/marketplace/${feed.slug}`,
       siteName: 'infatium',
       type: 'website',
       locale: 'ru_RU',
     },
   }
-}
-
-export function generateStaticParams() {
-  return MOCK_MARKETPLACE_FEEDS.map((feed) => ({ feedId: feed.id }))
 }
 
 const SOURCE_ICONS = {
@@ -47,7 +43,7 @@ const SOURCE_ICONS = {
 
 export default async function FeedDetailPage({ params }: PageProps) {
   const { feedId } = await params
-  const feed = MOCK_MARKETPLACE_FEEDS.find((f) => f.id === feedId)
+  const feed = await getMarketplaceFeedBySlug(feedId)
 
   if (!feed) {
     notFound()
@@ -97,13 +93,6 @@ export default async function FeedDetailPage({ params }: PageProps) {
                 {feed.description}
               </p>
 
-              {feed.viewCount != null && (
-                <div className="mt-4 inline-flex items-center gap-1.5 text-sm text-white/50">
-                  <Eye className="h-4 w-4" />
-                  {feed.viewCount.toLocaleString()} views
-                </div>
-              )}
-
               <div className="mt-5">
                 <FeedDetailClient feed={feed} />
               </div>
@@ -111,7 +100,7 @@ export default async function FeedDetailPage({ params }: PageProps) {
 
             <div className="hidden sm:block">
               <QRCodeSVG
-                value={`infatium://feed/${feed.id}`}
+                value={`infatium://marketplace/${feed.slug}`}
                 size={120}
                 bgColor="transparent"
                 fgColor="rgba(255,255,255,0.8)"
@@ -132,7 +121,7 @@ export default async function FeedDetailPage({ params }: PageProps) {
             <h2 className="text-lg font-semibold text-white">Sources</h2>
             <div className="mt-5 space-y-3">
               {feed.sources.map((source) => {
-                const Icon = SOURCE_ICONS[source.type]
+                const Icon = SOURCE_ICONS[source.type as keyof typeof SOURCE_ICONS] ?? Globe
                 return (
                   <div
                     key={source.url}

@@ -160,7 +160,7 @@ func (a *App) Run(ctx context.Context) error {
 	postHandler := handlers.NewPostHandler(feedRepo, postRepo, postSeenRepo)
 	userHandler := handlers.NewUserHandler(userRepo, adminNotifyClient, a.cfg.AdminTelegramUserThreadID)
 	subscriptionHandler := handlers.NewSubscriptionHandler(subscriptionRepo, usersFeedRepo, ruStoreClient)
-	marketplaceHandler := handlers.NewMarketplaceHandler(marketplaceRepo)
+	marketplaceHandler := handlers.NewMarketplaceHandler(marketplaceRepo, validationClient)
 	deviceTokenHandler := handlers.NewDeviceTokenHandler(deviceTokenRepo)
 	usersFeedHandler := handlers.NewUsersFeedHandler(usersFeedRepo, feedRepo)
 	feedbackHandler := handlers.NewFeedbackHandler(
@@ -201,7 +201,7 @@ func (a *App) Run(ctx context.Context) error {
 	router.Get("/ws/feeds", wsHandler.HandleFeedNotifications)
 
 	router.Mount("/auth", authHandler.Routes())
-	router.Mount("/marketplace", marketplaceHandler.Routes())
+	router.Mount("/marketplace", marketplaceHandler.Routes(authMiddleware.Authenticate))
 	router.Mount("/suggestions", suggestionsHandler.Routes())
 	router.Mount("/tags", tagsHandler.Routes())
 	router.Mount("/media", mediaHandler.Routes())

@@ -6,14 +6,14 @@ export interface MarketplaceFeedSource {
 
 export interface MarketplaceFeed {
   id: string
+  slug: string
   name: string
   type: 'SINGLE_POST' | 'DIGEST' | string
   description?: string | null
   tags: string[]
   sources?: MarketplaceFeedSource[]
-  viewCount?: number
-  story?: string
-  initialVotes?: number
+  story?: string | null
+  created_at?: string
 }
 
 export type MarketplaceFeedTypeFilter = 'ALL' | 'SINGLE_POST' | 'DIGEST'

@@ -1277,6 +1277,31 @@ llm_model_price_history = sa.Table(
     sa.Index("idx_llm_price_history_created_at", "created_at"),
 )
 
+marketplace_feeds = sa.Table(
+    "marketplace_feeds",
+    metadata,
+    sa.Column(
+        "id",
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("gen_random_uuid()"),
+    ),
+    sa.Column(
+        "created_at",
+        sa.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    ),
+    sa.Column("slug", sa.Text, nullable=False, unique=True),
+    sa.Column("name", sa.Text, nullable=False),
+    sa.Column("type", sa.Text, nullable=False),
+    sa.Column("description", sa.Text),
+    sa.Column("tags", ARRAY(sa.Text), server_default=sa.text("'{}'::text[]")),
+    sa.Column("sources", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
+    sa.Column("story", sa.Text),
+    sa.CheckConstraint("type IN ('SINGLE_POST', 'DIGEST')", name="ck_marketplace_feeds_type"),
+)
+
 # Convenience exports for commonly used tables
 messages = chats_messages
 subscriptions = user_subscriptions

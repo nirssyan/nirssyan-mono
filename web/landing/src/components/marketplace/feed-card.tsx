@@ -2,8 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowBigUp, Layers2, Newspaper } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Layers2, Newspaper } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { MarketplaceFeed } from '@/types/marketplace'
 
@@ -11,27 +11,19 @@ interface FeedCardProps {
   feed: MarketplaceFeed
   openAppLabel: string
   noDescriptionLabel: string
-  votes: number
-  hasVoted: boolean
-  upvoteMounted: boolean
   onOpenApp: (feed: MarketplaceFeed) => void
-  onToggleVote: (feedId: string) => void
 }
 
 export function FeedCard({
   feed,
   openAppLabel,
   noDescriptionLabel,
-  votes,
-  hasVoted,
-  upvoteMounted,
   onOpenApp,
-  onToggleVote,
 }: FeedCardProps) {
   const visibleTags = feed.tags.slice(0, 3)
   const hiddenTagsCount = Math.max(0, feed.tags.length - visibleTags.length)
   const isDigest = feed.type === 'DIGEST'
-  const displayVotes = upvoteMounted ? votes : (feed.initialVotes ?? 0)
+  const feedPath = feed.slug ?? feed.id
 
   return (
     <motion.article
@@ -58,7 +50,7 @@ export function FeedCard({
 
           <div className="hidden sm:block">
             <QRCodeSVG
-              value={`infatium://feed/${feed.id}`}
+              value={`infatium://marketplace/${feedPath}`}
               size={64}
               bgColor="transparent"
               fgColor="rgba(255,255,255,0.8)"
@@ -74,7 +66,7 @@ export function FeedCard({
         </div>
 
         <Link
-          href={`/marketplace/${feed.id}`}
+          href={`/marketplace/${feedPath}`}
           className="text-xl font-semibold leading-tight tracking-tight text-white transition-colors hover:text-sky-300"
         >
           {feed.name}
@@ -99,7 +91,7 @@ export function FeedCard({
           )}
         </div>
 
-        <div className="mt-6 flex items-center gap-3">
+        <div className="mt-6">
           <button
             onClick={() => onOpenApp(feed)}
             className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-black transition-all duration-200 hover:bg-white/90 hover:shadow-[0_0_30px_rgba(255,255,255,0.15)]"
@@ -107,29 +99,6 @@ export function FeedCard({
             {openAppLabel}
             <Image src="/jellyfish.png" width={18} height={18} alt="" />
           </button>
-
-          <motion.button
-            onClick={() => onToggleVote(feed.id)}
-            whileTap={{ scale: 0.9 }}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium transition-colors duration-200 ${
-              hasVoted
-                ? 'border-sky-400/40 bg-sky-400/10 text-sky-400'
-                : 'border-white/15 bg-white/[0.03] text-white/70 hover:border-white/30 hover:text-white'
-            }`}
-          >
-            <ArrowBigUp className={`h-4 w-4 ${hasVoted ? 'fill-sky-400' : ''}`} />
-            <AnimatePresence mode="popLayout">
-              <motion.span
-                key={displayVotes}
-                initial={{ y: -10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 10, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                {displayVotes}
-              </motion.span>
-            </AnimatePresence>
-          </motion.button>
         </div>
       </div>
     </motion.article>
