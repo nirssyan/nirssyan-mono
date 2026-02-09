@@ -32,7 +32,7 @@ spec:
         - name: regcred
       containers:
         - name: app-integrations-go
-          image: registry.infra.makekod.ru/makefeed-integrations-go:dev
+          image: registry.infra.makekod.ru/integrations-go:dev
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
