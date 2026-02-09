@@ -31,7 +31,8 @@ func (h *AuthHandler) Routes() chi.Router {
 }
 
 type demoLoginRequest struct {
-	Email string `json:"email"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type demoUser struct {
@@ -65,7 +66,7 @@ func (h *AuthHandler) DemoLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !strings.EqualFold(req.Email, h.cfg.DemoAccountEmail) {
+	if !strings.EqualFold(req.Email, h.cfg.DemoAccountEmail) || req.Password != h.cfg.DemoAccountPassword {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "invalid demo credentials"})
 		return
 	}
