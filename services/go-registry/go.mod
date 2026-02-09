@@ -3,7 +3,7 @@ module github.com/MargoRSq/infatium-mono/services/go-registry
 go 1.24.0
 
 require (
-	github.com/getsentry/sentry-go v0.31.1
+	github.com/getsentry/sentry-go v0.42.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/kelseyhightower/envconfig v1.4.0

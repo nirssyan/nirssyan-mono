@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/MargoRSq/infatium-mono/services/go-api/internal/clients"
@@ -51,6 +53,12 @@ func (a *App) Run(ctx context.Context) error {
 		if err := sentry.Init(sentry.ClientOptions{
 			Dsn:         a.cfg.GlitchTipDSN,
 			Environment: a.cfg.Environment,
+			Debug:       a.cfg.Debug,
+			HTTPClient: &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			},
 		}); err != nil {
 			log.Warn().Err(err).Msg("Failed to initialize GlitchTip")
 		} else {
@@ -174,6 +182,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	router := chi.NewRouter()
 
+	router.Use(sentryhttp.New(sentryhttp.Options{Repanic: true}).Handle)
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   a.cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},

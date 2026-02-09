@@ -3,7 +3,7 @@ module github.com/MargoRSq/infatium-mono/services/go-api
 go 1.24.0
 
 require (
-	github.com/getsentry/sentry-go v0.31.1
+	github.com/getsentry/sentry-go v0.42.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/go-chi/cors v1.2.1
 	github.com/golang-jwt/jwt/v5 v5.2.1

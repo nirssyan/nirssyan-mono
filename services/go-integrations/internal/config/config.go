@@ -21,6 +21,10 @@ type Config struct {
 	SentryTelegramChatID   string `envconfig:"SENTRY_WEBHOOK_TELEGRAM_CHAT_ID"`
 	SentryTelegramThreadID int    `envconfig:"SENTRY_WEBHOOK_TELEGRAM_THREAD_ID"`
 
+	// Error Tracking
+	GlitchTipDSN string `envconfig:"GLITCHTIP_DSN"`
+	Environment  string `envconfig:"ENVIRONMENT" default:"production"`
+
 	// OpenTelemetry
 	OTelEnabled          bool   `envconfig:"OTEL_ENABLED" default:"true"`
 	OTelServiceName      string `envconfig:"OTEL_SERVICE_NAME" default:"makefeed-integrations"`

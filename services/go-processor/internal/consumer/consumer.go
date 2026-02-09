@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/MargoRSq/infatium-mono/services/go-processor/internal/config"
 	"github.com/MargoRSq/infatium-mono/services/go-processor/internal/domain"
 	"github.com/MargoRSq/infatium-mono/services/go-processor/pkg/nats"
@@ -366,6 +367,15 @@ func (c *Consumer) processMessage(ctx context.Context, msg jetstream.Msg, eventT
 			Err(err).
 			Dur("duration", duration).
 			Msg("Message processing failed")
+
+		sentry.WithScope(func(scope *sentry.Scope) {
+			scope.SetTag("subject", subject)
+			scope.SetTag("event_type", eventType)
+			if requestID != "" {
+				scope.SetTag("request_id", requestID)
+			}
+			sentry.CaptureException(err)
+		})
 
 		if nackErr := msg.Nak(); nackErr != nil {
 			logger.Error().Err(nackErr).Msg("Failed to NACK message")

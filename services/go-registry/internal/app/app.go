@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -46,6 +47,12 @@ func (a *App) Run(ctx context.Context) error {
 		if err := sentry.Init(sentry.ClientOptions{
 			Dsn:         a.cfg.GlitchTipDSN,
 			Environment: a.cfg.Environment,
+			Debug:       a.cfg.Debug,
+			HTTPClient: &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			},
 		}); err != nil {
 			log.Warn().Err(err).Msg("Failed to initialize GlitchTip")
 		} else {

@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog/log"
 
@@ -34,6 +37,24 @@ func main() {
 		Str("version", Version).
 		Bool("debug", cfg.Debug).
 		Msg("Starting makefeed-integrations-go")
+
+	if cfg.GlitchTipDSN != "" {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:         cfg.GlitchTipDSN,
+			Environment: cfg.Environment,
+			Debug:       cfg.Debug,
+			HTTPClient: &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			},
+		}); err != nil {
+			log.Warn().Err(err).Msg("Failed to initialize GlitchTip")
+		} else {
+			log.Info().Msg("GlitchTip initialized")
+			defer sentry.Flush(2 * time.Second)
+		}
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

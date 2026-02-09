@@ -11,3 +11,4 @@ data:
   OTEL_EXPORTER_ENDPOINT: "tempo.grafana.svc.cluster.local:4317"
   OTEL_ENVIRONMENT: "production"
   METRICS_PORT: "9464"
+  ENVIRONMENT: "production"

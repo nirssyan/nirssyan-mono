@@ -1,8 +1,9 @@
 module github.com/MargoRSq/infatium-mono/services/go-integrations
 
-go 1.23
+go 1.23.0
 
 require (
+	github.com/getsentry/sentry-go v0.42.0
 	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/google/uuid v1.6.0
 	github.com/kelseyhightower/envconfig v1.4.0

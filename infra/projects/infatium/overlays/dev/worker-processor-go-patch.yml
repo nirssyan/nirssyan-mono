@@ -8,6 +8,11 @@ spec:
       containers:
         - name: worker-processor-go
           env:
+            - name: GLITCHTIP_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: SENTRY_DSN
             - name: ENVIRONMENT
               value: "development"
             - name: OTEL_ENVIRONMENT

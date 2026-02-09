@@ -114,6 +114,10 @@ type Config struct {
 	MediaWarmingConcurrency int           `envconfig:"MEDIA_WARMING_CONCURRENCY" default:"3"`
 	MediaWarmingTimeout     time.Duration `envconfig:"MEDIA_WARMING_TIMEOUT" default:"30s"`
 
+	// Error Tracking
+	GlitchTipDSN string `envconfig:"GLITCHTIP_DSN"`
+	Environment  string `envconfig:"ENVIRONMENT" default:"development"`
+
 	// Server
 	HTTPPort int  `envconfig:"HTTP_PORT" default:"8080"`
 	Debug    bool `envconfig:"DEBUG" default:"false"`

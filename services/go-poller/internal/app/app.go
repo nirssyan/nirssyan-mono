@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/MargoRSq/infatium-mono/services/go-poller/internal/config"
 	"github.com/MargoRSq/infatium-mono/services/go-poller/internal/rss"
 	"github.com/MargoRSq/infatium-mono/services/go-poller/internal/telegram"
@@ -53,6 +55,24 @@ func (a *App) Run(ctx context.Context) error {
 		Bool("web_enabled", a.cfg.WebPollingEnabled).
 		Bool("telegram_enabled", a.cfg.TelegramPollingEnabled).
 		Msg("Starting application")
+
+	if a.cfg.GlitchTipDSN != "" {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:         a.cfg.GlitchTipDSN,
+			Environment: a.cfg.Environment,
+			Debug:       a.cfg.Debug,
+			HTTPClient: &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			},
+		}); err != nil {
+			log.Warn().Err(err).Msg("Failed to initialize GlitchTip")
+		} else {
+			log.Info().Msg("GlitchTip initialized")
+			defer sentry.Flush(2 * time.Second)
+		}
+	}
 
 	if a.cfg.OTELEnabled {
 		shutdown, err := observability.SetupOTEL(

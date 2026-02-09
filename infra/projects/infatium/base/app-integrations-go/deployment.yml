@@ -39,6 +39,12 @@ spec:
               name: http
             - containerPort: 9464
               name: metrics
+          env:
+            - name: GLITCHTIP_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: SENTRY_DSN
           envFrom:
             - configMapRef:
                 name: app-integrations-go-config

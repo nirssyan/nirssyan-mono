@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/dcs"
 	"github.com/gotd/td/tg"
@@ -52,6 +53,8 @@ func (c *Client) Connect(ctx context.Context) (err error) {
 		if r := recover(); r != nil {
 			c.log.Error().Interface("panic", r).Msg("panic in Telegram Connect")
 			err = fmt.Errorf("panic in Connect: %v", r)
+			sentry.CaptureException(err)
+			sentry.Flush(2 * time.Second)
 		}
 	}()
 
@@ -97,7 +100,10 @@ func (c *Client) Connect(ctx context.Context) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				c.log.Error().Interface("panic", r).Msg("panic in client.Run goroutine")
-				errCh <- fmt.Errorf("panic in client.Run: %v", r)
+				panicErr := fmt.Errorf("panic in client.Run: %v", r)
+				sentry.CaptureException(panicErr)
+				sentry.Flush(2 * time.Second)
+				errCh <- panicErr
 			}
 		}()
 
