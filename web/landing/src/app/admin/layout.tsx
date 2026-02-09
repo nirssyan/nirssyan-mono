@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useAdminAuth } from '@/hooks/use-admin-auth'
 
 const navItems = [
@@ -34,7 +35,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen bg-[#0a0a0a]">
       <aside className="fixed left-0 top-0 flex h-full w-56 flex-col border-r border-white/10 bg-[#0a0a0a]">
         <div className="border-b border-white/10 px-5 py-4">
-          <Link href="/admin" className="text-lg font-semibold text-white">
+          <Link href="/admin" className="flex items-center gap-2 text-lg font-semibold text-white">
+            <Image src="/jellyfish.png" alt="" width={28} height={28} className="opacity-80" />
             infatium admin
           </Link>
         </div>
