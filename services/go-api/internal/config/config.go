@@ -27,7 +27,8 @@ type Config struct {
 	FeedbackTelegramBotToken  string `envconfig:"FEEDBACK_TELEGRAM_BOT_TOKEN"`
 	FeedbackTelegramChatID    string `envconfig:"FEEDBACK_TELEGRAM_CHAT_ID"`
 	AdminTelegramFeedThreadID int    `envconfig:"ADMIN_TELEGRAM_FEED_THREAD_ID" default:"0"`
-	AdminTelegramUserThreadID int    `envconfig:"ADMIN_TELEGRAM_USER_THREAD_ID" default:"0"`
+	AdminTelegramUserThreadID    int    `envconfig:"ADMIN_TELEGRAM_USER_THREAD_ID" default:"0"`
+	FeedbackTelegramThreadID     int    `envconfig:"FEEDBACK_TELEGRAM_THREAD_ID" default:"0"`
 
 	MediaProxyEnabled bool          `envconfig:"MEDIA_PROXY_ENABLED" default:"true"`
 	MediaProxyTimeout time.Duration `envconfig:"MEDIA_PROXY_TIMEOUT" default:"30s"`
@@ -37,6 +38,7 @@ type Config struct {
 	S3SecretKey string `envconfig:"S3_SECRET_KEY" required:"true"`
 	S3PublicURL string `envconfig:"S3_PUBLIC_URL" required:"true"`
 	S3UseSSL    bool   `envconfig:"S3_USE_SSL" default:"false"`
+	S3Bucket    string `envconfig:"S3_BUCKET" default:"telegram-media"`
 
 	OTELEnabled          bool   `envconfig:"OTEL_ENABLED" default:"false"`
 	OTELServiceName      string `envconfig:"OTEL_SERVICE_NAME" default:"go-api"`

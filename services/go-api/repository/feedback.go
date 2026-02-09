@@ -11,9 +11,8 @@ import (
 type Feedback struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
-	Message   string
-	Type      string
-	Metadata  *string
+	Message   *string
+	ImageURLs []string
 	CreatedAt time.Time
 }
 
@@ -26,22 +25,21 @@ func NewFeedbackRepository(pool *pgxpool.Pool) *FeedbackRepository {
 }
 
 type CreateFeedbackParams struct {
-	UserID   uuid.UUID
-	Message  string
-	Type     string
-	Metadata *string
+	UserID    uuid.UUID
+	Message   *string
+	ImageURLs []string
 }
 
 func (r *FeedbackRepository) Create(ctx context.Context, params CreateFeedbackParams) (*Feedback, error) {
 	query := `
-		INSERT INTO feedbacks (user_id, message, type, metadata)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, user_id, message, type, metadata, created_at`
+		INSERT INTO feedbacks (user_id, message, image_urls)
+		VALUES ($1, $2, $3)
+		RETURNING id, user_id, message, image_urls, created_at`
 
 	var f Feedback
 	err := r.pool.QueryRow(ctx, query,
-		params.UserID, params.Message, params.Type, params.Metadata,
-	).Scan(&f.ID, &f.UserID, &f.Message, &f.Type, &f.Metadata, &f.CreatedAt)
+		params.UserID, params.Message, params.ImageURLs,
+	).Scan(&f.ID, &f.UserID, &f.Message, &f.ImageURLs, &f.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

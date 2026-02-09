@@ -19,6 +19,7 @@ import (
 	"github.com/MargoRSq/infatium-mono/services/go-api/internal/websocket"
 	"github.com/MargoRSq/infatium-mono/services/go-api/pkg/db"
 	"github.com/MargoRSq/infatium-mono/services/go-api/pkg/observability"
+	"github.com/MargoRSq/infatium-mono/services/go-api/pkg/storage"
 	"github.com/MargoRSq/infatium-mono/services/go-api/repository"
 	"github.com/nats-io/nats.go"
 	"github.com/rs/zerolog/log"
@@ -92,6 +93,11 @@ func (a *App) Run(ctx context.Context) error {
 		log.Warn().Err(err).Msg("Failed to start notification consumer")
 	}
 
+	s3Client, err := storage.NewS3Client(a.cfg.S3Endpoint, a.cfg.S3AccessKey, a.cfg.S3SecretKey, a.cfg.S3UseSSL)
+	if err != nil {
+		return fmt.Errorf("create S3 client: %w", err)
+	}
+
 	agentsClient := clients.NewAgentsClient(nc)
 	telegramClient := clients.NewTelegramClient(nc, a.cfg.TelegramBotToken)
 	validationClient := clients.NewValidationClient(nc)
@@ -144,7 +150,11 @@ func (a *App) Run(ctx context.Context) error {
 	marketplaceHandler := handlers.NewMarketplaceHandler(marketplaceRepo)
 	deviceTokenHandler := handlers.NewDeviceTokenHandler(deviceTokenRepo)
 	usersFeedHandler := handlers.NewUsersFeedHandler(usersFeedRepo, feedRepo)
-	feedbackHandler := handlers.NewFeedbackHandler(feedbackRepo, a.cfg.TelegramBotToken, a.cfg.FeedbackTelegramChatID)
+	feedbackHandler := handlers.NewFeedbackHandler(
+		feedbackRepo, userRepo, usersFeedRepo, s3Client,
+		a.cfg.FeedbackTelegramBotToken, a.cfg.FeedbackTelegramChatID,
+		a.cfg.FeedbackTelegramThreadID, a.cfg.S3Bucket, a.cfg.S3PublicURL,
+	)
 	suggestionsHandler := handlers.NewSuggestionsHandler(suggestionRepo)
 	tagsHandler := handlers.NewTagsHandler(tagRepo, userTagRepo)
 	mediaHandler := handlers.NewMediaHandler(telegramClient, a.cfg.S3PublicURL, a.cfg.MediaProxyTimeout, pool.Pool)
