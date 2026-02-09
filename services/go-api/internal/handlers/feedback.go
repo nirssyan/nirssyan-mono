@@ -112,6 +112,11 @@ func (h *FeedbackHandler) SubmitFeedback(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	if len(files) > 0 && h.s3Client == nil {
+		http.Error(w, "image uploads are not configured", http.StatusServiceUnavailable)
+		return
+	}
+
 	var imageURLs []string
 	for _, fh := range files {
 		f, err := fh.Open()

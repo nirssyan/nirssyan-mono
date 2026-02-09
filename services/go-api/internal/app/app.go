@@ -93,9 +93,14 @@ func (a *App) Run(ctx context.Context) error {
 		log.Warn().Err(err).Msg("Failed to start notification consumer")
 	}
 
-	s3Client, err := storage.NewS3Client(a.cfg.S3Endpoint, a.cfg.S3AccessKey, a.cfg.S3SecretKey, a.cfg.S3UseSSL)
-	if err != nil {
-		return fmt.Errorf("create S3 client: %w", err)
+	var s3Client *storage.S3Client
+	if a.cfg.S3Endpoint != "" {
+		s3Client, err = storage.NewS3Client(a.cfg.S3Endpoint, a.cfg.S3AccessKey, a.cfg.S3SecretKey, a.cfg.S3UseSSL)
+		if err != nil {
+			log.Warn().Err(err).Msg("Failed to initialize S3 client, image uploads disabled")
+		} else {
+			log.Info().Msg("S3 client initialized")
+		}
 	}
 
 	agentsClient := clients.NewAgentsClient(nc)
