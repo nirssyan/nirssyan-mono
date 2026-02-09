@@ -137,26 +137,33 @@ data:
 
         case "$DB_TYPE" in
           postgresql)
-            timeout "${DB_DUMP_TIMEOUT}" kubectl exec -n "${NS}" "${POD_NAME}" -- sh -c 'pg_dumpall -U ${POSTGRES_USER:-postgres}' 2>/dev/null | gzip > "${DUMP_FILE}"
-            if [ $? -eq 124 ]; then
+            set -o pipefail
+            timeout "${DB_DUMP_TIMEOUT}" kubectl exec -n "${NS}" "${POD_NAME}" -- sh -c 'PGPASSWORD=${POSTGRES_PASSWORD:-} pg_dumpall -U ${POSTGRES_USER:-postgres}' 2>/dev/null | gzip > "${DUMP_FILE}"
+            RC=$?
+            set +o pipefail
+            if [ $RC -eq 124 ]; then
               echo "[$(date)]     ⚠ pg_dump TIMEOUT for ${POD_NAME} (>${DB_DUMP_TIMEOUT}s)"
-            elif [ $? -ne 0 ]; then
+            elif [ $RC -ne 0 ]; then
               echo "[$(date)]     ⚠ pg_dump failed for ${POD_NAME}"
             fi
             ;;
           mysql)
+            set -o pipefail
             timeout "${DB_DUMP_TIMEOUT}" kubectl exec -n "${NS}" "${POD_NAME}" -- sh -c 'mysqldump --all-databases -u root -p"${MYSQL_ROOT_PASSWORD}"' 2>/dev/null | gzip > "${DUMP_FILE}"
-            if [ $? -eq 124 ]; then
+            RC=$?
+            set +o pipefail
+            if [ $RC -eq 124 ]; then
               echo "[$(date)]     ⚠ mysqldump TIMEOUT for ${POD_NAME} (>${DB_DUMP_TIMEOUT}s)"
-            elif [ $? -ne 0 ]; then
+            elif [ $RC -ne 0 ]; then
               echo "[$(date)]     ⚠ mysqldump failed for ${POD_NAME}"
             fi
             ;;
           mongodb)
             timeout "${DB_DUMP_TIMEOUT}" kubectl exec -n "${NS}" "${POD_NAME}" -- sh -c 'mongodump --archive --gzip' 2>/dev/null > "${NS_BACKUP_DIR}/db-dumps/${POD_NAME}.archive.gz"
-            if [ $? -eq 124 ]; then
+            RC=$?
+            if [ $RC -eq 124 ]; then
               echo "[$(date)]     ⚠ mongodump TIMEOUT for ${POD_NAME} (>${DB_DUMP_TIMEOUT}s)"
-            elif [ $? -ne 0 ]; then
+            elif [ $RC -ne 0 ]; then
               echo "[$(date)]     ⚠ mongodump failed for ${POD_NAME}"
             fi
             ;;
