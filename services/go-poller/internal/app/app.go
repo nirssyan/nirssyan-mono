@@ -19,6 +19,7 @@ import (
 	"github.com/MargoRSq/infatium-mono/services/go-poller/pkg/moderation"
 	"github.com/MargoRSq/infatium-mono/services/go-poller/pkg/nats"
 	"github.com/MargoRSq/infatium-mono/services/go-poller/pkg/observability"
+	"github.com/MargoRSq/infatium-mono/services/go-poller/pkg/storage"
 	"github.com/MargoRSq/infatium-mono/services/go-poller/repository"
 	"github.com/rs/zerolog/log"
 )
@@ -153,6 +154,24 @@ func (a *App) Run(ctx context.Context) error {
 		if err := telegramClient.Connect(ctx); err != nil {
 			log.Error().Err(err).Msg("Failed to connect Telegram client, Telegram polling disabled")
 		} else {
+			var mediaWarmer *telegram.MediaWarmer
+			if a.cfg.MediaWarmingEnabled && a.cfg.S3Endpoint != "" {
+				s3Client, err := storage.NewS3Client(a.cfg.S3Endpoint, a.cfg.S3AccessKey, a.cfg.S3SecretKey, a.cfg.S3UseSSL)
+				if err != nil {
+					log.Warn().Err(err).Msg("Failed to initialize S3 client for media warming")
+				} else {
+					mediaWarmer = telegram.NewMediaWarmer(a.cfg, telegramClient, s3Client)
+					if err := mediaWarmer.Register(natsClient.NC()); err != nil {
+						log.Warn().Err(err).Msg("Failed to register media warm NATS handler")
+					} else {
+						log.Info().
+							Float64("rate_per_sec", a.cfg.MediaWarmingRatePerSec).
+							Int("concurrency", a.cfg.MediaWarmingConcurrency).
+							Msg("Media warming initialized")
+					}
+				}
+			}
+
 			a.telegramPoller = telegram.NewPoller(
 				a.cfg,
 				telegramClient,
@@ -160,6 +179,7 @@ func (a *App) Run(ctx context.Context) error {
 				rawPostRepo,
 				natsPublisher,
 				moderationClient,
+				mediaWarmer,
 			)
 		}
 	}

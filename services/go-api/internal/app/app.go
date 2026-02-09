@@ -162,7 +162,7 @@ func (a *App) Run(ctx context.Context) error {
 	)
 	suggestionsHandler := handlers.NewSuggestionsHandler(suggestionRepo)
 	tagsHandler := handlers.NewTagsHandler(tagRepo, userTagRepo)
-	mediaHandler := handlers.NewMediaHandler(telegramClient, a.cfg.S3PublicURL, a.cfg.MediaProxyTimeout, pool.Pool)
+	mediaHandler := handlers.NewMediaHandler(telegramClient, a.cfg.S3PublicURL, a.cfg.MediaProxyTimeout, pool.Pool, s3Client, a.cfg.S3Bucket)
 	sourceValidationHandler := handlers.NewSourceValidationHandler(validationClient)
 	telegramLinkHandler := handlers.NewTelegramLinkHandler(telegramUserRepo, telegramLinkCodeRepo, a.cfg.TelegramBotUsername, a.cfg.TelegramLinkExpiryMins)
 	telegramSyncHandler := handlers.NewTelegramSyncHandler(telegramClient)

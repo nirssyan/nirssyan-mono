@@ -103,6 +103,13 @@ func (a *App) Run(ctx context.Context) error {
 	// Create publisher for WebSocket events
 	publisher := nats.NewPublisher(natsClient.NC())
 
+	// Create media warmer client (NATS RPC to go-poller)
+	var mediaWarmerClient *clients.MediaWarmerClient
+	if a.cfg.MediaWarmingEnabled {
+		mediaWarmerClient = clients.NewMediaWarmerClient(natsClient.NC(), a.cfg.MediaWarmingTimeout)
+		log.Info().Msg("Media warming client initialized")
+	}
+
 	// Create processing service
 	processingService := services.NewFeedProcessingService(
 		a.cfg,
@@ -113,6 +120,7 @@ func (a *App) Run(ctx context.Context) error {
 		feedRepo,
 		offsetRepo,
 		publisher,
+		mediaWarmerClient,
 	)
 
 	// Start HTTP server early for health checks

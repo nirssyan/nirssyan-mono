@@ -16,7 +16,7 @@ func TestNewPoller(t *testing.T) {
 		TelegramAdaptiveRateMaxMultiplier: 3.0,
 	}
 
-	poller := NewPoller(cfg, nil, nil, nil, nil, nil)
+	poller := NewPoller(cfg, nil, nil, nil, nil, nil, nil)
 
 	if poller == nil {
 		t.Fatal("expected non-nil poller")
@@ -36,7 +36,7 @@ func TestNewPoller_NoRateLimiter(t *testing.T) {
 		TelegramAdaptiveRateEnabled: false,
 	}
 
-	poller := NewPoller(cfg, nil, nil, nil, nil, nil)
+	poller := NewPoller(cfg, nil, nil, nil, nil, nil, nil)
 
 	if poller.rateLimiter != nil {
 		t.Error("expected no rate limiter when disabled")
@@ -129,7 +129,7 @@ func TestPoller_MessageToRawPostData(t *testing.T) {
 
 func TestPoller_IsRunning(t *testing.T) {
 	cfg := &config.Config{}
-	poller := NewPoller(cfg, nil, nil, nil, nil, nil)
+	poller := NewPoller(cfg, nil, nil, nil, nil, nil, nil)
 
 	if poller.running != 0 {
 		t.Error("expected poller to not be running initially")

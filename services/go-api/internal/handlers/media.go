@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/MargoRSq/infatium-mono/services/go-api/internal/clients"
+	"github.com/MargoRSq/infatium-mono/services/go-api/pkg/storage"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,6 +24,8 @@ type MediaHandler struct {
 	s3PublicURL    string
 	proxyTimeout   time.Duration
 	dbPool         *pgxpool.Pool
+	s3Client       *storage.S3Client
+	s3Bucket       string
 }
 
 func NewMediaHandler(
@@ -29,12 +33,16 @@ func NewMediaHandler(
 	s3PublicURL string,
 	proxyTimeout time.Duration,
 	dbPool *pgxpool.Pool,
+	s3Client *storage.S3Client,
+	s3Bucket string,
 ) *MediaHandler {
 	return &MediaHandler{
 		telegramClient: telegramClient,
 		s3PublicURL:    s3PublicURL,
 		proxyTimeout:   proxyTimeout,
 		dbPool:         dbPool,
+		s3Client:       s3Client,
+		s3Bucket:       s3Bucket,
 	}
 }
 
@@ -110,6 +118,22 @@ func (h *MediaHandler) GetTelegramMedia(w http.ResponseWriter, r *http.Request) 
 
 	log.Info().Str("file_id", fileID[:min(30, len(fileID))]).Msg("MTProto file_id detected, using NATS")
 
+	// S3 cache-first: check if file is already warmed in S3
+	if h.s3Client != nil {
+		s3Key := fmt.Sprintf("%s/%s", fileType, fileID)
+		if exists, _ := h.s3Client.Exists(ctx, h.s3Bucket, s3Key); exists {
+			reader, err := h.s3Client.Download(ctx, h.s3Bucket, s3Key)
+			if err == nil {
+				defer reader.Close()
+				w.Header().Set("Content-Type", mimeForType(fileType))
+				w.Header().Set("Cache-Control", "public, max-age=86400")
+				w.WriteHeader(http.StatusOK)
+				io.Copy(w, reader)
+				return
+			}
+		}
+	}
+
 	// Try to get file via NATS (MTProto) - only for MTProto format file_ids
 	data, mimeType, err := h.telegramClient.GetFile(ctx, fileID, fileType, chatID, msgID)
 	if err != nil {
@@ -119,9 +143,9 @@ func (h *MediaHandler) GetTelegramMedia(w http.ResponseWriter, r *http.Request) 
 		if strings.Contains(errStr, "FILE_REFERENCE_EXPIRED") || strings.Contains(errStr, "file reference") {
 			log.Warn().Str("file_id", fileID).Msg("FILE_REFERENCE_EXPIRED detected, attempting refresh")
 
-			// Try to refresh file reference
 			refreshedData, refreshedMime, refreshErr := h.refreshFileReference(ctx, fileID, fileType, chatID, msgID)
 			if refreshErr == nil && len(refreshedData) > 0 {
+				h.writeThroughS3(fileType, fileID, refreshedData, refreshedMime)
 				if refreshedMime != "" {
 					w.Header().Set("Content-Type", refreshedMime)
 				}
@@ -150,6 +174,9 @@ func (h *MediaHandler) GetTelegramMedia(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "file not found", http.StatusNotFound)
 		return
 	}
+
+	// Write-through: save to S3 in background
+	h.writeThroughS3(fileType, fileID, data, mimeType)
 
 	// Serve file from NATS response
 	if mimeType != "" {
@@ -400,6 +427,22 @@ func (h *MediaHandler) handleTelegramMediaFromPath(w http.ResponseWriter, r *htt
 
 	log.Info().Str("file_id", fileID[:min(30, len(fileID))]).Msg("MTProto file_id detected, using NATS")
 
+	// S3 cache-first
+	if h.s3Client != nil {
+		s3Key := fmt.Sprintf("%s/%s", fileType, fileID)
+		if exists, _ := h.s3Client.Exists(ctx, h.s3Bucket, s3Key); exists {
+			reader, err := h.s3Client.Download(ctx, h.s3Bucket, s3Key)
+			if err == nil {
+				defer reader.Close()
+				w.Header().Set("Content-Type", mimeForType(fileType))
+				w.Header().Set("Cache-Control", "public, max-age=86400")
+				w.WriteHeader(http.StatusOK)
+				io.Copy(w, reader)
+				return
+			}
+		}
+	}
+
 	// Try to get file via NATS (MTProto) - only for MTProto format file_ids
 	data, mimeType, err := h.telegramClient.GetFile(ctx, fileID, fileType, chatID, msgID)
 	if err != nil {
@@ -411,6 +454,7 @@ func (h *MediaHandler) handleTelegramMediaFromPath(w http.ResponseWriter, r *htt
 
 			refreshedData, refreshedMime, refreshErr := h.refreshFileReference(ctx, fileID, fileType, chatID, msgID)
 			if refreshErr == nil && len(refreshedData) > 0 {
+				h.writeThroughS3(fileType, fileID, refreshedData, refreshedMime)
 				if refreshedMime != "" {
 					w.Header().Set("Content-Type", refreshedMime)
 				}
@@ -439,6 +483,9 @@ func (h *MediaHandler) handleTelegramMediaFromPath(w http.ResponseWriter, r *htt
 		http.Error(w, "file not found", http.StatusNotFound)
 		return
 	}
+
+	// Write-through: save to S3 in background
+	h.writeThroughS3(fileType, fileID, data, mimeType)
 
 	// Serve file from NATS response
 	if mimeType != "" {
@@ -548,4 +595,35 @@ func (h *MediaHandler) GetMedia(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Error(w, "file not found", http.StatusNotFound)
+}
+
+func (h *MediaHandler) writeThroughS3(fileType, fileID string, data []byte, mimeType string) {
+	if h.s3Client == nil || len(data) == 0 {
+		return
+	}
+	go func() {
+		uploadCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		s3Key := fmt.Sprintf("%s/%s", fileType, fileID)
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+		if err := h.s3Client.Upload(uploadCtx, h.s3Bucket, s3Key,
+			bytes.NewReader(data), int64(len(data)), mimeType); err != nil {
+			log.Warn().Err(err).Str("key", s3Key).Msg("Write-through S3 upload failed")
+		}
+	}()
+}
+
+func mimeForType(fileType string) string {
+	switch fileType {
+	case "photo":
+		return "image/jpeg"
+	case "video":
+		return "video/mp4"
+	case "animation":
+		return "video/mp4"
+	default:
+		return "application/octet-stream"
+	}
 }

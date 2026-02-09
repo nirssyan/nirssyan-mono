@@ -17,14 +17,15 @@ import (
 )
 
 type FeedProcessingService struct {
-	cfg              *config.Config
-	agentsClient     *clients.AgentsClient
-	promptRepo       *repository.PromptRepository
-	rawPostRepo      *repository.RawPostRepository
-	postRepo         *repository.PostRepository
-	feedRepo         *repository.FeedRepository
-	offsetRepo       *repository.OffsetRepository
-	publisher        *nats.Publisher
+	cfg                *config.Config
+	agentsClient       *clients.AgentsClient
+	promptRepo         *repository.PromptRepository
+	rawPostRepo        *repository.RawPostRepository
+	postRepo           *repository.PostRepository
+	feedRepo           *repository.FeedRepository
+	offsetRepo         *repository.OffsetRepository
+	publisher          *nats.Publisher
+	mediaWarmerClient  *clients.MediaWarmerClient
 }
 
 func NewFeedProcessingService(
@@ -36,16 +37,18 @@ func NewFeedProcessingService(
 	feedRepo *repository.FeedRepository,
 	offsetRepo *repository.OffsetRepository,
 	publisher *nats.Publisher,
+	mediaWarmerClient *clients.MediaWarmerClient,
 ) *FeedProcessingService {
 	return &FeedProcessingService{
-		cfg:          cfg,
-		agentsClient: agentsClient,
-		promptRepo:   promptRepo,
-		rawPostRepo:  rawPostRepo,
-		postRepo:     postRepo,
-		feedRepo:     feedRepo,
-		offsetRepo:   offsetRepo,
-		publisher:    publisher,
+		cfg:               cfg,
+		agentsClient:      agentsClient,
+		promptRepo:        promptRepo,
+		rawPostRepo:       rawPostRepo,
+		postRepo:          postRepo,
+		feedRepo:          feedRepo,
+		offsetRepo:        offsetRepo,
+		publisher:         publisher,
+		mediaWarmerClient: mediaWarmerClient,
 	}
 }
 
@@ -80,6 +83,13 @@ func (s *FeedProcessingService) ProcessRawPostEvent(ctx context.Context, event d
 	if len(rawPosts) == 0 {
 		logger.Warn().Msg("No raw posts found")
 		return nil
+	}
+
+	// Warm media for all raw posts (fire-and-forget via NATS RPC)
+	if s.mediaWarmerClient != nil {
+		for _, rp := range rawPosts {
+			s.mediaWarmerClient.WarmMedia(ctx, rp.MediaObjects)
+		}
 	}
 
 	// Process each prompt

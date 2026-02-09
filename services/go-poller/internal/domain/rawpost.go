@@ -15,8 +15,9 @@ const (
 )
 
 type MediaObject struct {
-	Type string `json:"type"`
-	URL  string `json:"url"`
+	Type       string  `json:"type"`
+	URL        string  `json:"url"`
+	PreviewURL *string `json:"preview_url,omitempty"`
 }
 
 type RawPost struct {
