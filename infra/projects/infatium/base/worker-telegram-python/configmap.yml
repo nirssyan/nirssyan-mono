@@ -9,7 +9,7 @@ data:
   NATS_PUBLISH_ENABLED: "true"
   NATS_VALIDATION_HANDLER_ENABLED: "true"
   NATS_OPERATIONS_HANDLER_ENABLED: "true"
-  MEDIA_BASE_URL: "https://dev.service.infatium.ru"
+  MEDIA_BASE_URL: "https://dev.api.infatium.ru"
   OTEL_ENABLED: "true"
   OTEL_SERVICE_NAME: "makefeed-telegram"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo.infrastructure:4317"

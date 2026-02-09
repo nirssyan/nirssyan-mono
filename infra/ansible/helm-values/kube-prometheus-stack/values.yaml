@@ -13,8 +13,8 @@ defaultRules:
     k8s: true
     kubeApiserverAvailability: true
     kubeApiserverBurnrate: true
-    kubeApiserverHistogram: true
-    kubeApiserverSlos: true
+    kubeApiserverHistogram: false
+    kubeApiserverSlos: false
     kubernetesApps: true
     kubernetesResources: true
     kubernetesStorage: true
@@ -99,28 +99,19 @@ prometheus:
         relabel_configs:
           - action: labelmap
             regex: __meta_kubernetes_node_label_(.+)
-        # Drop/optimize heavy apiserver metrics that may come from nodes
+        # Drop heavy apiserver/etcd/workqueue metrics from nodes
         metric_relabel_configs:
-          - source_labels: [__name__, le]
-            regex: 'apiserver_request_sli_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+          - source_labels: [__name__]
+            regex: 'apiserver_request_(duration|sli_duration)_seconds_(bucket|count|sum)'
             action: drop
           - source_labels: [__name__]
-            regex: 'apiserver_request_body_size_bytes_(bucket|count|sum)'
+            regex: 'apiserver_(request_body_size|response_sizes|watch_cache_read_wait_seconds|watch_events_sizes)_(bucket|count|sum)'
             action: drop
           - source_labels: [__name__]
-            regex: 'apiserver_response_sizes_(bucket|count|sum)'
+            regex: 'etcd_request_duration_seconds_(bucket|count|sum)'
             action: drop
           - source_labels: [__name__]
-            regex: 'apiserver_watch_cache_read_wait_seconds_(bucket|count|sum)'
-            action: drop
-          - source_labels: [__name__]
-            regex: 'apiserver_watch_events_sizes_(bucket|count|sum)'
-            action: drop
-          - source_labels: [__name__, le]
-            regex: 'apiserver_request_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
-            action: drop
-          - source_labels: [__name__, le]
-            regex: 'etcd_request_duration_seconds_bucket;(0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+            regex: 'workqueue_(work|queue)_duration_seconds_(bucket|count|sum)'
             action: drop
 
       # Kubernetes pods with prometheus.io/scrape annotation
@@ -364,43 +355,28 @@ kubeApiServer:
   enabled: true
   serviceMonitor:
     metricRelabelings:
-      # OPTIMIZE apiserver_request_sli_duration_seconds buckets (needed for SLO dashboard)
-      # Keep: 0.05, 0.1, 0.2, 1.0, 2.0, 5.0, 10.0, +Inf (8 buckets)
-      # Saves ~21,000 series (from 31,820 to ~10,600)
-      - sourceLabels: [__name__, le]
-        regex: 'apiserver_request_sli_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+      # DROP entire apiserver histogram metrics — not used in any Grafana dashboard
+      # Saves ~40,000 series total
+      - sourceLabels: [__name__]
+        regex: 'apiserver_request_duration_seconds_(bucket|count|sum)'
         action: drop
-
-      # DROP apiserver_request_body_size_bytes entirely
-      # Rarely needed, saves ~24,960 series
+      - sourceLabels: [__name__]
+        regex: 'apiserver_request_sli_duration_seconds_(bucket|count|sum)'
+        action: drop
       - sourceLabels: [__name__]
         regex: 'apiserver_request_body_size_bytes_(bucket|count|sum)'
         action: drop
-
-      # DROP apiserver_response_sizes entirely
-      # Rarely needed, saves ~8,960 series
       - sourceLabels: [__name__]
         regex: 'apiserver_response_sizes_(bucket|count|sum)'
         action: drop
-
-      # DROP apiserver_watch_cache_read_wait_seconds entirely
-      # Only for deep API server debugging, saves ~4,760 series
       - sourceLabels: [__name__]
         regex: 'apiserver_watch_cache_read_wait_seconds_(bucket|count|sum)'
         action: drop
-
-      # DROP apiserver_watch_events_sizes entirely
-      # Saves ~3,456 series
       - sourceLabels: [__name__]
         regex: 'apiserver_watch_events_sizes_(bucket|count|sum)'
         action: drop
-
-      # DROP unnecessary histogram buckets for apiserver_request_duration_seconds
-      # Original: 0.005, 0.025, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, +Inf (24 buckets)
-      # Keep: 0.05, 0.1, 0.2, 1.0, 2.0, 5.0, 10.0, +Inf (8 buckets - enough for percentiles)
-      # Saves ~30,000 series
-      - sourceLabels: [__name__, le]
-        regex: 'apiserver_request_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+      - sourceLabels: [__name__]
+        regex: 'workqueue_(work|queue)_duration_seconds_(bucket|count|sum)'
         action: drop
 
 # Kube Etcd metrics optimization
@@ -408,11 +384,10 @@ kubeEtcd:
   enabled: true
   serviceMonitor:
     metricRelabelings:
-      # DROP unnecessary histogram buckets for etcd_request_duration_seconds
-      # Same buckets as apiserver, keep: 0.005, 0.05, 0.1, 0.2, 1.0, 2.0, 5.0, 10.0, +Inf
-      # Saves ~20,000 series
-      - sourceLabels: [__name__, le]
-        regex: 'etcd_request_duration_seconds_bucket;(0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+      # DROP entire etcd histogram — not used in any Grafana dashboard
+      # Saves ~16,000 series
+      - sourceLabels: [__name__]
+        regex: 'etcd_request_duration_seconds_(bucket|count|sum)'
         action: drop
 
 # Kubelet metrics optimization
@@ -420,9 +395,12 @@ kubelet:
   enabled: true
   serviceMonitor:
     metricRelabelings:
-      # Optimize heavy apiserver metrics that kubelet also exposes
-      - sourceLabels: [__name__, le]
-        regex: 'apiserver_request_sli_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+      # DROP same heavy metrics from kubelet endpoint
+      - sourceLabels: [__name__]
+        regex: 'apiserver_request_duration_seconds_(bucket|count|sum)'
+        action: drop
+      - sourceLabels: [__name__]
+        regex: 'apiserver_request_sli_duration_seconds_(bucket|count|sum)'
         action: drop
       - sourceLabels: [__name__]
         regex: 'apiserver_request_body_size_bytes_(bucket|count|sum)'
@@ -436,11 +414,11 @@ kubelet:
       - sourceLabels: [__name__]
         regex: 'apiserver_watch_events_sizes_(bucket|count|sum)'
         action: drop
-      - sourceLabels: [__name__, le]
-        regex: 'apiserver_request_duration_seconds_bucket;(0\.005|0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+      - sourceLabels: [__name__]
+        regex: 'etcd_request_duration_seconds_(bucket|count|sum)'
         action: drop
-      - sourceLabels: [__name__, le]
-        regex: 'etcd_request_duration_seconds_bucket;(0\.025|0\.4|0\.6|0\.8|1\.25|1\.5|3\.0|4\.0|6\.0|8\.0|15\.0|20\.0|30\.0|45\.0|60\.0)'
+      - sourceLabels: [__name__]
+        regex: 'workqueue_(work|queue)_duration_seconds_(bucket|count|sum)'
         action: drop
 
 # Kube Scheduler metrics optimization (already disabled in defaultRules, but adding for safety)

@@ -218,7 +218,7 @@ data:
                 "lineStyle": { "fill": "solid" },
                 "lineWidth": 2,
                 "pointSize": 5,
-                "showPoints": "auto",
+                "showPoints": "never",
                 "spanNulls": true,
                 "stacking": { "mode": "none" },
                 "thresholdsStyle": { "mode": "off" }
@@ -258,7 +258,7 @@ data:
                 "lineStyle": { "fill": "solid" },
                 "lineWidth": 2,
                 "pointSize": 5,
-                "showPoints": "auto",
+                "showPoints": "never",
                 "spanNulls": true,
                 "stacking": { "mode": "none" },
                 "thresholdsStyle": { "mode": "off" }
@@ -306,7 +306,7 @@ data:
                 "lineStyle": { "fill": "solid" },
                 "lineWidth": 2,
                 "pointSize": 5,
-                "showPoints": "auto",
+                "showPoints": "never",
                 "spanNulls": true,
                 "stacking": { "mode": "none" },
                 "thresholdsStyle": { "mode": "off" }
@@ -354,7 +354,7 @@ data:
                 "lineStyle": { "fill": "solid" },
                 "lineWidth": 2,
                 "pointSize": 5,
-                "showPoints": "auto",
+                "showPoints": "never",
                 "spanNulls": true,
                 "stacking": { "mode": "none" },
                 "thresholdsStyle": { "mode": "off" }
@@ -364,7 +364,7 @@ data:
               "unit": "bytes"
             }
           },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
           "id": 5,
           "options": {
             "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true, "sortBy": "Mean", "sortDesc": true },
@@ -394,7 +394,47 @@ data:
                 "lineStyle": { "fill": "solid" },
                 "lineWidth": 2,
                 "pointSize": 5,
-                "showPoints": "auto",
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": { "mode": "none" },
+                "thresholdsStyle": { "mode": "off" }
+              },
+              "mappings": [],
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+              "unit": "short"
+            }
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+          "id": 7,
+          "options": {
+            "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true, "sortBy": "Mean", "sortDesc": true },
+            "tooltip": { "mode": "multi", "sort": "desc" }
+          },
+          "targets": [{ "expr": "sum by (service, namespace) (label_replace(rate(container_cpu_usage_seconds_total{container!=\"\", container!=\"POD\"}[5m]), \"service\", \"$1\", \"pod\", \"^(.+?)(-[a-f0-9]{5,10}-[a-z0-9]{5}|-[0-9]+)$\"))", "legendFormat": "{{service}} ({{namespace}})", "refId": "A" }],
+          "title": "CPU Usage by Service",
+          "transparent": true,
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisPlacement": "auto",
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 17,
+                "gradientMode": "opacity",
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineStyle": { "fill": "solid" },
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "never",
                 "spanNulls": true,
                 "stacking": { "mode": "none" },
                 "thresholdsStyle": { "mode": "off" }

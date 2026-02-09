@@ -91,4 +91,4 @@ data:
   TELEGRAM_SESSION_NAME: "dev_session"
 
   # Telegram Media URL (CRITICAL: must be set, default is localhost)
-  TELEGRAM_MEDIA_BASE_URL: "https://dev.service.infatium.ru"
+  TELEGRAM_MEDIA_BASE_URL: "https://dev.api.infatium.ru"

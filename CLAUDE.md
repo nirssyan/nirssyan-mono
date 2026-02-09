@@ -1,5 +1,15 @@
 # Infatium Monorepo
 
+## MANDATORY: Use td for Task Management
+
+Run td usage --new-session at conversation start (or after /clear). This tells you what to work on next.
+
+Sessions are automatic (based on terminal/agent context). Optional:
+- td session "name" to label the current session
+- td session --new to force a new session in the same context
+
+Use td usage -q after first read.
+
 Монорепозиторий для платформы персонализированных новостных лент Infatium/Makefeed.
 
 ## Структура репозитория
@@ -132,3 +142,36 @@ cd database/migrations
 rye run alembic upgrade head
 rye run alembic revision --autogenerate -m "description"
 ```
+
+## Backups
+
+Конфигурация: `infra/global/backup/`
+Playbooks: `infra/ansible/playbooks/backups/`
+
+```bash
+cd infra/ansible
+
+# Ручной бэкап (создаёт Job из CronJob)
+ansible-playbook -i inventory/hosts.yml playbooks/backups/backup.yml
+
+# Список бэкапов (локальные + Yandex Disk)
+ansible-playbook -i inventory/hosts.yml playbooks/backups/list-backups.yml
+
+# Полный рестор из Yandex Disk (non-interactive, full DR)
+ansible-playbook -i inventory/hosts.yml playbooks/backups/restore-full.yml
+
+# Рестор конкретного бэкапа
+ansible-playbook -i inventory/hosts.yml playbooks/backups/restore-full.yml \
+  -e "backup_file=2024/03/backup-2024-03-15.tar.zst.age"
+
+# Только DB для одного namespace
+ansible-playbook -i inventory/hosts.yml playbooks/backups/restore-full.yml \
+  -e "target_namespace=infatium-dev skip_k3s=true skip_secrets=true skip_pvc=true"
+
+# Интерактивный рестор (выбор источника, scope)
+ansible-playbook -i inventory/hosts.yml playbooks/backups/restore.yml
+```
+
+Лейблы для подов:
+- `backup.infra/type: "database"` + `backup.infra/db-type: "postgresql|mysql|mongodb|redis"` — DB дамп
+- `backup.infra/enabled: "false"` — opt-out из PVC бэкапа
