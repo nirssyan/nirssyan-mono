@@ -62,7 +62,7 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
             NEXT_PUBLIC_APPSTORE_URL=${{ secrets.NEXT_PUBLIC_APPSTORE_URL }}
             NEXT_PUBLIC_RUSTORE_URL=${{ secrets.NEXT_PUBLIC_RUSTORE_URL }}
 
