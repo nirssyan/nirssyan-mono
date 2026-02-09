@@ -2,8 +2,10 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -51,6 +53,58 @@ func (r *TagRepository) GetByID(ctx context.Context, tagID uuid.UUID) (*Tag, err
 		return nil, err
 	}
 	return &t, nil
+}
+
+func (r *TagRepository) Create(ctx context.Context, name, slug string) (*Tag, error) {
+	query := `
+		INSERT INTO tags (name, slug)
+		VALUES ($1, $2)
+		RETURNING id, name, slug`
+
+	var t Tag
+	err := r.pool.QueryRow(ctx, query, name, slug).Scan(&t.ID, &t.Name, &t.Slug)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func (r *TagRepository) Update(ctx context.Context, id uuid.UUID, name, slug *string) (*Tag, error) {
+	query := `
+		UPDATE tags
+		SET name = COALESCE($2, name),
+		    slug = COALESCE($3, slug)
+		WHERE id = $1
+		RETURNING id, name, slug`
+
+	var t Tag
+	err := r.pool.QueryRow(ctx, query, id, name, slug).Scan(&t.ID, &t.Name, &t.Slug)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+func (r *TagRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `DELETE FROM users_tags WHERE tag_id = $1`, id); err != nil {
+		return fmt.Errorf("delete users_tags: %w", err)
+	}
+
+	result, err := tx.Exec(ctx, `DELETE FROM tags WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete tag: %w", err)
+	}
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (r *TagRepository) ValidateTagIDs(ctx context.Context, tagIDs []uuid.UUID) ([]uuid.UUID, error) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -63,6 +64,96 @@ func (r *SuggestionRepository) GetByType(ctx context.Context, suggestionType str
 	}
 
 	return suggestions, rows.Err()
+}
+
+func (r *SuggestionRepository) GetAll(ctx context.Context) ([]Suggestion, error) {
+	query := `
+		SELECT id, name, type, source_type
+		FROM suggestions
+		ORDER BY type, name`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var suggestions []Suggestion
+	for rows.Next() {
+		var s Suggestion
+		if err := rows.Scan(&s.ID, &s.Name, &s.Type, &s.SourceType); err != nil {
+			return nil, err
+		}
+		suggestions = append(suggestions, s)
+	}
+
+	return suggestions, rows.Err()
+}
+
+func (r *SuggestionRepository) GetByID(ctx context.Context, id uuid.UUID) (*Suggestion, error) {
+	query := `SELECT id, name, type, source_type FROM suggestions WHERE id = $1`
+
+	var s Suggestion
+	err := r.pool.QueryRow(ctx, query, id).Scan(&s.ID, &s.Name, &s.Type, &s.SourceType)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *SuggestionRepository) Create(ctx context.Context, sType string, name SuggestionName, sourceType *string) (*Suggestion, error) {
+	nameJSON, err := json.Marshal(name)
+	if err != nil {
+		return nil, fmt.Errorf("marshal name: %w", err)
+	}
+
+	query := `
+		INSERT INTO suggestions (type, name, source_type)
+		VALUES ($1, $2, $3)
+		RETURNING id, name, type, source_type`
+
+	var s Suggestion
+	err = r.pool.QueryRow(ctx, query, sType, nameJSON, sourceType).Scan(&s.ID, &s.Name, &s.Type, &s.SourceType)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *SuggestionRepository) Update(ctx context.Context, id uuid.UUID, name *SuggestionName, sourceType *string) (*Suggestion, error) {
+	var nameJSON []byte
+	if name != nil {
+		var err error
+		nameJSON, err = json.Marshal(name)
+		if err != nil {
+			return nil, fmt.Errorf("marshal name: %w", err)
+		}
+	}
+
+	query := `
+		UPDATE suggestions
+		SET name = COALESCE($2, name),
+		    source_type = COALESCE($3, source_type)
+		WHERE id = $1
+		RETURNING id, name, type, source_type`
+
+	var s Suggestion
+	err := r.pool.QueryRow(ctx, query, id, nameJSON, sourceType).Scan(&s.ID, &s.Name, &s.Type, &s.SourceType)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *SuggestionRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	result, err := r.pool.Exec(ctx, `DELETE FROM suggestions WHERE id = $1`, id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
 }
 
 // ResolveSuggestionNames converts UUIDs to human-readable names from suggestions table.

@@ -208,6 +208,9 @@ func (a *App) Run(ctx context.Context) error {
 	router.Mount("/sources", sourceValidationHandler.Routes())
 	router.Mount("/telegram", telegramLinkHandler.Routes())
 
+	adminMiddleware := middleware.NewAdminMiddleware(userRepo)
+	adminHandler := handlers.NewAdminHandler(suggestionRepo, tagRepo, marketplaceRepo)
+
 	router.Group(func(r chi.Router) {
 		r.Use(authMiddleware.Authenticate)
 
@@ -215,7 +218,6 @@ func (a *App) Run(ctx context.Context) error {
 		r.Mount("/modal", feedViewHandler.Routes())
 		r.Mount("/posts", postHandler.Routes())
 		r.Mount("/users", userHandler.Routes())
-		r.Mount("/admin/users", userHandler.AdminRoutes())
 		r.Mount("/subscriptions", subscriptionHandler.Routes())
 		r.Mount("/device-tokens", deviceTokenHandler.Routes())
 		r.Mount("/users_feeds", usersFeedHandler.Routes())
@@ -223,6 +225,12 @@ func (a *App) Run(ctx context.Context) error {
 		r.Mount("/users/tags", tagsHandler.AuthenticatedRoutes())
 		r.Mount("/telegram/auth", telegramLinkHandler.AuthenticatedRoutes())
 		r.Mount("/sync", telegramSyncHandler.Routes())
+
+		r.Route("/admin", func(r chi.Router) {
+			r.Use(adminMiddleware.RequireAdmin)
+			r.Mount("/users", userHandler.AdminRoutes())
+			r.Mount("/", adminHandler.Routes())
+		})
 	})
 
 	a.httpServer = &http.Server{

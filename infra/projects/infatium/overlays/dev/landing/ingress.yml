@@ -1,10 +1,12 @@
+# Dummy Ingress for cert-manager TLS certificate issuance
+# IngressRoute (Traefik CRD) doesn't support cert-manager annotations,
+# so we keep this Ingress solely for the Certificate resource.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: app-landing-typescript
+  name: landing-cert
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
 spec:
   ingressClassName: traefik
   tls:
@@ -13,12 +15,44 @@ spec:
       secretName: landing-dev-tls
   rules:
     - host: dev.infatium.ru
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: app-landing-typescript
-                port:
-                  number: 3000
+
+---
+# Public routes — everything except /admin
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: landing-public
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: "Host(`dev.infatium.ru`) && !PathPrefix(`/admin`)"
+      kind: Rule
+      services:
+        - name: app-landing-typescript
+          port: 3000
+  tls:
+    secretName: landing-dev-tls
+
+---
+# Admin routes — VPN only
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: landing-admin
+spec:
+  entryPoints:
+    - web
+    - websecure
+  routes:
+    - match: "Host(`dev.infatium.ru`) && PathPrefix(`/admin`)"
+      kind: Rule
+      middlewares:
+        - name: vpn-only
+          namespace: infrastructure
+      services:
+        - name: app-landing-typescript
+          port: 3000
+  tls:
+    secretName: landing-dev-tls

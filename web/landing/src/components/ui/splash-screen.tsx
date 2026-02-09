@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion'
 import { useEffect, useState, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { startCriticalPreloading } from '@/lib/preload-resources'
 
 /**
@@ -10,7 +11,8 @@ import { startCriticalPreloading } from '@/lib/preload-resources'
  * Uses animate() from Framer Motion to prevent race conditions
  */
 export function SplashScreen() {
-  const [isVisible, setIsVisible] = useState(true)
+  const pathname = usePathname()
+  const [isVisible, setIsVisible] = useState(!pathname.startsWith('/admin'))
   const text = 'infatium'
   const charCount = text.length
   const preloadStarted = useRef(false)

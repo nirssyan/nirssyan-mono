@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - security-headers.yml
   - internal-only.yml
+  - vpn-only.yml
