@@ -10,3 +10,7 @@ data:
   team-name: "nirssyan"
   # Rclone remote name
   yandex-disk-remote: "ydisk"
+  # Telegram notifications
+  telegram-bot-token: "8162983730:AAET6ZLo73MpHSOOhXyBrmhw7x03tnOAaUg"
+  telegram-chat-id: "-1002622491758"
+  telegram-thread-id: "2672"

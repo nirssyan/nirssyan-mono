@@ -32,6 +32,21 @@ data:
     # System namespaces to skip
     SKIP_NAMESPACES="kube-system kube-public kube-node-lease local-path-storage"
 
+    TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+    TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
+    TELEGRAM_THREAD_ID="${TELEGRAM_THREAD_ID:-}"
+
+    send_telegram() {
+      local TEXT="$1"
+      [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ] && return 0
+      local PAYLOAD="{\"chat_id\":\"${TELEGRAM_CHAT_ID}\",\"text\":\"${TEXT}\",\"parse_mode\":\"HTML\""
+      [ -n "$TELEGRAM_THREAD_ID" ] && PAYLOAD="${PAYLOAD},\"message_thread_id\":${TELEGRAM_THREAD_ID}"
+      PAYLOAD="${PAYLOAD}}"
+      curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+        -H "Content-Type: application/json" \
+        -d "$PAYLOAD" >/dev/null 2>&1 || true
+    }
+
     # Write "running" metric immediately
     mkdir -p "$(dirname ${METRICS_FILE})"
     echo "backup_running 1" > "${METRICS_FILE}"
@@ -311,7 +326,7 @@ data:
     # STEP 4: Create archive
     # ═══════════════════════════════════════════════════════════════════
     echo ""
-    echo "[$(date)] STEP 4: Creating archive with zstd --ultra -20..."
+    echo "[$(date)] STEP 4: Creating archive with zstd --ultra -20 -T0..."
     cd /backups
     # Remove existing archive if present (from previous failed runs)
     rm -f "${ARCHIVE_NAME}" "${ENCRYPTED_NAME}"
@@ -585,3 +600,47 @@ data:
     echo "  Encrypted: $([ $ENCRYPTION_SUCCESS -eq 1 ] && echo 'yes' || echo 'no')"
     echo "  Synced: $([ $SYNC_SUCCESS -eq 1 ] && echo 'yes' || echo 'no')"
     echo "═══════════════════════════════════════════════════════════════════"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 9: Send Telegram notification
+    # ═══════════════════════════════════════════════════════════════════
+    if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+      echo ""
+      echo "[$(date)] STEP 9: Sending Telegram notification..."
+
+      DURATION_MIN=$((DURATION / 60))
+      DURATION_SEC=$((DURATION % 60))
+      BACKUP_SIZE_MB=$(( BACKUP_SIZE / 1024 / 1024 ))
+      RAW_SIZE_MB=$(( ${RAW_DATA_SIZE_BYTES:-0} / 1024 / 1024 ))
+
+      if [ "$BACKUP_SIZE" -gt 0 ] && [ "${RAW_DATA_SIZE_BYTES:-0}" -gt 0 ]; then
+        RATIO=$(awk "BEGIN {printf \"%.1f\", ${RAW_DATA_SIZE_BYTES}/${BACKUP_SIZE}}")
+      else
+        RATIO="—"
+      fi
+
+      if [ "$BACKUP_SUCCESS" -eq 1 ]; then
+        ICON="✅"
+        STATUS="Backup completed"
+      else
+        ICON="❌"
+        STATUS="Backup FAILED"
+      fi
+
+      ENC_STR=$([ $ENCRYPTION_SUCCESS -eq 1 ] && echo 'yes' || echo 'no')
+      SYNC_STR=$([ $SYNC_SUCCESS -eq 1 ] && echo 'yes' || echo 'no')
+      K3S_STR=$([ $K3S_STATE_SUCCESS -eq 1 ] && echo 'yes' || echo 'no')
+
+      TG_MSG="${ICON} <b>${STATUS}</b>
+    <b>Archive:</b> <code>${FINAL_ARCHIVE}</code>
+    <b>Size:</b> ${BACKUP_SIZE_MB} MB (raw: ${RAW_SIZE_MB} MB, ratio: ${RATIO}x)
+    <b>Duration:</b> ${DURATION_MIN}m ${DURATION_SEC}s
+    <b>Encrypted:</b> ${ENC_STR}
+    <b>Synced to YDisk:</b> ${SYNC_STR}
+    <b>K3s state:</b> ${K3S_STR}
+    <b>Namespaces:</b> ${NS_COUNT}
+    <b>Warnings:</b> ${VERIFY_ERRORS}"
+
+      send_telegram "$TG_MSG"
+      echo "[$(date)]   ✓ Notification sent"
+    fi

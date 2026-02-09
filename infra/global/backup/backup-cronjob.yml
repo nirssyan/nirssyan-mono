@@ -6,7 +6,7 @@ metadata:
   labels:
     app: backup
 spec:
-  suspend: true  # Временно отключено - DiskPressure на ноде
+  suspend: false
   schedule: "0 3 * * *"  # 03:00 daily
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
@@ -65,6 +65,24 @@ spec:
                       name: backup-encryption-key
                       key: age-secret-key
                       optional: true
+                - name: TELEGRAM_BOT_TOKEN
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: telegram-bot-token
+                      optional: true
+                - name: TELEGRAM_CHAT_ID
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: telegram-chat-id
+                      optional: true
+                - name: TELEGRAM_THREAD_ID
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: telegram-thread-id
+                      optional: true
               volumeMounts:
                 - name: backup-storage
                   mountPath: /backups
@@ -80,11 +98,11 @@ spec:
                   readOnly: true
               resources:
                 requests:
-                  cpu: 100m
+                  cpu: 200m
                   memory: 256Mi
                 limits:
                   cpu: 2000m
-                  memory: 2Gi
+                  memory: 4Gi
           volumes:
             - name: backup-storage
               hostPath:

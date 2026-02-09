@@ -12,8 +12,8 @@ spec:
     metadata:
       labels:
         app: redis
-        backup.infra/type: "database"
-        backup.infra/db-type: "redis"
+        backup.infra/enabled: "false"
+        backup.infra/reason: "cache-data"
     spec:
       containers:
       - name: redis
