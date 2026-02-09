@@ -82,7 +82,7 @@ type Config struct {
 
 	// Telegram Polling
 	TelegramPollingIntervalSeconds int `envconfig:"TELEGRAM_POLLING_INTERVAL_SECONDS" default:"5"`
-	TelegramConcurrentChannels     int `envconfig:"TELEGRAM_CONCURRENT_CHANNELS" default:"3"`
+	TelegramConcurrentChannels     int `envconfig:"TELEGRAM_CONCURRENT_CHANNELS" default:"1"`
 	TelegramMaxMessagesPerRequest  int `envconfig:"TELEGRAM_MAX_MESSAGES_PER_REQUEST" default:"100"`
 	TelegramInitialMessagesCount   int `envconfig:"TELEGRAM_INITIAL_MESSAGES_COUNT" default:"25"`
 
@@ -96,7 +96,7 @@ type Config struct {
 	TelegramFloodWaitCooldownSeconds  int     `envconfig:"TELEGRAM_FLOOD_WAIT_COOLDOWN_SECONDS" default:"300"`
 	TelegramAdaptiveRateEnabled       bool    `envconfig:"TELEGRAM_ADAPTIVE_RATE_ENABLED" default:"true"`
 	TelegramAdaptiveRateMaxMultiplier float64 `envconfig:"TELEGRAM_ADAPTIVE_RATE_MAX_MULTIPLIER" default:"3.0"`
-	TelegramBaseRequestDelayMs        int     `envconfig:"TELEGRAM_BASE_REQUEST_DELAY_MS" default:"100"`
+	TelegramBaseRequestDelayMs        int     `envconfig:"TELEGRAM_BASE_REQUEST_DELAY_MS" default:"500"`
 
 	// Telegram Media
 	TelegramMediaBaseURL string `envconfig:"TELEGRAM_MEDIA_BASE_URL" default:"http://localhost:8000"`

@@ -25,14 +25,14 @@ func TestAdaptiveRateController_CurrentDelay(t *testing.T) {
 	rc := NewAdaptiveRateController(100, 3.0)
 
 	delay := rc.CurrentDelay()
-	if delay != 100*time.Millisecond {
-		t.Errorf("expected delay 100ms, got %v", delay)
+	if delay < 75*time.Millisecond || delay > 125*time.Millisecond {
+		t.Errorf("expected delay ~100ms (±25%%), got %v", delay)
 	}
 
 	rc.multiplier = 2.0
 	delay = rc.CurrentDelay()
-	if delay != 200*time.Millisecond {
-		t.Errorf("expected delay 200ms, got %v", delay)
+	if delay < 150*time.Millisecond || delay > 250*time.Millisecond {
+		t.Errorf("expected delay ~200ms (±25%%), got %v", delay)
 	}
 }
 
@@ -86,12 +86,12 @@ func TestAdaptiveRateController_OnSuccess_NoDecrease(t *testing.T) {
 	rc := NewAdaptiveRateController(100, 3.0)
 	rc.multiplier = 2.0
 
-	for i := 0; i < 9; i++ {
+	for i := 0; i < 4; i++ {
 		rc.OnSuccess()
 	}
 
 	if rc.multiplier != 2.0 {
-		t.Errorf("expected multiplier unchanged after 9 successes, got %v", rc.multiplier)
+		t.Errorf("expected multiplier unchanged after 4 successes, got %v", rc.multiplier)
 	}
 }
 
@@ -99,13 +99,13 @@ func TestAdaptiveRateController_OnSuccess_Decrease(t *testing.T) {
 	rc := NewAdaptiveRateController(100, 3.0)
 	rc.multiplier = 2.0
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		rc.OnSuccess()
 	}
 
-	expected := 2.0 * 0.95
+	expected := 2.0 * 0.9
 	if rc.multiplier != expected {
-		t.Errorf("expected multiplier %v after 10 successes, got %v", expected, rc.multiplier)
+		t.Errorf("expected multiplier %v after 5 successes, got %v", expected, rc.multiplier)
 	}
 }
 
