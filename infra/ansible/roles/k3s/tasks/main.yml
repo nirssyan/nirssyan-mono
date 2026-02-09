@@ -15,3 +15,7 @@
 - name: Include kubeconfig tasks (server only)
   ansible.builtin.include_tasks: configure_kubeconfig.yml
   when: k3s_mode == 'server'
+
+- name: Configure private registry mirror
+  ansible.builtin.include_tasks: configure_registry.yml
+  when: registry_mirror_enabled | default(false)

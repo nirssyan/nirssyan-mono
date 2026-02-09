@@ -35,3 +35,8 @@ k3s_wait_timeout: 300  # seconds
 # Kubelet garbage collection settings
 k3s_kubelet_gc_high_threshold: 70  # Start GC when disk usage > 70%
 k3s_kubelet_gc_low_threshold: 60   # Stop GC when disk usage < 60%
+
+# Private registry mirror
+registry_mirror_enabled: false
+registry_username: ""
+registry_password: ""
