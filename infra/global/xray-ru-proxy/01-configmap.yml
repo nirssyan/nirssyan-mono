@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: xray-ru-proxy-config
+  namespace: infrastructure
+data:
+  config.json: |
+    {
+      "log": {
+        "loglevel": "warning"
+      },
+      "inbounds": [
+        {
+          "port": 10443,
+          "protocol": "vless",
+          "settings": {
+            "clients": [
+              {
+                "id": "49b0747f-00b3-4640-bdc6-6f02e50fb774",
+                "flow": ""
+              }
+            ],
+            "decryption": "none"
+          },
+          "streamSettings": {
+            "network": "tcp",
+            "security": "reality",
+            "realitySettings": {
+              "show": false,
+              "dest": "www.google.com:443",
+              "serverNames": ["www.google.com"],
+              "privateKey": "YHnjVeRiYOQ9LwL8EcyUxFd5BZktp90Ge7swd2Kti1U",
+              "shortIds": [""]
+            }
+          },
+          "sniffing": {
+            "enabled": true,
+            "destOverride": ["http", "tls"]
+          }
+        }
+      ],
+      "outbounds": [
+        {
+          "protocol": "freedom",
+          "tag": "direct"
+        }
+      ]
+    }

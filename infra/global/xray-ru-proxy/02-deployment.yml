@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: xray-ru-proxy
+  namespace: infrastructure
+  labels:
+    app: xray-ru-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: xray-ru-proxy
+  template:
+    metadata:
+      labels:
+        app: xray-ru-proxy
+    spec:
+      nodeSelector:
+        node-role: infra
+      tolerations:
+        - key: node-role
+          operator: Equal
+          value: infra
+          effect: NoSchedule
+      containers:
+        - name: xray
+          image: teddysun/xray:latest
+          ports:
+            - containerPort: 10443
+              name: vless
+          volumeMounts:
+            - name: config
+              mountPath: /etc/xray
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            tcpSocket:
+              port: 10443
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 10443
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: xray-ru-proxy-config
