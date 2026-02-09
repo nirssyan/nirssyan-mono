@@ -101,6 +101,19 @@ type Config struct {
 	// Telegram Media
 	TelegramMediaBaseURL string `envconfig:"TELEGRAM_MEDIA_BASE_URL" default:"http://localhost:8000"`
 
+	// S3/MinIO (media cache warming)
+	S3Endpoint  string `envconfig:"S3_ENDPOINT"`
+	S3AccessKey string `envconfig:"S3_ACCESS_KEY"`
+	S3SecretKey string `envconfig:"S3_SECRET_KEY"`
+	S3UseSSL    bool   `envconfig:"S3_USE_SSL" default:"false"`
+	S3Bucket    string `envconfig:"S3_BUCKET" default:"telegram-media"`
+
+	// Media Cache Warming
+	MediaWarmingEnabled     bool          `envconfig:"MEDIA_WARMING_ENABLED" default:"true"`
+	MediaWarmingRatePerSec  float64       `envconfig:"MEDIA_WARMING_RATE_PER_SEC" default:"5"`
+	MediaWarmingConcurrency int           `envconfig:"MEDIA_WARMING_CONCURRENCY" default:"3"`
+	MediaWarmingTimeout     time.Duration `envconfig:"MEDIA_WARMING_TIMEOUT" default:"30s"`
+
 	// Server
 	HTTPPort int  `envconfig:"HTTP_PORT" default:"8080"`
 	Debug    bool `envconfig:"DEBUG" default:"false"`

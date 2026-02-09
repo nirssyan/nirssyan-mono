@@ -106,11 +106,14 @@ func (h *FileHandler) handleRequest(msg *natsgo.Msg) {
 }
 
 func (h *FileHandler) downloadFile(ctx context.Context, req GetFileRequest) GetFileResponse {
-	if h.client == nil || !h.client.IsConnected() {
+	return downloadTelegramFile(ctx, h.client, req)
+}
+
+func downloadTelegramFile(ctx context.Context, client *Client, req GetFileRequest) GetFileResponse {
+	if client == nil || !client.IsConnected() {
 		return GetFileResponse{Error: "telegram client not connected"}
 	}
 
-	// Parse file_id: format is {id}_{access_hash}
 	fileID := req.FileID
 	isThumb := strings.HasPrefix(fileID, "thumb_")
 	if isThumb {
@@ -135,9 +138,9 @@ func (h *FileHandler) downloadFile(ctx context.Context, req GetFileRequest) GetF
 	var mimeType string
 	var data []byte
 
-	// If we have chat_id and msg_id, fetch the message to get fresh file references
 	if req.ChatID != 0 && req.MsgID != 0 {
-		data, mimeType, err = h.downloadViaMessage(ctx, req.ChatID, req.MsgID, id, req.FileType, isThumb)
+		fh := &FileHandler{client: client}
+		data, mimeType, err = fh.downloadViaMessage(ctx, req.ChatID, req.MsgID, id, req.FileType, isThumb)
 		if err == nil {
 			return GetFileResponse{
 				Data:     base64.StdEncoding.EncodeToString(data),
@@ -147,7 +150,6 @@ func (h *FileHandler) downloadFile(ctx context.Context, req GetFileRequest) GetF
 		log.Warn().Err(err).Msg("Failed to download via message, trying direct download")
 	}
 
-	// Fallback: try direct download with stored access_hash (may fail with FILE_REFERENCE_EXPIRED)
 	var location tg.InputFileLocationClass
 
 	switch req.FileType {
@@ -188,7 +190,7 @@ func (h *FileHandler) downloadFile(ctx context.Context, req GetFileRequest) GetF
 		mimeType = "image/jpeg"
 	}
 
-	data, err = h.client.DownloadFile(ctx, location)
+	data, err = client.DownloadFile(ctx, location)
 	if err != nil {
 		return GetFileResponse{Error: fmt.Sprintf("download failed: %v", err)}
 	}

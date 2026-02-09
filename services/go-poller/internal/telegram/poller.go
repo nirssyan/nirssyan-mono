@@ -31,6 +31,7 @@ type Poller struct {
 	rawPostRepo      *repository.RawPostRepository
 	natsPublisher    *nats.Publisher
 	moderationClient *moderation.Client
+	mediaWarmer      *MediaWarmer
 
 	running int32
 	stopCh  chan struct{}
@@ -45,6 +46,7 @@ func NewPoller(
 	rawPostRepo *repository.RawPostRepository,
 	natsPublisher *nats.Publisher,
 	moderationClient *moderation.Client,
+	mediaWarmer *MediaWarmer,
 ) *Poller {
 	var rateLimiter *AdaptiveRateController
 	if cfg.TelegramAdaptiveRateEnabled {
@@ -62,6 +64,7 @@ func NewPoller(
 		rawPostRepo:      rawPostRepo,
 		natsPublisher:    natsPublisher,
 		moderationClient: moderationClient,
+		mediaWarmer:      mediaWarmer,
 		stopCh:           make(chan struct{}),
 	}
 }
@@ -339,6 +342,32 @@ func (p *Poller) pollSingleChannel(ctx context.Context, feed domain.RawFeed) (in
 		Msg("✓ Telegram channel polled")
 
 	if len(createdIDs) > 0 {
+		if p.mediaWarmer != nil {
+			var warmItems []WarmMediaItem
+			for _, msg := range groupedMessages {
+				for _, mo := range msg.MediaObjects {
+					warmItems = append(warmItems, WarmMediaItem{
+						Type:       mo.Type,
+						URL:        mo.URL,
+						PreviewURL: mo.PreviewURL,
+					})
+				}
+			}
+			if len(warmItems) > 0 {
+				go func() {
+					warmCtx, cancel := context.WithTimeout(context.Background(), p.cfg.MediaWarmingTimeout)
+					defer cancel()
+					result := p.mediaWarmer.WarmMediaObjects(warmCtx, warmItems)
+					log.Info().
+						Int("warmed", result.Warmed).
+						Int("skipped", result.Skipped).
+						Int("failed", result.Failed).
+						Str("channel", feed.Name).
+						Msg("Media warming complete")
+				}()
+			}
+		}
+
 		sourceIdentifier := username
 		if feed.SiteURL != nil {
 			sourceIdentifier = *feed.SiteURL
@@ -369,8 +398,9 @@ func (p *Poller) messageToRawPostData(msg *Message, feed domain.RawFeed) domain.
 	mediaObjects := make([]domain.MediaObject, len(msg.MediaObjects))
 	for i, mo := range msg.MediaObjects {
 		mediaObjects[i] = domain.MediaObject{
-			Type: mo.Type,
-			URL:  mo.URL,
+			Type:       mo.Type,
+			URL:        mo.URL,
+			PreviewURL: mo.PreviewURL,
 		}
 	}
 

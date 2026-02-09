@@ -46,6 +46,10 @@ type Config struct {
 	GlitchTipDSN string `envconfig:"GLITCHTIP_DSN" default:""`
 	Environment  string `envconfig:"ENVIRONMENT" default:"development"`
 
+	// Media Cache Warming
+	MediaWarmingEnabled bool          `envconfig:"MEDIA_WARMING_ENABLED" default:"true"`
+	MediaWarmingTimeout time.Duration `envconfig:"MEDIA_WARMING_TIMEOUT" default:"30s"`
+
 	// Server
 	HTTPPort int  `envconfig:"HTTP_PORT" default:"8080"`
 	Debug    bool `envconfig:"DEBUG" default:"false"`
