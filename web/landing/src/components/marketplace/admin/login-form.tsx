@@ -8,6 +8,7 @@ interface LoginFormProps {
 
 export function LoginForm({ onSuccess }: LoginFormProps) {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -20,7 +21,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/demo-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password }),
       })
 
       if (!res.ok) {
@@ -51,6 +52,20 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           required
           className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3 text-white placeholder-white/30 outline-none transition-colors focus:border-white/30"
           placeholder="admin@example.com"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="password" className="mb-2 block text-sm font-medium text-white/70">
+          Password
+        </label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          className="w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 py-3 text-white placeholder-white/30 outline-none transition-colors focus:border-white/30"
         />
       </div>
 
