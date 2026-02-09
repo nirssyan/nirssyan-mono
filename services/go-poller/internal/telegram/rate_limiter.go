@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -25,11 +26,13 @@ func NewAdaptiveRateController(baseDelayMs int, maxMultiplier float64) *Adaptive
 	}
 }
 
-// CurrentDelay returns the current delay based on multiplier.
+// CurrentDelay returns the current delay based on multiplier with ±25% jitter.
 func (r *AdaptiveRateController) CurrentDelay() time.Duration {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return time.Duration(float64(r.baseDelay) * r.multiplier)
+	base := float64(r.baseDelay) * r.multiplier
+	jitter := base * 0.25 * (rand.Float64()*2 - 1)
+	return time.Duration(base + jitter)
 }
 
 // Multiplier returns current multiplier value.
@@ -69,8 +72,8 @@ func (r *AdaptiveRateController) OnSuccess() {
 
 	r.consecutiveSuccesses++
 
-	if r.consecutiveSuccesses >= 10 && r.multiplier > 1.0 {
-		r.multiplier *= 0.95
+	if r.consecutiveSuccesses >= 5 && r.multiplier > 1.0 {
+		r.multiplier *= 0.9
 		if r.multiplier < 1.0 {
 			r.multiplier = 1.0
 		}

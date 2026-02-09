@@ -148,7 +148,8 @@ func (p *Poller) pollAllChannels(ctx context.Context) {
 	semaphore := make(chan struct{}, p.cfg.TelegramConcurrentChannels)
 	var wg sync.WaitGroup
 
-	var successCount, errorCount, floodWaitCount, totalPosts int32
+	var successCount, errorCount, floodWaitCount, skippedCount, totalPosts int32
+	var circuitOpen int32
 
 	for _, feed := range feeds {
 		wg.Add(1)
@@ -157,6 +158,11 @@ func (p *Poller) pollAllChannels(ctx context.Context) {
 
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
+
+			if atomic.LoadInt32(&circuitOpen) == 1 {
+				atomic.AddInt32(&skippedCount, 1)
+				return
+			}
 
 			if p.rateLimiter != nil {
 				time.Sleep(p.rateLimiter.CurrentDelay())
@@ -167,6 +173,7 @@ func (p *Poller) pollAllChannels(ctx context.Context) {
 				var floodErr *FloodWaitError
 				if errors.As(err, &floodErr) {
 					atomic.AddInt32(&floodWaitCount, 1)
+					atomic.StoreInt32(&circuitOpen, 1)
 					p.handleFloodWait(ctx, feed, floodErr)
 				} else {
 					atomic.AddInt32(&errorCount, 1)
@@ -191,6 +198,7 @@ func (p *Poller) pollAllChannels(ctx context.Context) {
 		Int32("success", successCount).
 		Int32("errors", errorCount).
 		Int32("flood_wait", floodWaitCount).
+		Int32("skipped", skippedCount).
 		Int32("total_posts", totalPosts).
 		Int("total_channels", len(feeds)).
 		Msg("Telegram poll cycle complete")
