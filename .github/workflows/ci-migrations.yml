@@ -6,6 +6,7 @@ on:
     paths:
       - 'database/migrations/**'
       - '.github/workflows/ci-migrations.yml'
+  workflow_dispatch:
 
 jobs:
   migrate:
