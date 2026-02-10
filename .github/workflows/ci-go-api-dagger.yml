@@ -16,10 +16,15 @@ jobs:
       - name: Configure insecure registry for Dagger
         run: |
           mkdir -p ~/.config/dagger
-          cat > ~/.config/dagger/engine.toml << 'EOF'
-          [registry."docker-registry.infrastructure:5000"]
-          http = true
-          insecure = true
+          cat > ~/.config/dagger/engine.json << 'EOF'
+          {
+            "registries": {
+              "docker-registry.infrastructure:5000": {
+                "http": true,
+                "insecure": true
+              }
+            }
+          }
           EOF
 
       - name: Test + Build + Push
