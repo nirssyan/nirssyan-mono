@@ -64,6 +64,7 @@ jobs:
       - name: Build and push with ko
         env:
           KO_DOCKER_REPO: ${{ env.REGISTRY }}/${{ inputs.image-name }}
+          KO_DEFAULTBASEIMAGE: gcr.io/distroless/static-debian12:nonroot
           GOFLAGS: "-trimpath -buildvcs=false"
           CGO_ENABLED: "0"
         working-directory: ${{ inputs.service-path }}
