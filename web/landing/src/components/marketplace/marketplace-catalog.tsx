@@ -18,8 +18,8 @@ function normalize(value: string): string {
   return value.trim().toLowerCase()
 }
 
-function openInAppWithStoreFallback(desktopDownloadLabel: string) {
-  const deepLink = 'makefeed://'
+function openInAppWithStoreFallback(feedId: string, desktopDownloadLabel: string) {
+  const deepLink = `makefeed://feed/${feedId}`
   const appStoreId = process.env.NEXT_PUBLIC_APP_STORE_ID
   const playStoreId = process.env.NEXT_PUBLIC_PLAY_STORE_ID || 'com.infatium'
 
@@ -154,7 +154,7 @@ export function MarketplaceCatalog({ initialFeeds, hasError }: MarketplaceCatalo
       feed_type: feed.type,
     })
 
-    openInAppWithStoreFallback(t.marketplace.desktopDownload)
+    openInAppWithStoreFallback(feed.id, t.marketplace.desktopDownload)
   }
 
   return (
