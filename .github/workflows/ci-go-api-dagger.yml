@@ -18,10 +18,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install crane
+        run: |
+          mkdir -p $HOME/.local/bin
+          curl -sL https://github.com/google/go-containerregistry/releases/download/v0.20.3/go-containerregistry_Linux_x86_64.tar.gz | tar xz -C $HOME/.local/bin crane
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Pre-pull Dagger engine from local mirror
         run: |
-          docker pull docker-registry.infrastructure:5000/dagger/engine:v0.19.11 && \
-          docker tag docker-registry.infrastructure:5000/dagger/engine:v0.19.11 registry.dagger.io/engine:v0.19.11 || \
+          crane pull "$REGISTRY/dagger/engine:v0.19.11" /tmp/dagger-engine.tar --insecure && \
+          docker load -i /tmp/dagger-engine.tar && \
+          docker tag "$REGISTRY/dagger/engine:v0.19.11" registry.dagger.io/engine:v0.19.11 && \
+          rm -f /tmp/dagger-engine.tar || \
           echo "Mirror not available, will pull from upstream"
 
       - name: Test
@@ -39,12 +47,6 @@ jobs:
           verb: call
           module: ./services/go-api/.dagger
           args: containerize --source=./services/go-api export --path=/tmp/go-api-image.tar
-
-      - name: Install crane
-        run: |
-          mkdir -p $HOME/.local/bin
-          curl -sL https://github.com/google/go-containerregistry/releases/download/v0.20.3/go-containerregistry_Linux_x86_64.tar.gz | tar xz -C $HOME/.local/bin crane
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Push image to registry
         run: crane auth login "$REGISTRY" -u "${{ secrets.REGISTRY_USERNAME }}" -p "${{ secrets.REGISTRY_PASSWORD }}" --insecure && crane push /tmp/go-api-image.tar "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG" --insecure
