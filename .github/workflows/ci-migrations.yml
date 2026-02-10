@@ -29,10 +29,11 @@ jobs:
           DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
         run: |
           CURRENT=$(alembic current 2>/dev/null | grep -oP '^[a-f0-9]+' || echo "none")
-          HEAD_PARENT="a1b2c3d4e5f8"
-          if [ "$CURRENT" = "b2c3d4e5f6a8" ]; then
-            echo "Stamping to $HEAD_PARENT (intermediate migrations already applied manually)"
-            alembic stamp "$HEAD_PARENT"
+          echo "Current alembic version: $CURRENT"
+          # One-time fix: stamp to head if slug migration was applied outside alembic
+          if [ "$CURRENT" = "a1b2c3d4e5f8" ]; then
+            echo "Stamping to b3c4d5e6f7a9 (slug migration already applied manually)"
+            alembic stamp b3c4d5e6f7a9
           fi
 
       - name: Run migrations
