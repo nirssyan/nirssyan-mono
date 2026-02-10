@@ -41,12 +41,9 @@ interface Post {
 async function getPost(postId: string): Promise<Post | null> {
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/posts/${postId}`,
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/share/posts/${postId}`,
       {
-        headers: {
-          'X-API-Key': process.env.API_KEY || '',
-        },
-        next: { revalidate: 3600 }, // Cache for 1 hour
+        next: { revalidate: 3600 },
       }
     );
 

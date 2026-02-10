@@ -204,6 +204,54 @@ func replaceIgnoreCase(s, old, new string) string {
 	return result.String()
 }
 
+func (h *PostHandler) GetPostPublic(w http.ResponseWriter, r *http.Request) {
+	postIDStr := chi.URLParam(r, "post_id")
+	postID, err := uuid.Parse(postIDStr)
+	if err != nil {
+		http.Error(w, "invalid post_id", http.StatusBadRequest)
+		return
+	}
+
+	post, err := h.postRepo.GetByID(r.Context(), postID)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get post")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if post == nil {
+		http.Error(w, "post not found", http.StatusNotFound)
+		return
+	}
+
+	if post.ModerationAction != nil && *post.ModerationAction == "block" {
+		http.Error(w, "post not found", http.StatusNotFound)
+		return
+	}
+
+	title := post.Title
+	if containsLabel(post.ModerationLabels, "foreign_agent") && title != nil {
+		markedTitle := *title + " *"
+		title = &markedTitle
+	}
+
+	views := post.Views
+	if len(post.ModerationMatchedEntities) > 0 {
+		views = applyEntityMarkers(views, post.ModerationMatchedEntities)
+	}
+
+	writeJSON(w, http.StatusOK, PostResponse{
+		ID:           post.ID,
+		CreatedAt:    post.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		FeedID:       post.FeedID,
+		Title:        title,
+		ImageURL:     post.ImageURL,
+		MediaObjects: post.MediaObjects,
+		Views:        views,
+		Sources:      post.Sources,
+		Seen:         false,
+	})
+}
+
 type GetFeedPostsResponse struct {
 	Posts      []PostResponse `json:"posts"`
 	NextCursor *string        `json:"next_cursor,omitempty"`

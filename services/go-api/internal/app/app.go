@@ -207,6 +207,7 @@ func (a *App) Run(ctx context.Context) error {
 	router.Mount("/media", mediaHandler.Routes())
 	router.Mount("/sources", sourceValidationHandler.Routes())
 	router.Mount("/telegram", telegramLinkHandler.Routes())
+	router.Get("/share/posts/{post_id}", postHandler.GetPostPublic)
 
 	adminMiddleware := middleware.NewAdminMiddleware(userRepo)
 	adminHandler := handlers.NewAdminHandler(suggestionRepo, tagRepo, marketplaceRepo)
