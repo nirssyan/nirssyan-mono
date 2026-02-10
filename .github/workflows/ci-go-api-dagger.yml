@@ -28,11 +28,7 @@ jobs:
           version: "latest"
           verb: call
           module: ./services/go-api/.dagger
-          args: >
-            publish
-            --source=./services/go-api
-            --registry="docker-registry.infrastructure:5000"
-            --tag="dev-dagger"
+          args: publish --source=./services/go-api --registry=docker-registry.infrastructure:5000 --tag=dev-dagger
 
       - name: Deploy to K8s (skipped — pilot mode)
         if: false
