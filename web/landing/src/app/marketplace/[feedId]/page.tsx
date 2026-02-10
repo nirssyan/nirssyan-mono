@@ -100,7 +100,7 @@ export default async function FeedDetailPage({ params }: PageProps) {
 
             <div className="hidden sm:block">
               <QRCodeSVG
-                value={`infatium://marketplace/${feed.slug}`}
+                value={`makefeed://feed/${feed.id}`}
                 size={120}
                 bgColor="transparent"
                 fgColor="rgba(255,255,255,0.8)"

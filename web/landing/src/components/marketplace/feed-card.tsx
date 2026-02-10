@@ -50,7 +50,7 @@ export function FeedCard({
 
           <div className="hidden sm:block">
             <QRCodeSVG
-              value={`infatium://marketplace/${feedPath}`}
+              value={`makefeed://feed/${feed.id}`}
               size={64}
               bgColor="transparent"
               fgColor="rgba(255,255,255,0.8)"

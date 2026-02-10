@@ -10,7 +10,7 @@ interface FeedDetailClientProps {
 }
 
 function openInAppWithStoreFallback(desktopDownloadLabel: string) {
-  const deepLink = 'infatium://'
+  const deepLink = 'makefeed://'
   const appStoreId = process.env.NEXT_PUBLIC_APP_STORE_ID
   const playStoreId = process.env.NEXT_PUBLIC_PLAY_STORE_ID || 'com.infatium'
 
