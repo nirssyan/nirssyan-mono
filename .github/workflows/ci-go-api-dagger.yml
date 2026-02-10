@@ -41,7 +41,7 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Push image to registry
-        run: crane push /tmp/go-api-image.tar "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG" --insecure
+        run: crane auth login "$REGISTRY" -u "${{ secrets.REGISTRY_USERNAME }}" -p "${{ secrets.REGISTRY_PASSWORD }}" --insecure && crane push /tmp/go-api-image.tar "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG" --insecure
 
       - name: Deploy to K8s (skipped — pilot mode)
         if: false
