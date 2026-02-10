@@ -26,6 +26,7 @@ jobs:
 
       - name: Pre-pull Dagger engine from local mirror
         run: |
+          crane auth login "$REGISTRY" -u "${{ secrets.REGISTRY_USERNAME }}" -p "${{ secrets.REGISTRY_PASSWORD }}" --insecure && \
           crane pull "$REGISTRY/dagger/engine:v0.19.11" /tmp/dagger-engine.tar --insecure && \
           docker load -i /tmp/dagger-engine.tar && \
           docker tag "$REGISTRY/dagger/engine:v0.19.11" registry.dagger.io/engine:v0.19.11 && \
