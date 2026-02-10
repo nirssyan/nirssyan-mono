@@ -55,7 +55,9 @@ func (a *App) Run(ctx context.Context) error {
 	router.Get("/vendors", rssHandler.GetVendors)
 	router.Get("/vendors/{vendor_id}/models", rssHandler.GetModels)
 	router.Get("/rss/{vendor}/{model}", rssHandler.GetRSSByVendorModel)
+	router.Head("/rss/{vendor}/{model}", rssHandler.GetRSSByVendorModel)
 	router.Get("/rss/{slug}", rssHandler.GetRSSBySlug)
+	router.Head("/rss/{slug}", rssHandler.GetRSSBySlug)
 
 	a.httpServer = &http.Server{
 		Addr:         fmt.Sprintf(":%d", a.cfg.HTTPPort),
