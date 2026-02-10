@@ -202,6 +202,27 @@ spec:
         - protocol: TCP
           port: 5432
 ---
+# Allow CI runner to PostgreSQL (for Alembic migrations)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ci-runner-to-postgres
+  namespace: infatium-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: arc-runners
+      ports:
+        - protocol: TCP
+          port: 5432
+---
 # Allow Prometheus to scrape service metrics
 # Note: Must be in this file (not in kustomize base) to avoid commonLabels being added to ingress.from.podSelector
 apiVersion: networking.k8s.io/v1
