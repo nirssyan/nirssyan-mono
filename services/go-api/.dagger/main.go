@@ -22,10 +22,11 @@ func (m *GoApiCi) goBase(source *dagger.Directory) *dagger.Container {
 		WithEnvVariable("GOCACHE", "/go/build-cache")
 }
 
-func (m *GoApiCi) Test(ctx context.Context, source *dagger.Directory) (string, error) {
-	return m.goBase(source).
+func (m *GoApiCi) Test(ctx context.Context, source *dagger.Directory) error {
+	_, err := m.goBase(source).
 		WithExec([]string{"go", "test", "-v", "./..."}).
-		Stdout(ctx)
+		Sync(ctx)
+	return err
 }
 
 func (m *GoApiCi) Build(ctx context.Context, source *dagger.Directory) *dagger.File {
