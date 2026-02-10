@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-rss-api
+  labels:
+    app: go-rss-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-rss-api
+  template:
+    metadata:
+      labels:
+        app: go-rss-api
+    spec:
+      containers:
+        - name: go-rss-api
+          image: registry.infra.makekod.ru/go-rss-api:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: go-rss-api-config
+          resources:
+            requests:
+              cpu: 30m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5

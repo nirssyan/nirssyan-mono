@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-scraper
+  labels:
+    app: go-scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-scraper
+  template:
+    metadata:
+      labels:
+        app: go-scraper
+    spec:
+      containers:
+        - name: go-scraper
+          image: registry.infra.makekod.ru/go-scraper:dev
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: go-scraper-config
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
