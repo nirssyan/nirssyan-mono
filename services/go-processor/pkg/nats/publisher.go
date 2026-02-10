@@ -62,6 +62,26 @@ func (p *Publisher) PublishPostCreated(postID, feedID, userID uuid.UUID) error {
 	return nil
 }
 
+func (p *Publisher) PublishFeedInitialSync(feedID, promptID, userID uuid.UUID) error {
+	event := map[string]interface{}{
+		"feed_id":   feedID.String(),
+		"prompt_id": promptID.String(),
+		"user_id":   userID.String(),
+	}
+	data, _ := json.Marshal(event)
+	if err := p.nc.Publish("feed.initial_sync", data); err != nil {
+		return err
+	}
+
+	log.Debug().
+		Str("feed_id", feedID.String()).
+		Str("prompt_id", promptID.String()).
+		Str("user_id", userID.String()).
+		Msg("Published feed.initial_sync event")
+
+	return nil
+}
+
 func (p *Publisher) PublishFeedCreationFinished(feedID, userID uuid.UUID) error {
 	event := FeedCreationFinishedEvent{
 		EventType: "feed.creation_finished",

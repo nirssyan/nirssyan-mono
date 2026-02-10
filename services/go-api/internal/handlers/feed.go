@@ -742,14 +742,21 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.nc != nil {
-		event := map[string]interface{}{
-			"feed_id":   feed.ID.String(),
-			"prompt_id": promptID.String(),
-			"user_id":   userID.String(),
+		feedCreatedEvent := map[string]interface{}{
+			"event_type":   "feed.created",
+			"feed_id":      feed.ID.String(),
+			"prompt_id":    promptID.String(),
+			"user_id":      userID.String(),
+			"sources":      sourceURLs,
+			"source_types": sourceTypes,
+			"prompt_text":  req.RawPrompt,
+			"feed_type":    req.FeedType,
+			"views_raw":    convertToMaps(req.ViewsRaw),
+			"filters_raw":  convertToMaps(req.FiltersRaw),
 		}
-		eventData, _ := json.Marshal(event)
-		if err := h.nc.Publish("feed.initial_sync", eventData); err != nil {
-			log.Warn().Err(err).Msg("Failed to publish feed.initial_sync event")
+		feedCreatedData, _ := json.Marshal(feedCreatedEvent)
+		if err := h.nc.Publish("feed.created", feedCreatedData); err != nil {
+			log.Warn().Err(err).Msg("Failed to publish feed.created event")
 		}
 	}
 
@@ -801,6 +808,14 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		IsCreatingFinished: false,
 		SourceTypes:        sourceTypes,
 	})
+}
+
+func convertToMaps(raw []string) []map[string]interface{} {
+	result := make([]map[string]interface{}, len(raw))
+	for i, s := range raw {
+		result[i] = map[string]interface{}{"text": s}
+	}
+	return result
 }
 
 func stringPtr(s string) *string {

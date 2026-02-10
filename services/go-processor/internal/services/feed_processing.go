@@ -441,6 +441,13 @@ func (s *FeedProcessingService) ProcessFeedCreatedEvent(ctx context.Context, eve
 		}
 	}
 
+	// Trigger initial sync now that views are transformed
+	if s.publisher != nil {
+		if err := s.publisher.PublishFeedInitialSync(event.FeedID, event.PromptID, event.UserID); err != nil {
+			logger.Warn().Err(err).Msg("Failed to publish feed.initial_sync")
+		}
+	}
+
 	logger.Info().Msg("Feed created event processed")
 	return nil
 }
@@ -651,12 +658,17 @@ func (s *FeedProcessingService) parseViewsConfig(viewsConfig json.RawMessage) ([
 
 	var views []domain.View
 	if err := json.Unmarshal(viewsConfig, &views); err != nil {
-		// views_config might be in an unsupported format (e.g., raw strings/UUIDs from go-api)
-		// Log warning and return nil to use default view
-		log.Warn().
-			Err(err).
-			RawJSON("views_config", viewsConfig).
-			Msg("Failed to parse views_config, using default view")
+		var rawStrings []string
+		if err2 := json.Unmarshal(viewsConfig, &rawStrings); err2 == nil && len(rawStrings) > 0 {
+			log.Warn().
+				Strs("raw_views", rawStrings).
+				Msg("views_config contains raw strings (not yet transformed), skipping custom views")
+		} else {
+			log.Warn().
+				Err(err).
+				RawJSON("views_config", viewsConfig).
+				Msg("Failed to parse views_config, using default view")
+		}
 		return nil, nil
 	}
 
