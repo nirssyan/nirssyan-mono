@@ -36,7 +36,9 @@ jobs:
 
       - name: Install crane
         run: |
-          curl -sL https://github.com/google/go-containerregistry/releases/download/v0.20.3/go-containerregistry_Linux_x86_64.tar.gz | tar xz -C /usr/local/bin crane
+          mkdir -p $HOME/.local/bin
+          curl -sL https://github.com/google/go-containerregistry/releases/download/v0.20.3/go-containerregistry_Linux_x86_64.tar.gz | tar xz -C $HOME/.local/bin crane
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Push image to registry
         run: crane push /tmp/go-api-image.tar "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG" --insecure
