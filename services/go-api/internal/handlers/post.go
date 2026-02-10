@@ -204,6 +204,18 @@ func replaceIgnoreCase(s, old, new string) string {
 	return result.String()
 }
 
+type SharePostResponse struct {
+	ID           uuid.UUID               `json:"id"`
+	CreatedAt    string                  `json:"created_at"`
+	FeedID       uuid.UUID               `json:"feed_id"`
+	Title        *string                 `json:"title,omitempty"`
+	ImageURL     *string                 `json:"image_url,omitempty"`
+	MediaObjects json.RawMessage         `json:"media_objects,omitempty"`
+	FullText     string                  `json:"full_text"`
+	Summary      *string                 `json:"summary"`
+	Sources      []repository.PostSource `json:"sources"`
+}
+
 func (h *PostHandler) GetPostPublic(w http.ResponseWriter, r *http.Request) {
 	postIDStr := chi.URLParam(r, "post_id")
 	postID, err := uuid.Parse(postIDStr)
@@ -239,16 +251,22 @@ func (h *PostHandler) GetPostPublic(w http.ResponseWriter, r *http.Request) {
 		views = applyEntityMarkers(views, post.ModerationMatchedEntities)
 	}
 
-	writeJSON(w, http.StatusOK, PostResponse{
+	fullText := views["default"]
+	var summary *string
+	if s, ok := views["summary"]; ok {
+		summary = &s
+	}
+
+	writeJSON(w, http.StatusOK, SharePostResponse{
 		ID:           post.ID,
 		CreatedAt:    post.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		FeedID:       post.FeedID,
 		Title:        title,
 		ImageURL:     post.ImageURL,
 		MediaObjects: post.MediaObjects,
-		Views:        views,
+		FullText:     fullText,
+		Summary:      summary,
 		Sources:      post.Sources,
-		Seen:         false,
 	})
 }
 
