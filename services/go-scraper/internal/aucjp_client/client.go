@@ -6,12 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/text/encoding/charmap"
 )
 
 const (
@@ -31,20 +28,20 @@ func New() *Client {
 }
 
 type Lot struct {
-	Slug        string // a — lot link slug
-	LotNumber   string // c — lot number
-	AuctionName string // d — auction name
-	AuctionDate string // e — auction date DD.MM.YYYY
-	Year        string // g — year
-	EngineCC    string // h — engine displacement
-	PriceList   string // i — comma-separated bid history
-	ChassisCode string // j — chassis code
-	Transmission string // k — transmission
-	Grade       string // l — grade/trim
-	FinalPrice  string // o — final price yen
-	Rating      string // r — auction rating
-	Status      string // v — status text (decoded from windows-1251)
-	Colour      string // w — colour (decoded from windows-1251)
+	Slug         string // a
+	LotNumber    string // c
+	AuctionName  string // d
+	AuctionDate  string // e
+	Year         string // g
+	EngineCC     string // h
+	PriceList    string // i — comma-separated bid history
+	ChassisCode  string // j
+	Transmission string // k
+	Grade        string // l
+	FinalPrice   string // o — final price yen, "0" if not sold
+	Rating       string // r
+	Status       string // v
+	Colour       string // w
 }
 
 func (l *Lot) Link() string {
@@ -136,80 +133,136 @@ func (c *Client) FetchLots(ctx context.Context, vendorID int, model string, page
 	return parseJSONPResponse(string(body))
 }
 
-var dataReadyRe = regexp.MustCompile(`ajx\.dataReady\('[^']*',\s*'[^']*',\s*\{\s*'tpl_poisk'\s*:\s*'((?:[^'\\]|\\.)*)'\s*\}`)
+// extractTplPoisk extracts the tpl_poisk value from:
+// ajx.dataReady('0', '', { 'tpl_poisk': 'VAR_DATA_HERE', 'js_1': '...', ... })
+func extractTplPoisk(raw string) (string, error) {
+	idx := strings.Index(raw, "'tpl_poisk'")
+	if idx < 0 {
+		return "", fmt.Errorf("tpl_poisk not found in response")
+	}
+	rest := raw[idx:]
 
-func parseJSONPResponse(raw string) (*LotsResponse, error) {
-	m := dataReadyRe.FindStringSubmatch(raw)
-	if m == nil {
-		if strings.Contains(raw, "tpl_poisk") {
-			return nil, fmt.Errorf("matched tpl_poisk but failed regex extraction")
+	// Find the colon after 'tpl_poisk'
+	colonIdx := strings.Index(rest, ":")
+	if colonIdx < 0 {
+		return "", fmt.Errorf("no colon after tpl_poisk")
+	}
+	rest = rest[colonIdx+1:]
+
+	// Find opening quote
+	rest = strings.TrimSpace(rest)
+	if len(rest) == 0 || rest[0] != '\'' {
+		return "", fmt.Errorf("expected opening quote for tpl_poisk value")
+	}
+	rest = rest[1:]
+
+	// Find matching closing quote (handle escaped quotes)
+	var b strings.Builder
+	i := 0
+	for i < len(rest) {
+		if rest[i] == '\\' && i+1 < len(rest) {
+			next := rest[i+1]
+			switch next {
+			case '\'':
+				b.WriteByte('\'')
+			case '"':
+				b.WriteByte('"')
+			case '\\':
+				b.WriteByte('\\')
+			default:
+				b.WriteByte('\\')
+				b.WriteByte(next)
+			}
+			i += 2
+			continue
 		}
-		return nil, fmt.Errorf("no ajx.dataReady response found")
+		if rest[i] == '\'' {
+			return b.String(), nil
+		}
+		b.WriteByte(rest[i])
+		i++
 	}
 
-	jsContent := m[1]
-	jsContent = strings.ReplaceAll(jsContent, "\\'", "'")
-	jsContent = strings.ReplaceAll(jsContent, "\\\\", "\\")
-
-	return parseDataVar(jsContent)
+	return "", fmt.Errorf("unterminated tpl_poisk value")
 }
 
-var (
-	naviRe = regexp.MustCompile(`navi:\{([^}]+)\}`)
-	bodyRe = regexp.MustCompile(`body:\[(.+)\]`)
-)
+func parseJSONPResponse(raw string) (*LotsResponse, error) {
+	jsContent, err := extractTplPoisk(raw)
+	if err != nil {
+		return nil, err
+	}
+	return parseDataVar(jsContent)
+}
 
 func parseDataVar(js string) (*LotsResponse, error) {
 	result := &LotsResponse{}
 
-	if m := naviRe.FindStringSubmatch(js); m != nil {
-		result.Pagination = parseNavi(m[1])
+	// Extract navi:{...}
+	naviStart := strings.Index(js, "navi:{")
+	if naviStart >= 0 {
+		naviContent := js[naviStart+len("navi:{"):]
+		depth := 1
+		end := 0
+		for i := 0; i < len(naviContent); i++ {
+			if naviContent[i] == '{' {
+				depth++
+			} else if naviContent[i] == '}' {
+				depth--
+				if depth == 0 {
+					end = i
+					break
+				}
+			}
+		}
+		if end > 0 {
+			result.Pagination = parseNavi(naviContent[:end])
+		}
 	}
 
-	m := bodyRe.FindStringSubmatch(js)
-	if m == nil {
+	// Extract body:[...]
+	bodyStart := strings.Index(js, "body:[")
+	if bodyStart < 0 {
+		return result, nil
+	}
+	bodyContent := js[bodyStart+len("body:["):]
+	depth := 1
+	end := 0
+	for i := 0; i < len(bodyContent); i++ {
+		if bodyContent[i] == '[' {
+			depth++
+		} else if bodyContent[i] == ']' {
+			depth--
+			if depth == 0 {
+				end = i
+				break
+			}
+		}
+	}
+	if end == 0 {
 		return result, nil
 	}
 
-	lotsStr := m[1]
-	lots, err := parseLotObjects(lotsStr)
-	if err != nil {
-		return nil, fmt.Errorf("parse lot objects: %w", err)
-	}
+	lots := parseLotObjects(bodyContent[:end])
 	result.Lots = lots
-
 	return result, nil
 }
 
 func parseNavi(s string) Pagination {
+	fields := extractFields(s)
 	p := Pagination{}
-	for _, part := range strings.Split(s, ",") {
-		part = strings.TrimSpace(part)
-		kv := strings.SplitN(part, ":", 2)
-		if len(kv) != 2 {
-			continue
-		}
-		key := strings.Trim(kv[0], `"' `)
-		val := strings.Trim(kv[1], `"' `)
-		switch key {
-		case "rows":
-			p.TotalRows, _ = strconv.Atoi(val)
-		case "page":
-			p.Page, _ = strconv.Atoi(val)
-		case "limit_step":
-			p.PageSize, _ = strconv.Atoi(val)
-		}
-	}
+	p.TotalRows, _ = strconv.Atoi(fields["rows"])
+	p.Page, _ = strconv.Atoi(fields["page"])
+	p.PageSize, _ = strconv.Atoi(fields["limit_step"])
 	return p
 }
 
-func parseLotObjects(s string) ([]Lot, error) {
+func parseLotObjects(s string) []Lot {
 	var lots []Lot
 
 	depth := 0
 	start := -1
-	for i, ch := range s {
-		switch ch {
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
 		case '{':
 			if depth == 0 {
 				start = i
@@ -219,35 +272,42 @@ func parseLotObjects(s string) ([]Lot, error) {
 			depth--
 			if depth == 0 && start >= 0 {
 				obj := s[start+1 : i]
-				lot := parseSingleLot(obj)
+				fields := extractFields(obj)
+
+				// Skip login-gated items (g1 < 0)
+				if g1, err := strconv.Atoi(fields["g1"]); err == nil && g1 < 0 {
+					start = -1
+					continue
+				}
+				// Skip items with no slug (empty lots / placeholders)
+				if fields["a"] == "" {
+					start = -1
+					continue
+				}
+
+				lot := Lot{
+					Slug:         fields["a"],
+					LotNumber:    fields["c"],
+					AuctionName:  fields["d"],
+					AuctionDate:  fields["e"],
+					Year:         fields["g"],
+					EngineCC:     fields["h"],
+					PriceList:    fields["i"],
+					ChassisCode:  fields["j"],
+					Transmission: fields["k"],
+					Grade:        fields["l"],
+					FinalPrice:   fields["o"],
+					Rating:       fields["r"],
+					Status:       cleanHTML(fields["v"]),
+					Colour:       fields["w"],
+				}
 				lots = append(lots, lot)
 				start = -1
 			}
 		}
 	}
 
-	return lots, nil
-}
-
-func parseSingleLot(obj string) Lot {
-	fields := extractFields(obj)
-	lot := Lot{
-		Slug:         fields["a"],
-		LotNumber:    fields["c"],
-		AuctionName:  fields["d"],
-		AuctionDate:  fields["e"],
-		Year:         fields["g"],
-		EngineCC:     fields["h"],
-		PriceList:    fields["i"],
-		ChassisCode:  fields["j"],
-		Transmission: fields["k"],
-		Grade:        fields["l"],
-		FinalPrice:   fields["o"],
-		Rating:       fields["r"],
-		Status:       decodeWin1251(fields["v"]),
-		Colour:       decodeWin1251(fields["w"]),
-	}
-	return lot
+	return lots
 }
 
 func extractFields(obj string) map[string]string {
@@ -256,6 +316,7 @@ func extractFields(obj string) map[string]string {
 	n := len(obj)
 
 	for i < n {
+		// Skip whitespace and commas
 		for i < n && (obj[i] == ' ' || obj[i] == ',' || obj[i] == '\n' || obj[i] == '\r' || obj[i] == '\t') {
 			i++
 		}
@@ -263,16 +324,33 @@ func extractFields(obj string) map[string]string {
 			break
 		}
 
-		keyStart := i
-		for i < n && obj[i] != ':' && obj[i] != '"' && obj[i] != '\'' {
+		// Read key (unquoted identifier or quoted string)
+		var key string
+		if i < n && (obj[i] == '"' || obj[i] == '\'') {
+			quote := obj[i]
 			i++
+			keyStart := i
+			for i < n && obj[i] != quote {
+				i++
+			}
+			key = obj[keyStart:i]
+			if i < n {
+				i++
+			}
+		} else {
+			keyStart := i
+			for i < n && obj[i] != ':' && obj[i] != ' ' {
+				i++
+			}
+			key = strings.TrimSpace(obj[keyStart:i])
 		}
-		key := strings.TrimSpace(obj[keyStart:i])
+
 		if key == "" {
 			i++
 			continue
 		}
 
+		// Skip to colon
 		for i < n && obj[i] != ':' {
 			i++
 		}
@@ -281,6 +359,7 @@ func extractFields(obj string) map[string]string {
 		}
 		i++ // skip ':'
 
+		// Skip whitespace
 		for i < n && obj[i] == ' ' {
 			i++
 		}
@@ -288,21 +367,31 @@ func extractFields(obj string) map[string]string {
 			break
 		}
 
+		// Read value
 		if obj[i] == '"' || obj[i] == '\'' {
 			quote := obj[i]
 			i++
-			valStart := i
+			var val strings.Builder
 			for i < n && obj[i] != quote {
-				if obj[i] == '\\' {
-					i++
+				if obj[i] == '\\' && i+1 < n {
+					next := obj[i+1]
+					switch next {
+					case '"', '\'', '\\':
+						val.WriteByte(next)
+					default:
+						val.WriteByte('\\')
+						val.WriteByte(next)
+					}
+					i += 2
+					continue
 				}
+				val.WriteByte(obj[i])
 				i++
 			}
-			val := obj[valStart:i]
 			if i < n {
 				i++ // skip closing quote
 			}
-			fields[key] = val
+			fields[key] = val.String()
 		} else {
 			valStart := i
 			for i < n && obj[i] != ',' && obj[i] != '}' {
@@ -315,13 +404,8 @@ func extractFields(obj string) map[string]string {
 	return fields
 }
 
-func decodeWin1251(s string) string {
-	if s == "" {
-		return s
-	}
-	decoded, err := charmap.Windows1251.NewDecoder().String(s)
-	if err != nil {
-		return s
-	}
-	return decoded
+func cleanHTML(s string) string {
+	s = strings.ReplaceAll(s, "<b>", "")
+	s = strings.ReplaceAll(s, "</b>", "")
+	return strings.TrimSpace(s)
 }
