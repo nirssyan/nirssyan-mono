@@ -11,8 +11,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/MargoRSq/infatium-mono/services/go-scraper/internal/aucjp_client"
 	"github.com/MargoRSq/infatium-mono/services/go-scraper/internal/config"
-	"github.com/MargoRSq/infatium-mono/services/go-scraper/internal/crawl4ai"
 	"github.com/MargoRSq/infatium-mono/services/go-scraper/internal/scrapers"
 	"github.com/MargoRSq/infatium-mono/services/go-scraper/internal/scrapers/aucjp"
 	"github.com/MargoRSq/infatium-mono/services/go-scraper/pkg/db"
@@ -40,14 +40,14 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	a.dbPool = pool
 
-	crawlClient := crawl4ai.NewClient(a.cfg.Crawl4AIURL)
+	httpClient := aucjp_client.New()
 
 	catalogRepo := repository.NewCatalogRepository(pool.Pool)
 	subRepo := repository.NewSubscriptionRepository(pool.Pool)
 	postRepo := repository.NewPostRepository(pool.Pool)
 
 	registry := scrapers.NewRegistry()
-	registry.Register(aucjp.New(crawlClient, catalogRepo))
+	registry.Register(aucjp.New(httpClient, catalogRepo))
 
 	for _, s := range registry.All() {
 		log.Info().Str("scraper", s.Name()).Msg("Running initial catalog sync")
@@ -107,7 +107,6 @@ func (a *App) scrapeAll(ctx context.Context, registry *scrapers.Registry, subRep
 	log.Info().Int("subscriptions", len(subs)).Msg("Starting scrape cycle")
 
 	for _, sub := range subs {
-		// All subscriptions currently use the aucjp scraper
 		scraper, ok := registry.Get("aucjp")
 		if !ok {
 			log.Warn().Str("sub_id", sub.ID).Msg("No aucjp scraper registered")

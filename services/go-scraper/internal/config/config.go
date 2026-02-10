@@ -11,7 +11,6 @@ type Config struct {
 	DatabasePoolMin int    `envconfig:"DATABASE_POOL_MIN" default:"2"`
 	DatabasePoolMax int    `envconfig:"DATABASE_POOL_MAX" default:"10"`
 
-	Crawl4AIURL    string        `envconfig:"CRAWL4AI_URL" required:"true"`
 	ScrapeInterval time.Duration `envconfig:"SCRAPE_INTERVAL" default:"30m"`
 }
 
