@@ -5,6 +5,7 @@ import { Calendar, ExternalLink } from 'lucide-react';
 import { LockedSummary } from '@/components/news/locked-summary';
 import { AppRedirectButton } from '@/components/news/app-redirect-button';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 
 // Типы для API ответа
 interface MediaObject {
@@ -200,7 +201,7 @@ export default async function NewsPage({
         <div className="relative mb-12 sm:mb-16 rounded-2xl sm:rounded-3xl overflow-hidden bg-white/[0.02] backdrop-blur-sm border border-white/5 p-6 sm:p-8 md:p-10">
           <div className="prose prose-invert prose-lg sm:prose-xl max-w-none">
             <div className="text-base sm:text-lg leading-relaxed text-white/80">
-              <ReactMarkdown>{post.full_text}</ReactMarkdown>
+              <ReactMarkdown rehypePlugins={[rehypeRaw]}>{post.full_text}</ReactMarkdown>
             </div>
           </div>
         </div>
