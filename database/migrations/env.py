@@ -10,11 +10,6 @@ database_url = os.environ.get("DATABASE_URL", "")
 if database_url:
     if "+asyncpg" in database_url:
         database_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
-    db_namespace = os.environ.get("DB_NAMESPACE", "")
-    if db_namespace:
-        database_url = database_url.replace(
-            "@postgres:", f"@postgres.{db_namespace}.svc.cluster.local:"
-        )
     config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
