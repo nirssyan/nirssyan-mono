@@ -1,0 +1,39 @@
+name: "[Dagger Pilot] go-api CI"
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'services/go-api/**'
+      - '.github/workflows/ci-go-api-dagger.yml'
+
+jobs:
+  dagger-pipeline:
+    runs-on: infatium
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure insecure registry for Dagger
+        run: |
+          mkdir -p ~/.config/dagger
+          cat > ~/.config/dagger/engine.toml << 'EOF'
+          [registry."docker-registry.infrastructure:5000"]
+          http = true
+          insecure = true
+          EOF
+
+      - name: Test + Build + Push
+        uses: dagger/dagger-for-github@v8
+        with:
+          version: "latest"
+          verb: call
+          module: ./services/go-api/.dagger
+          args: >
+            publish
+            --source=./services/go-api
+            --registry="docker-registry.infrastructure:5000"
+            --tag="dev-dagger"
+
+      - name: Deploy to K8s (skipped — pilot mode)
+        if: false
+        run: echo "Skipping deploy — pilot mode"
