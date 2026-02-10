@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/rs/zerolog/log"
 )
 
@@ -77,6 +78,24 @@ func Logging(next http.Handler) http.Handler {
 		}
 		if rw.statusCode >= 500 {
 			event = log.Error()
+
+			hub := sentry.GetHubFromContext(r.Context())
+			if hub == nil {
+				hub = sentry.CurrentHub()
+			}
+			if hub != nil && hub.Client() != nil {
+				hub.WithScope(func(scope *sentry.Scope) {
+					scope.SetTag("method", r.Method)
+					scope.SetTag("path", r.URL.Path)
+					scope.SetTag("status_code", fmt.Sprintf("%d", rw.statusCode))
+					scope.SetTag("request_id", reqID)
+					scope.SetLevel(sentry.LevelError)
+					hub.CaptureMessage(fmt.Sprintf("%s %s %d", r.Method, r.URL.Path, rw.statusCode))
+				})
+				hub.Flush(2 * time.Second)
+			} else {
+				log.Warn().Msg("Sentry hub not available for error reporting")
+			}
 		}
 
 		event = event.
