@@ -398,22 +398,33 @@ data:
       if [ -d "${NS_DIR}/db-dumps" ]; then
         for DUMP in "${NS_DIR}/db-dumps"/*; do
           [ ! -f "$DUMP" ] && continue
+          DUMP_NAME=$(basename "$DUMP")
           DUMP_SIZE=$(stat -c%s "$DUMP" 2>/dev/null || echo 0)
           if [ "$DUMP_SIZE" -lt 100 ]; then
-            echo "[$(date)]   ⚠ ${NS}: $(basename $DUMP) is empty or too small"
-            VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+            case "${NS}/${DUMP_NAME}" in
+              infatium-prod/redis-0.*) echo "[$(date)]   ℹ ${NS}: ${DUMP_NAME} is empty (expected - Redis not actively used)" ;;
+              *) echo "[$(date)]   ⚠ ${NS}: ${DUMP_NAME} is empty or too small"
+                 VERIFY_ERRORS=$((VERIFY_ERRORS + 1)) ;;
+            esac
           fi
         done
       fi
 
       # Check PVC data directories are not empty
+      # Known empty PVCs that are safe to ignore
+      IGNORED_PVC_PATTERNS="worker-poller-go*_app_.telegram|glitchtip-web*_code_uploads|minio-*_export"
       if [ -d "${NS_DIR}/pvc-data" ]; then
         for POD_DIR in "${NS_DIR}/pvc-data"/*/; do
           [ ! -d "$POD_DIR" ] && continue
+          POD_DIR_NAME=$(basename "$POD_DIR")
           FILE_COUNT=$(find "$POD_DIR" -type f 2>/dev/null | wc -l)
           if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "[$(date)]   ⚠ ${NS}: PVC data for $(basename $POD_DIR) is empty"
-            VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+            if echo "$POD_DIR_NAME" | grep -qE "$IGNORED_PVC_PATTERNS"; then
+              echo "[$(date)]   ℹ ${NS}: PVC data for ${POD_DIR_NAME} is empty (expected)"
+            else
+              echo "[$(date)]   ⚠ ${NS}: PVC data for ${POD_DIR_NAME} is empty"
+              VERIFY_ERRORS=$((VERIFY_ERRORS + 1))
+            fi
           fi
         done
       fi
