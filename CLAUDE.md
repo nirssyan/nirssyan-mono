@@ -137,6 +137,8 @@ kubectl rollout restart -n infatium-dev deployment/go-api
 
 ## Database Migrations
 
+**ВАЖНО: Все миграции БД делать ТОЛЬКО через Alembic. Никогда не применять SQL напрямую к БД.**
+
 ```bash
 cd database/migrations
 rye run alembic upgrade head
