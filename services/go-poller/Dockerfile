@@ -6,8 +6,10 @@ RUN apk add --no-cache git ca-certificates tzdata
 
 COPY . .
 
-RUN go mod download && \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath \
     -ldflags="-s -w -X main.Version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" \
     -o /poller ./cmd/poller
 

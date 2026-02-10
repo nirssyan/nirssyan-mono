@@ -6,133 +6,16 @@ on:
     paths:
       - 'services/go-poller/**'
       - '.github/workflows/ci-go-poller.yml'
-
-env:
-  REGISTRY: docker-registry.infrastructure:5000
-  IMAGE_NAME: go-poller
-  IMAGE_TAG: dev
+      - '.github/workflows/ci-go-ko.yml'
 
 jobs:
   build-and-deploy:
-    runs-on: infatium
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache-dependency-path: services/go-poller/go.sum
-
-      - name: Run tests
-        working-directory: services/go-poller
-        run: go test -v ./...
-
-      - name: Record build start time
-        id: build_start
-        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
-
-      - name: Build binary
-        working-directory: services/go-poller
-        run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o poller ./cmd/poller
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: network=host
-          buildkitd-config-inline: |
-            [registry."docker-registry.infrastructure:5000"]
-              http = true
-
-      - name: Login to Registry
-        run: |
-          mkdir -p ~/.docker
-          AUTH=$(echo -n "${{ secrets.REGISTRY_USERNAME }}:${{ secrets.REGISTRY_PASSWORD }}" | base64 -w0)
-          echo "{\"auths\":{\"${{ env.REGISTRY }}\":{\"auth\":\"${AUTH}\"}}}" > ~/.docker/config.json
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./services/go-poller
-          push: true
-          platforms: linux/amd64
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
-
-      - name: Record build end time
-        id: build_end
-        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Configure kubectl
-        run: |
-          kubectl config set-cluster k8s --server=https://kubernetes.default.svc --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-          kubectl config set-credentials sa --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-          kubectl config set-context default --cluster=k8s --user=sa
-          kubectl config use-context default
-
-      - name: Record deploy start time
-        id: deploy_start
-        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
-
-      - name: Deploy to Kubernetes
-        run: |
-          kubectl rollout restart deployment/worker-poller-go -n infatium-dev
-          kubectl rollout status deployment/worker-poller-go -n infatium-dev --timeout=5m
-
-      - name: Record deploy end time
-        id: deploy_end
-        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
-
-      - name: Send Telegram notification
-        if: always()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_DEPLOY_BOT_TOKEN }}
-        run: |
-          if [[ "${{ job.status }}" == "success" ]]; then
-            STATUS="✅"
-          else
-            STATUS="❌"
-          fi
-
-          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 100 | sed 's/"/\\"/g')
-
-          BUILD_START="${{ steps.build_start.outputs.time }}"
-          BUILD_END="${{ steps.build_end.outputs.time }}"
-          DEPLOY_START="${{ steps.deploy_start.outputs.time }}"
-          DEPLOY_END="${{ steps.deploy_end.outputs.time }}"
-
-          if [[ -n "$BUILD_START" && -n "$BUILD_END" ]]; then
-            BUILD_DURATION=$((BUILD_END - BUILD_START))
-            BUILD_TIME="$((BUILD_DURATION / 60))m $((BUILD_DURATION % 60))s"
-          else
-            BUILD_TIME="N/A"
-          fi
-
-          if [[ -n "$DEPLOY_START" && -n "$DEPLOY_END" ]]; then
-            DEPLOY_DURATION=$((DEPLOY_END - DEPLOY_START))
-            DEPLOY_TIME="$((DEPLOY_DURATION / 60))m $((DEPLOY_DURATION % 60))s"
-          else
-            DEPLOY_TIME="N/A"
-          fi
-
-          if [[ -n "$BUILD_START" && -n "$DEPLOY_END" ]]; then
-            TOTAL_DURATION=$((DEPLOY_END - BUILD_START))
-            TOTAL_TIME="$((TOTAL_DURATION / 60))m $((TOTAL_DURATION % 60))s"
-          else
-            TOTAL_TIME="N/A"
-          fi
-
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"chat_id\": \"-1002622491758\",
-              \"message_thread_id\": 504,
-              \"parse_mode\": \"HTML\",
-              \"text\": \"${STATUS} <b>go-poller DEV</b>\n\n📦 Image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\n\n⏱️ <b>Время:</b>\n   Build: ${BUILD_TIME}\n   Deploy: ${DEPLOY_TIME}\n   <b>Всего: ${TOTAL_TIME}</b>\"
-            }"
+    uses: ./.github/workflows/ci-go-ko.yml
+    with:
+      service-name: go-poller
+      service-path: services/go-poller
+      import-path: ./cmd/poller
+      image-name: go-poller
+      deployment-name: worker-poller-go
+      namespace: infatium-dev
+    secrets: inherit

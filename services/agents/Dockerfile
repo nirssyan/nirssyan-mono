@@ -22,11 +22,7 @@ WORKDIR /app/agents
 # Create modified pyproject.toml with correct path for Docker context
 RUN sed -i 's|file://../shared-python|file:///app/shared-python|g' pyproject.toml
 
-# Debug: Show shared-python pyproject.toml
-RUN cat /app/shared-python/pyproject.toml
-
-# Clear uv cache and install dependencies
-RUN rm -rf /root/.cache/uv && \
+RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --system /app/shared-python && \
     uv pip install --system -e .
 
