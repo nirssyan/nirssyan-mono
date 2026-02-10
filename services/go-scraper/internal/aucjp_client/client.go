@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/text/encoding/charmap"
 )
 
 const (
@@ -94,7 +96,7 @@ func (c *Client) FetchPage(ctx context.Context, pageURL string) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("read body: %w", err)
 	}
-	return string(body), nil
+	return decodeBody(body, resp.Header.Get("Content-Type")), nil
 }
 
 func (c *Client) FetchLots(ctx context.Context, vendorID int, model string, page, pageSize int) (*LotsResponse, error) {
@@ -130,7 +132,7 @@ func (c *Client) FetchLots(ctx context.Context, vendorID int, model string, page
 		return nil, fmt.Errorf("read body: %w", err)
 	}
 
-	return parseJSONPResponse(string(body))
+	return parseJSONPResponse(decodeBody(body, resp.Header.Get("Content-Type")))
 }
 
 // extractTplPoisk extracts the tpl_poisk value from:
@@ -408,4 +410,14 @@ func cleanHTML(s string) string {
 	s = strings.ReplaceAll(s, "<b>", "")
 	s = strings.ReplaceAll(s, "</b>", "")
 	return strings.TrimSpace(s)
+}
+
+func decodeBody(body []byte, contentType string) string {
+	if strings.Contains(strings.ToLower(contentType), "windows-1251") {
+		decoded, err := charmap.Windows1251.NewDecoder().Bytes(body)
+		if err == nil {
+			return string(decoded)
+		}
+	}
+	return string(body)
 }
