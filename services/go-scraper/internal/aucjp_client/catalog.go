@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Vendor struct {
@@ -21,8 +23,8 @@ type Model struct {
 }
 
 var (
-	manufStrRe = regexp.MustCompile(`manuf_str\s*=\s*"([^"]*)"`)
-	modelStrRe = regexp.MustCompile(`model_str\s*=\s*"([^"]*)"`)
+	manufStrRe = regexp.MustCompile(`id=manuf_str[^>]*>([^<]+)<`)
+	modelStrRe = regexp.MustCompile(`id=model_str[^>]*>([^<]+)<`)
 )
 
 func (c *Client) FetchCatalog(ctx context.Context) ([]Vendor, []Model, error) {
@@ -30,6 +32,13 @@ func (c *Client) FetchCatalog(ctx context.Context) ([]Vendor, []Model, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("fetch search page: %w", err)
 	}
+
+	log.Debug().
+		Int("page_size", len(html)).
+		Bool("has_manuf_str", strings.Contains(html, "manuf_str")).
+		Bool("has_model_str", strings.Contains(html, "model_str")).
+		Bool("has_toyota", strings.Contains(html, "TOYOTA")).
+		Msg("Catalog page fetched")
 
 	vendors := parseVendors(html)
 	models := parseModels(html)
