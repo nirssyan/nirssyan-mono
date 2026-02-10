@@ -7,33 +7,40 @@ on:
       - 'services/go-api/**'
       - '.github/workflows/ci-go-api-dagger.yml'
 
+env:
+  REGISTRY: docker-registry.infrastructure:5000
+  IMAGE_NAME: go-api
+  IMAGE_TAG: dev-dagger
+
 jobs:
   dagger-pipeline:
     runs-on: infatium
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure insecure registry for Dagger
-        run: |
-          mkdir -p ~/.config/dagger
-          cat > ~/.config/dagger/engine.json << 'EOF'
-          {
-            "registries": {
-              "docker-registry.infrastructure:5000": {
-                "http": true,
-                "insecure": true
-              }
-            }
-          }
-          EOF
-
-      - name: Test + Build + Push
+      - name: Test
         uses: dagger/dagger-for-github@v8.2.0
         with:
-          version: "latest"
+          version: "0.18.5"
           verb: call
           module: ./services/go-api/.dagger
-          args: publish --source=./services/go-api --registry=docker-registry.infrastructure:5000 --tag=dev-dagger
+          args: test --source=./services/go-api
+
+      - name: Build & Export image
+        uses: dagger/dagger-for-github@v8.2.0
+        with:
+          version: "0.18.5"
+          verb: call
+          module: ./services/go-api/.dagger
+          args: containerize --source=./services/go-api export --path=/tmp/go-api-image.tar
+
+      - name: Load and push image
+        run: |
+          docker load -i /tmp/go-api-image.tar
+          LOADED_IMAGE=$(docker images --format '{{.Repository}}:{{.Tag}}' | head -1)
+          docker tag "$LOADED_IMAGE" "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
+          docker push "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
+          rm -f /tmp/go-api-image.tar
 
       - name: Deploy to K8s (skipped — pilot mode)
         if: false
