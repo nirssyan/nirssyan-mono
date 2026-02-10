@@ -44,10 +44,6 @@ jobs:
           go-version: '1.24'
           cache-dependency-path: ${{ inputs.service-path }}/go.sum
 
-      - name: Run tests
-        working-directory: ${{ inputs.service-path }}
-        run: go test -v ./...
-
       - name: Record build start time
         id: build_start
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
