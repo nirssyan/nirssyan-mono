@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-rss-api
+  labels:
+    app: go-rss-api
+spec:
+  selector:
+    app: go-rss-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

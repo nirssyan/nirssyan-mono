@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crawl4ai
+  labels:
+    app: crawl4ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crawl4ai
+  template:
+    metadata:
+      labels:
+        app: crawl4ai
+    spec:
+      containers:
+        - name: crawl4ai
+          image: unclecode/crawl4ai:0.8.0
+          ports:
+            - containerPort: 11235
+              name: http
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Gi
