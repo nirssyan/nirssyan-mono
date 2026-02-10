@@ -622,9 +622,12 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 
 		if !result.Valid {
 			msg := "invalid source"
-			if result.Message != nil {
+			if result.Error != nil {
+				msg = *result.Error
+			} else if result.Message != nil {
 				msg = *result.Message
 			}
+			log.Warn().Str("url", source.URL).Str("error", msg).Msg("Source validation failed: invalid")
 			invalidSources = append(invalidSources, source.URL+": "+msg)
 			continue
 		}
