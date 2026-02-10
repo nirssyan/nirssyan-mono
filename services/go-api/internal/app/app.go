@@ -53,7 +53,7 @@ func (a *App) Run(ctx context.Context) error {
 		if err := sentry.Init(sentry.ClientOptions{
 			Dsn:         a.cfg.GlitchTipDSN,
 			Environment: a.cfg.Environment,
-			Debug:       a.cfg.Debug,
+			Debug:       true,
 			HTTPClient: &http.Client{
 				Transport: &http.Transport{
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
