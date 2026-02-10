@@ -52,18 +52,15 @@ type rawLot struct {
 
 func (s *Scraper) Scrape(ctx context.Context, sub *scrapers.Subscription) ([]scrapers.Post, error) {
 	sessionID := fmt.Sprintf("aucjp-%s", uuid.New().String())
-	defer func() {
-		if err := s.client.CloseSession(ctx, sessionID); err != nil {
-			log.Warn().Err(err).Str("session_id", sessionID).Msg("Failed to close crawl4ai session")
-		}
-	}()
 
 	// Step 1: Load the search page
 	resp, err := s.client.Crawl(ctx, crawl4ai.CrawlRequest{
-		URLs:      []string{searchPageURL},
-		SessionID: sessionID,
-		WaitFor:   "css:.ajx-frame",
-		CacheMode: "bypass",
+		URLs: []string{searchPageURL},
+		CrawlerConfig: &crawl4ai.CrawlerConfig{
+			SessionID: sessionID,
+			WaitFor:   "body",
+			CacheMode: "bypass",
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("load search page: %w", err)
@@ -76,7 +73,7 @@ func (s *Scraper) Scrape(ctx context.Context, sub *scrapers.Subscription) ([]scr
 	// TODO: Adjust CSS selectors after inspecting the live aucjp.co DOM structure
 	vendorClickJS := fmt.Sprintf(`
 		(function() {
-			const vendorLinks = document.querySelectorAll('.ajx-frame a[data-vendor-id], .vendor-list a, .maker-list a');
+			const vendorLinks = document.querySelectorAll('a[data-vendor-id], .vendor-list a, .maker-list a');
 			for (const link of vendorLinks) {
 				const vid = link.getAttribute('data-vendor-id');
 				if (vid === '%d') {
@@ -89,51 +86,62 @@ func (s *Scraper) Scrape(ctx context.Context, sub *scrapers.Subscription) ([]scr
 	`, sub.VendorID)
 
 	resp, err = s.client.Crawl(ctx, crawl4ai.CrawlRequest{
-		URLs:      []string{searchPageURL},
-		SessionID: sessionID,
-		JSCode:    []string{vendorClickJS},
-		WaitFor:   "css:.model-list, css:.ajx-frame table",
-		CacheMode: "bypass",
+		URLs: []string{searchPageURL},
+		CrawlerConfig: &crawl4ai.CrawlerConfig{
+			SessionID: sessionID,
+			JSCode:    []string{vendorClickJS},
+			WaitFor:   "body",
+			CacheMode: "bypass",
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("click vendor: %w", err)
+	}
+	if len(resp.Results) > 0 && resp.Results[0].JSExecutionResult != nil {
+		log.Debug().Strs("js_results", resp.Results[0].JSExecutionResult.Results).Msg("Vendor click result")
 	}
 
 	// Step 3: Click model matching subscription's model_name
 	// TODO: Adjust selector for model list based on live DOM
 	modelClickJS := fmt.Sprintf(`
 		(function() {
-			const modelLinks = document.querySelectorAll('.model-list a, .ajx-frame a[data-model]');
+			const modelLinks = document.querySelectorAll('.model-list a, a[data-model]');
 			for (const link of modelLinks) {
-				const name = link.getAttribute('data-model') || link.textContent.trim();
-				if (name === '%s' || link.textContent.trim().toUpperCase().includes('%s')) {
+				const name = (link.getAttribute('data-model') || link.textContent).trim().toUpperCase();
+				if (name === '%s' || name.includes('%s')) {
 					link.click();
 					return 'clicked';
 				}
 			}
 			return 'not_found';
 		})()
-	`, sub.ModelName, strings.ToUpper(sub.ModelName))
+	`, strings.ToUpper(sub.ModelName), strings.ToUpper(sub.ModelName))
 
 	resp, err = s.client.Crawl(ctx, crawl4ai.CrawlRequest{
-		URLs:      []string{searchPageURL},
-		SessionID: sessionID,
-		JSCode:    []string{modelClickJS},
-		WaitFor:   "css:table.result-table, css:.lot-table, css:.ajx-frame table",
-		CacheMode: "bypass",
+		URLs: []string{searchPageURL},
+		CrawlerConfig: &crawl4ai.CrawlerConfig{
+			SessionID: sessionID,
+			JSCode:    []string{modelClickJS},
+			WaitFor:   "body",
+			CacheMode: "bypass",
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("click model: %w", err)
 	}
 
-	// Step 4: Extract lot data from the results table
+	// Step 4: Extract lot data from the results table via JS
 	var allPosts []scrapers.Post
 	page := 1
 
 	for {
 		lots, hasNext, err := s.extractLots(ctx, sessionID, page)
 		if err != nil {
-			return nil, fmt.Errorf("extract lots page %d: %w", page, err)
+			if page == 1 {
+				return nil, fmt.Errorf("extract lots page %d: %w", page, err)
+			}
+			log.Warn().Err(err).Int("page", page).Msg("Failed to extract lots, stopping pagination")
+			break
 		}
 
 		for _, lot := range lots {
@@ -145,7 +153,7 @@ func (s *Scraper) Scrape(ctx context.Context, sub *scrapers.Subscription) ([]scr
 			allPosts = append(allPosts, *post)
 		}
 
-		if !hasNext {
+		if !hasNext || len(lots) == 0 {
 			break
 		}
 
@@ -160,12 +168,14 @@ func (s *Scraper) Scrape(ctx context.Context, sub *scrapers.Subscription) ([]scr
 				return 'no_next';
 			})()
 		`
-		resp, err = s.client.Crawl(ctx, crawl4ai.CrawlRequest{
-			URLs:      []string{searchPageURL},
-			SessionID: sessionID,
-			JSCode:    []string{nextPageJS},
-			WaitFor:   "css:table.result-table, css:.lot-table",
-			CacheMode: "bypass",
+		_, err = s.client.Crawl(ctx, crawl4ai.CrawlRequest{
+			URLs: []string{searchPageURL},
+			CrawlerConfig: &crawl4ai.CrawlerConfig{
+				SessionID: sessionID,
+				JSCode:    []string{nextPageJS},
+				WaitFor:   "body",
+				CacheMode: "bypass",
+			},
 		})
 		if err != nil {
 			log.Warn().Err(err).Int("page", page+1).Msg("Failed to navigate to next page, stopping")
@@ -188,7 +198,7 @@ func (s *Scraper) extractLots(ctx context.Context, sessionID string, page int) (
 	// TODO: Adjust the extraction JS to match actual aucjp.co table structure
 	extractJS := `
 		(function() {
-			const rows = document.querySelectorAll('table.result-table tbody tr, .lot-table tbody tr, .ajx-frame table tbody tr');
+			const rows = document.querySelectorAll('table tbody tr');
 			const lots = [];
 			let hasNext = false;
 
@@ -221,16 +231,32 @@ func (s *Scraper) extractLots(ctx context.Context, sessionID string, page int) (
 		})()
 	`
 
-	jsResp, err := s.client.ExecuteJS(ctx, sessionID, extractJS)
+	resp, err := s.client.Crawl(ctx, crawl4ai.CrawlRequest{
+		URLs: []string{searchPageURL},
+		CrawlerConfig: &crawl4ai.CrawlerConfig{
+			SessionID: sessionID,
+			JSCode:    []string{extractJS},
+			CacheMode: "bypass",
+		},
+	})
 	if err != nil {
-		return nil, false, fmt.Errorf("execute extraction js: %w", err)
+		return nil, false, fmt.Errorf("crawl for extraction: %w", err)
+	}
+
+	if len(resp.Results) == 0 || resp.Results[0].JSExecutionResult == nil {
+		return nil, false, fmt.Errorf("no JS execution result")
+	}
+
+	jsResults := resp.Results[0].JSExecutionResult.Results
+	if len(jsResults) == 0 {
+		return nil, false, fmt.Errorf("empty JS result")
 	}
 
 	var result struct {
 		Lots    []rawLot `json:"lots"`
 		HasNext bool     `json:"has_next"`
 	}
-	if err := json.Unmarshal([]byte(jsResp.Result), &result); err != nil {
+	if err := json.Unmarshal([]byte(jsResults[0]), &result); err != nil {
 		return nil, false, fmt.Errorf("unmarshal extraction result: %w", err)
 	}
 
@@ -325,33 +351,14 @@ func formatPrice(price string) string {
 
 func (s *Scraper) SyncCatalog(ctx context.Context) error {
 	sessionID := fmt.Sprintf("aucjp-catalog-%s", uuid.New().String())
-	defer func() {
-		if err := s.client.CloseSession(ctx, sessionID); err != nil {
-			log.Warn().Err(err).Msg("Failed to close catalog session")
-		}
-	}()
-
-	resp, err := s.client.Crawl(ctx, crawl4ai.CrawlRequest{
-		URLs:      []string{searchPageURL},
-		SessionID: sessionID,
-		WaitFor:   "css:.ajx-frame",
-		CacheMode: "bypass",
-	})
-	if err != nil {
-		return fmt.Errorf("load page for catalog: %w", err)
-	}
-	if !resp.Success || len(resp.Results) == 0 {
-		return fmt.Errorf("catalog page load failed")
-	}
 
 	// TODO: This extracts vendor list from the initial page.
-	// Full catalog sync (vendors + models) requires clicking each vendor
-	// to get its model list. For now, we extract vendors only.
-	// Model-level catalog will be populated as subscriptions are created.
+	// Full catalog sync (vendors + models) requires clicking each vendor.
+	// For now, we extract vendors only.
 	extractCatalogJS := `
 		(function() {
 			const vendors = [];
-			const vendorEls = document.querySelectorAll('.vendor-list a, .maker-list a, .ajx-frame a[data-vendor-id]');
+			const vendorEls = document.querySelectorAll('a[data-vendor-id], .vendor-list a, .maker-list a');
 			for (const el of vendorEls) {
 				const vid = el.getAttribute('data-vendor-id') || '';
 				const text = el.textContent.trim();
@@ -364,9 +371,26 @@ func (s *Scraper) SyncCatalog(ctx context.Context) error {
 		})()
 	`
 
-	jsResp, err := s.client.ExecuteJS(ctx, sessionID, extractCatalogJS)
+	resp, err := s.client.Crawl(ctx, crawl4ai.CrawlRequest{
+		URLs: []string{searchPageURL},
+		CrawlerConfig: &crawl4ai.CrawlerConfig{
+			SessionID: sessionID,
+			JSCode:    []string{extractCatalogJS},
+			WaitFor:   "body",
+			CacheMode: "bypass",
+		},
+	})
 	if err != nil {
-		return fmt.Errorf("extract catalog vendors: %w", err)
+		return fmt.Errorf("crawl for catalog: %w", err)
+	}
+
+	if len(resp.Results) == 0 || resp.Results[0].JSExecutionResult == nil {
+		return fmt.Errorf("no JS execution result for catalog")
+	}
+
+	jsResults := resp.Results[0].JSExecutionResult.Results
+	if len(jsResults) == 0 {
+		return fmt.Errorf("empty JS result for catalog")
 	}
 
 	var vendors []struct {
@@ -374,7 +398,7 @@ func (s *Scraper) SyncCatalog(ctx context.Context) error {
 		VendorName string `json:"vendor_name"`
 		Count      int    `json:"count"`
 	}
-	if err := json.Unmarshal([]byte(jsResp.Result), &vendors); err != nil {
+	if err := json.Unmarshal([]byte(jsResults[0]), &vendors); err != nil {
 		return fmt.Errorf("unmarshal vendors: %w", err)
 	}
 

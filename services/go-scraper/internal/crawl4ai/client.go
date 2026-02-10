@@ -26,30 +26,44 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
-type ExtractionConfig struct {
-	Type   string `json:"type"`
-	Params any    `json:"params,omitempty"`
+type CrawlerConfig struct {
+	SessionID string   `json:"session_id,omitempty"`
+	JSCode    []string `json:"js_code,omitempty"`
+	WaitFor   string   `json:"wait_for,omitempty"`
+	CacheMode string   `json:"cache_mode,omitempty"`
 }
 
 type CrawlRequest struct {
-	URLs             []string          `json:"urls"`
-	SessionID        string            `json:"session_id,omitempty"`
-	JSCode           []string          `json:"js_code,omitempty"`
-	WaitFor          string            `json:"wait_for,omitempty"`
-	CSSSelector      string            `json:"css_selector,omitempty"`
-	ExtractionConfig *ExtractionConfig `json:"extraction_strategy,omitempty"`
-	CacheMode        string            `json:"cache_mode,omitempty"`
-	MagicMode        bool              `json:"magic,omitempty"`
+	URLs          []string       `json:"urls"`
+	CrawlerConfig *CrawlerConfig `json:"crawler_config,omitempty"`
+}
+
+type MarkdownResult struct {
+	RawMarkdown string `json:"raw_markdown"`
+}
+
+type JSExecutionResult struct {
+	Success bool     `json:"success"`
+	Results []string `json:"results"`
 }
 
 type CrawlResult struct {
-	URL             string `json:"url"`
-	HTML            string `json:"html"`
-	CleanedHTML     string `json:"cleaned_html"`
-	Markdown        string `json:"markdown"`
-	ExtractedContent string `json:"extracted_content"`
-	Success         bool   `json:"success"`
-	ErrorMessage    string `json:"error_message"`
+	URL               string             `json:"url"`
+	HTML              string             `json:"html"`
+	CleanedHTML       string             `json:"cleaned_html"`
+	Markdown          json.RawMessage    `json:"markdown"`
+	Success           bool               `json:"success"`
+	ErrorMessage      string             `json:"error_message"`
+	SessionID         string             `json:"session_id"`
+	JSExecutionResult *JSExecutionResult `json:"js_execution_result"`
+}
+
+func (r *CrawlResult) GetMarkdown() string {
+	var md MarkdownResult
+	if err := json.Unmarshal(r.Markdown, &md); err != nil {
+		return string(r.Markdown)
+	}
+	return md.RawMarkdown
 }
 
 type CrawlResponse struct {
@@ -57,20 +71,15 @@ type CrawlResponse struct {
 	Success bool          `json:"success"`
 }
 
-type JSRequest struct {
-	SessionID string `json:"session_id"`
-	JSCode    string `json:"js_code"`
-}
-
-type JSResponse struct {
-	Result  string `json:"result"`
-	Success bool   `json:"success"`
-}
-
 func (c *Client) Crawl(ctx context.Context, req CrawlRequest) (*CrawlResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal crawl request: %w", err)
+	}
+
+	sessionID := ""
+	if req.CrawlerConfig != nil {
+		sessionID = req.CrawlerConfig.SessionID
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/crawl", bytes.NewReader(body))
@@ -80,7 +89,7 @@ func (c *Client) Crawl(ctx context.Context, req CrawlRequest) (*CrawlResponse, e
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	log.Debug().
-		Str("session_id", req.SessionID).
+		Str("session_id", sessionID).
 		Strs("urls", req.URLs).
 		Msg("Sending crawl request")
 
@@ -107,11 +116,12 @@ func (c *Client) Crawl(ctx context.Context, req CrawlRequest) (*CrawlResponse, e
 	return &crawlResp, nil
 }
 
-func (c *Client) ExecuteJS(ctx context.Context, sessionID, jsCode string) (*JSResponse, error) {
-	body, err := json.Marshal(JSRequest{
-		SessionID: sessionID,
-		JSCode:    jsCode,
-	})
+func (c *Client) ExecuteJS(ctx context.Context, url string, scripts []string) ([]string, error) {
+	reqBody := map[string]any{
+		"url":     url,
+		"scripts": scripts,
+	}
+	body, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("marshal js request: %w", err)
 	}
@@ -137,37 +147,13 @@ func (c *Client) ExecuteJS(ctx context.Context, sessionID, jsCode string) (*JSRe
 		return nil, fmt.Errorf("crawl4ai returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var jsResp JSResponse
+	var jsResp struct {
+		Success bool     `json:"success"`
+		Results []string `json:"results"`
+	}
 	if err := json.Unmarshal(respBody, &jsResp); err != nil {
 		return nil, fmt.Errorf("unmarshal js response: %w", err)
 	}
 
-	return &jsResp, nil
-}
-
-func (c *Client) CloseSession(ctx context.Context, sessionID string) error {
-	body, err := json.Marshal(map[string]string{"session_id": sessionID})
-	if err != nil {
-		return fmt.Errorf("marshal close request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/session", bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return fmt.Errorf("close session request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("crawl4ai returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	log.Debug().Str("session_id", sessionID).Msg("Session closed")
-	return nil
+	return jsResp.Results, nil
 }
