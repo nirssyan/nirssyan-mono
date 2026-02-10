@@ -1,7 +1,7 @@
 githubConfigUrl: https://github.com/nirssyan/nirssyan-mono
 githubConfigSecret: github-app-secret
 runnerScaleSetName: infatium
-maxRunners: 3
+maxRunners: 1
 minRunners: 0
 
 template:

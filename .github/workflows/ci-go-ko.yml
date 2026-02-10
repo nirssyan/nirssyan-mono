@@ -33,7 +33,7 @@ env:
 
 jobs:
   build-and-deploy:
-    runs-on: infatium
+    runs-on: infatium-ko
     steps:
       - name: Checkout
         uses: actions/checkout@v4
