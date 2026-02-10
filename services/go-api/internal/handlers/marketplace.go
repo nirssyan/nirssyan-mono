@@ -101,11 +101,19 @@ func (h *MarketplaceHandler) GetMarketplaceFeeds(w http.ResponseWriter, r *http.
 }
 
 func (h *MarketplaceHandler) GetMarketplaceFeed(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "slug")
+	param := chi.URLParam(r, "slug")
 
-	feed, err := h.marketplaceRepo.GetBySlug(r.Context(), slug)
+	var feed *repository.MarketplaceFeed
+	var err error
+
+	if id, parseErr := uuid.Parse(param); parseErr == nil {
+		feed, err = h.marketplaceRepo.GetByID(r.Context(), id)
+	} else {
+		feed, err = h.marketplaceRepo.GetBySlug(r.Context(), param)
+	}
+
 	if err != nil {
-		log.Error().Err(err).Str("slug", slug).Msg("Failed to get marketplace feed")
+		log.Error().Err(err).Str("param", param).Msg("Failed to get marketplace feed")
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
