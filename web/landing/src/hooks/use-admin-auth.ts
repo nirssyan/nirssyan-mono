@@ -14,6 +14,7 @@ export function useAdminAuth() {
     if (!token) {
       setIsAdmin(false)
       setLoading(false)
+      router.push('/admin/login')
       return
     }
 
