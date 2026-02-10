@@ -34,13 +34,12 @@ jobs:
           module: ./services/go-api/.dagger
           args: containerize --source=./services/go-api export --path=/tmp/go-api-image.tar
 
-      - name: Load and push image
+      - name: Install crane
         run: |
-          docker load -i /tmp/go-api-image.tar
-          LOADED_IMAGE=$(docker images --format '{{.Repository}}:{{.Tag}}' | head -1)
-          docker tag "$LOADED_IMAGE" "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
-          docker push "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
-          rm -f /tmp/go-api-image.tar
+          curl -sL https://github.com/google/go-containerregistry/releases/download/v0.20.3/go-containerregistry_Linux_x86_64.tar.gz | tar xz -C /usr/local/bin crane
+
+      - name: Push image to registry
+        run: crane push /tmp/go-api-image.tar "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG" --insecure
 
       - name: Deploy to K8s (skipped — pilot mode)
         if: false
