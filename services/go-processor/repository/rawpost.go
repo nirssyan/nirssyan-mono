@@ -93,6 +93,28 @@ func (r *RawPostRepository) GetRecentByRawFeed(ctx context.Context, rawFeedID uu
 	return scanRawPosts(rows)
 }
 
+// GetLatestByRawFeed returns the latest raw posts for a raw feed regardless of date
+func (r *RawPostRepository) GetLatestByRawFeed(ctx context.Context, rawFeedID uuid.UUID, limit int) ([]domain.RawPost, error) {
+	query := `
+		SELECT id, created_at, content, raw_feed_id, rp_unique_code,
+		       title, media_group_id, telegram_message_id, media_objects, source_url,
+		       moderation_action, moderation_labels, moderation_block_reasons,
+		       moderation_checked_at, moderation_matched_entities
+		FROM raw_posts
+		WHERE raw_feed_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+
+	rows, err := r.pool.Query(ctx, query, rawFeedID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query latest raw posts: %w", err)
+	}
+	defer rows.Close()
+
+	return scanRawPosts(rows)
+}
+
 // GetContentByIDs returns just the content of raw posts (for AI processing)
 func (r *RawPostRepository) GetContentByIDs(ctx context.Context, ids []uuid.UUID) ([]string, error) {
 	if len(ids) == 0 {
