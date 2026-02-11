@@ -23,19 +23,6 @@ jobs:
       - name: Install dependencies
         run: pip install alembic psycopg2-binary
 
-      - name: Stamp to sync alembic_version if needed
-        working-directory: database/migrations
-        env:
-          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
-        run: |
-          CURRENT=$(alembic current 2>/dev/null | grep -oP '^[a-f0-9]+' || echo "none")
-          echo "Current alembic version: $CURRENT"
-          # Fix: marketplace_feeds + slug_to_tags were applied manually, stamp past them
-          if [ "$CURRENT" = "c3d4e5f6a7b8" ]; then
-            echo "Stamping to b3c4d5e6f7a9 (marketplace + slug migrations already applied manually)"
-            alembic stamp b3c4d5e6f7a9
-          fi
-
       - name: Run migrations
         working-directory: database/migrations
         env:

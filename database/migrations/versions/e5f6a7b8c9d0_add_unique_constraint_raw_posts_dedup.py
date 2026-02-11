@@ -40,6 +40,8 @@ def upgrade() -> None:
         )
     """)
 
+    op.create_primary_key("pk_raw_posts", "raw_posts", ["id"])
+
     op.create_unique_constraint(
         "uq_raw_posts_unique_code", "raw_posts", ["rp_unique_code"]
     )
@@ -47,3 +49,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_constraint("uq_raw_posts_unique_code", "raw_posts", type_="unique")
+    op.drop_constraint("pk_raw_posts", "raw_posts", type_="primary")
