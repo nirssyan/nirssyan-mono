@@ -44,7 +44,8 @@ func (r *RawPostRepository) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]do
 	return scanRawPosts(rows)
 }
 
-// GetUnprocessedByPromptAndRawFeed returns raw posts that haven't been processed for a prompt
+// GetUnprocessedByPromptAndRawFeed returns raw posts that haven't been processed for a prompt.
+// Uses timestamp-based offset (last_processed_created_at) instead of UUID comparison.
 func (r *RawPostRepository) GetUnprocessedByPromptAndRawFeed(ctx context.Context, promptID, rawFeedID uuid.UUID, limit int) ([]domain.RawPost, error) {
 	query := `
 		SELECT rp.id, rp.created_at, rp.content, rp.raw_feed_id, rp.rp_unique_code,
@@ -55,8 +56,8 @@ func (r *RawPostRepository) GetUnprocessedByPromptAndRawFeed(ctx context.Context
 		LEFT JOIN prompts_raw_feeds_offsets prfo
 		    ON prfo.prompt_id = $1 AND prfo.raw_feed_id = $2
 		WHERE rp.raw_feed_id = $2
-		  AND (prfo.last_processed_raw_post_id IS NULL
-		       OR rp.id > prfo.last_processed_raw_post_id)
+		  AND (prfo.last_processed_created_at IS NULL
+		       OR rp.created_at > prfo.last_processed_created_at)
 		ORDER BY rp.created_at ASC
 		LIMIT $3
 	`
