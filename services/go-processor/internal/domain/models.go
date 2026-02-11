@@ -113,5 +113,5 @@ type MediaObject struct {
 	PreviewURL *string `json:"preview_url,omitempty"`
 	Width     *int    `json:"width,omitempty"`
 	Height    *int    `json:"height,omitempty"`
-	Duration  *int    `json:"duration,omitempty"`
+	Duration  *float64 `json:"duration,omitempty"`
 }
