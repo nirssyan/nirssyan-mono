@@ -13,13 +13,16 @@ import (
 )
 
 var (
-	ErrTokenReuse        = errors.New("token reuse detected")
-	ErrTokenExpired      = errors.New("refresh token expired")
-	ErrFamilyRevoked     = errors.New("token family revoked")
-	ErrMagicLinkUsed     = errors.New("magic link already used")
-	ErrMagicLinkExpired  = errors.New("magic link expired")
-	ErrInvalidMagicLink  = errors.New("invalid magic link")
+	ErrTokenReuse            = errors.New("token reuse detected")
+	ErrTokenAlreadyRefreshed = errors.New("token already refreshed")
+	ErrTokenExpired          = errors.New("refresh token expired")
+	ErrFamilyRevoked         = errors.New("token family revoked")
+	ErrMagicLinkUsed         = errors.New("magic link already used")
+	ErrMagicLinkExpired      = errors.New("magic link expired")
+	ErrInvalidMagicLink      = errors.New("invalid magic link")
 )
+
+const tokenReuseGracePeriod = 180 * time.Second
 
 type AuthService struct {
 	userRepo         *repository.UserRepository
@@ -195,6 +198,15 @@ func (s *AuthService) RefreshTokens(ctx context.Context, refreshToken string, de
 	}
 
 	if rt.Used {
+		if rt.UsedAt != nil && time.Since(*rt.UsedAt) < tokenReuseGracePeriod {
+			s.logger.Info().
+				Str("token_id", rt.ID.String()).
+				Str("family_id", rt.FamilyID.String()).
+				Dur("since_used", time.Since(*rt.UsedAt)).
+				Msg("token reuse within grace period - not revoking")
+			return nil, ErrTokenAlreadyRefreshed
+		}
+
 		s.logger.Warn().
 			Str("user_id", rt.UserID.String()).
 			Str("family_id", rt.FamilyID.String()).
