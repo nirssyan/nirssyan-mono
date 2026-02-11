@@ -714,12 +714,19 @@ func (s *FeedProcessingService) createPost(ctx context.Context, feedID uuid.UUID
 		ModerationMatchedEntities: rawPost.ModerationMatchedEntities,
 	}
 
-	// Extract first image as image_url if available
 	var mediaObjects []domain.MediaObject
 	if err := json.Unmarshal(rawPost.MediaObjects, &mediaObjects); err == nil {
 		for _, mo := range mediaObjects {
 			if mo.Type == "photo" || mo.Type == "image" {
 				post.ImageURL = &mo.URL
+				break
+			}
+			if mo.Type == "video" || mo.Type == "animation" {
+				if mo.PreviewURL != nil {
+					post.ImageURL = mo.PreviewURL
+				} else {
+					post.ImageURL = &mo.URL
+				}
 				break
 			}
 		}

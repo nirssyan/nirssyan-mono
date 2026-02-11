@@ -343,10 +343,7 @@ func (p *Poller) articleToRawPostData(article discovery.ArticleMetadata, feedID 
 
 	mediaObjects := make([]domain.MediaObject, 0)
 	for _, url := range article.MediaURLs {
-		mediaObjects = append(mediaObjects, domain.MediaObject{
-			Type: "photo",
-			URL:  url,
-		})
+		mediaObjects = append(mediaObjects, domain.NewMediaObject(url))
 	}
 
 	uniqueCode := generateUniqueCode(article.URL)

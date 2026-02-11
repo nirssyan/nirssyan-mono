@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +19,18 @@ type MediaObject struct {
 	Type       string  `json:"type"`
 	URL        string  `json:"url"`
 	PreviewURL *string `json:"preview_url,omitempty"`
+}
+
+var videoExtensions = []string{".mp4", ".webm", ".ogg", ".mov", ".avi", ".mkv"}
+
+func NewMediaObject(url string) MediaObject {
+	urlLower := strings.ToLower(url)
+	for _, ext := range videoExtensions {
+		if strings.HasSuffix(urlLower, ext) {
+			return MediaObject{Type: "video", URL: url, PreviewURL: &url}
+		}
+	}
+	return MediaObject{Type: "photo", URL: url}
 }
 
 type RawPost struct {

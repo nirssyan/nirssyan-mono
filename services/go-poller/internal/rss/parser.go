@@ -240,19 +240,13 @@ func (r RSSItem) ToRawPostData(feedID domain.RawFeed) domain.RawPostCreateData {
 
 	if r.EnclosureURL != "" && !seenURLs[r.EnclosureURL] {
 		seenURLs[r.EnclosureURL] = true
-		mediaObjects = append(mediaObjects, domain.MediaObject{
-			Type: "photo",
-			URL:  r.EnclosureURL,
-		})
+		mediaObjects = append(mediaObjects, domain.NewMediaObject(r.EnclosureURL))
 	}
 
 	for _, imgURL := range r.Images {
 		if !seenURLs[imgURL] {
 			seenURLs[imgURL] = true
-			mediaObjects = append(mediaObjects, domain.MediaObject{
-				Type: "photo",
-				URL:  imgURL,
-			})
+			mediaObjects = append(mediaObjects, domain.NewMediaObject(imgURL))
 		}
 	}
 

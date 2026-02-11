@@ -110,7 +110,7 @@ type LocalizedName struct {
 type MediaObject struct {
 	Type      string  `json:"type"`
 	URL       string  `json:"url"`
-	Thumbnail *string `json:"thumbnail,omitempty"`
+	PreviewURL *string `json:"preview_url,omitempty"`
 	Width     *int    `json:"width,omitempty"`
 	Height    *int    `json:"height,omitempty"`
 	Duration  *int    `json:"duration,omitempty"`
