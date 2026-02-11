@@ -154,7 +154,7 @@ func (c *Client) GetChatHistory(
 	ctx context.Context,
 	peer *tg.InputPeerChannel,
 	limit int,
-	offsetID int,
+	minID int,
 ) ([]tg.MessageClass, error) {
 	c.mu.RLock()
 	api := c.api
@@ -166,9 +166,9 @@ func (c *Client) GetChatHistory(
 	}
 
 	req := &tg.MessagesGetHistoryRequest{
-		Peer:     peer,
-		Limit:    limit,
-		OffsetID: offsetID,
+		Peer:  peer,
+		Limit: limit,
+		MinID: minID,
 	}
 
 	result, err := api.MessagesGetHistory(ctx, req)

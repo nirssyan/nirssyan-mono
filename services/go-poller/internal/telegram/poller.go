@@ -283,16 +283,15 @@ func (p *Poller) pollSingleChannel(ctx context.Context, feed domain.RawFeed) (in
 		limit = p.cfg.TelegramInitialMessagesCount
 	}
 
-	offsetID := 0
+	minID := 0
 	if feed.LastMessageID != nil {
-		// LastMessageID is stored as string in database
 		var msgID int64
 		if _, err := fmt.Sscanf(*feed.LastMessageID, "%d", &msgID); err == nil {
-			offsetID = int(msgID)
+			minID = int(msgID)
 		}
 	}
 
-	messages, err := p.client.GetChatHistory(ctx, peer, limit, offsetID)
+	messages, err := p.client.GetChatHistory(ctx, peer, limit, minID)
 	if err != nil {
 		if updateErr := p.rawFeedRepo.UpdatePollResult(ctx, feed.ID, 0, true, err.Error()); updateErr != nil {
 			log.Error().Err(updateErr).Msg("Failed to update poll result")
@@ -338,9 +337,11 @@ func (p *Poller) pollSingleChannel(ctx context.Context, feed domain.RawFeed) (in
 		return 0, err
 	}
 
+	seen := make(map[string]bool)
 	newPosts := make([]domain.RawPostCreateData, 0)
 	for _, post := range rawPostsData {
-		if !existingCodes[post.RPUniqueCode] {
+		if !existingCodes[post.RPUniqueCode] && !seen[post.RPUniqueCode] {
+			seen[post.RPUniqueCode] = true
 			newPosts = append(newPosts, post)
 		}
 	}

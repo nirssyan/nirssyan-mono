@@ -103,6 +103,7 @@ func (r *RawPostRepository) createSingle(ctx context.Context, tx pgx.Tx, post do
 			moderation_action, moderation_labels, moderation_block_reasons, moderation_checked_at
 		)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, NOW()), $10, $11, $12, $13)
+		ON CONFLICT (rp_unique_code) DO NOTHING
 		RETURNING id
 	`
 
@@ -124,6 +125,9 @@ func (r *RawPostRepository) createSingle(ctx context.Context, tx pgx.Tx, post do
 	).Scan(&id)
 
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return uuid.Nil, nil
+		}
 		return uuid.Nil, fmt.Errorf("insert raw post: %w", err)
 	}
 
