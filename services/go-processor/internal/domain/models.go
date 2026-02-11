@@ -31,6 +31,7 @@ type Post struct {
 	ID                        uuid.UUID       `json:"id"`
 	CreatedAt                 time.Time       `json:"created_at"`
 	FeedID                    uuid.UUID       `json:"feed_id"`
+	RawPostID                 *uuid.UUID      `json:"raw_post_id"`
 	ImageURL                  *string         `json:"image_url"`
 	Title                     *string         `json:"title"`
 	MediaObjects              json.RawMessage `json:"media_objects"`
@@ -75,9 +76,10 @@ type RawFeed struct {
 
 // PromptsRawFeedsOffset tracks processing progress
 type PromptsRawFeedsOffset struct {
-	PromptID               uuid.UUID  `json:"prompt_id"`
-	RawFeedID              uuid.UUID  `json:"raw_feed_id"`
-	LastProcessedRawPostID *uuid.UUID `json:"last_processed_raw_post_id"`
+	PromptID                 uuid.UUID  `json:"prompt_id"`
+	RawFeedID                uuid.UUID  `json:"raw_feed_id"`
+	LastProcessedRawPostID   *uuid.UUID `json:"last_processed_raw_post_id"`
+	LastProcessedCreatedAt   *time.Time `json:"last_processed_created_at"`
 }
 
 // Source represents a source link in a post

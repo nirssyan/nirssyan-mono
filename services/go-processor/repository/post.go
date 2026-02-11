@@ -38,43 +38,38 @@ func (r *PostRepository) CreatePost(ctx context.Context, post *domain.Post) erro
 	return nil
 }
 
-// CreatePostWithSources creates a post and its sources in a transaction
-func (r *PostRepository) CreatePostWithSources(ctx context.Context, post *domain.Post, sourceURLs []string) error {
+// CreatePostWithSources creates a post and its sources in a transaction.
+// Uses ON CONFLICT on (feed_id, raw_post_id) for dedup instead of title-based check.
+// Returns true if the post was actually inserted (not a duplicate).
+func (r *PostRepository) CreatePostWithSources(ctx context.Context, post *domain.Post, sourceURLs []string) (bool, error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
+		return false, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	if post.Title != nil {
-		var exists bool
-		err := tx.QueryRow(ctx,
-			`SELECT EXISTS(SELECT 1 FROM posts WHERE feed_id = $1 AND title = $2)`,
-			post.FeedID, *post.Title,
-		).Scan(&exists)
-		if err != nil {
-			return fmt.Errorf("check post exists: %w", err)
-		}
-		if exists {
-			return nil
-		}
-	}
-
 	postQuery := `
-		INSERT INTO posts (id, created_at, feed_id, image_url, title, media_objects, views,
+		INSERT INTO posts (id, created_at, feed_id, raw_post_id, image_url, title, media_objects, views,
 		                   moderation_action, moderation_labels, moderation_matched_entities)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (feed_id, raw_post_id) WHERE raw_post_id IS NOT NULL
+		DO NOTHING
+		RETURNING id
 	`
 
-	_, err = tx.Exec(ctx, postQuery,
-		post.ID, post.CreatedAt, post.FeedID, post.ImageURL, post.Title, post.MediaObjects, post.Views,
+	var insertedID *uuid.UUID
+	err = tx.QueryRow(ctx, postQuery,
+		post.ID, post.CreatedAt, post.FeedID, post.RawPostID, post.ImageURL, post.Title, post.MediaObjects, post.Views,
 		post.ModerationAction, post.ModerationLabels, post.ModerationMatchedEntities,
-	)
+	).Scan(&insertedID)
+
 	if err != nil {
-		return fmt.Errorf("create post: %w", err)
+		if err.Error() == "no rows in result set" {
+			return false, nil
+		}
+		return false, fmt.Errorf("create post: %w", err)
 	}
 
-	// Create sources (ignore duplicates since multiple posts can share the same source URL)
 	for _, sourceURL := range sourceURLs {
 		sourceQuery := `
 			INSERT INTO sources (id, created_at, post_id, feed_id, source_url)
@@ -83,15 +78,15 @@ func (r *PostRepository) CreatePostWithSources(ctx context.Context, post *domain
 		`
 		_, err = tx.Exec(ctx, sourceQuery, uuid.New(), time.Now(), post.ID, post.FeedID, sourceURL)
 		if err != nil {
-			return fmt.Errorf("create source: %w", err)
+			return false, fmt.Errorf("create source: %w", err)
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit tx: %w", err)
+		return false, fmt.Errorf("commit tx: %w", err)
 	}
 
-	return nil
+	return true, nil
 }
 
 // GetPostsByFeedID returns posts for a feed

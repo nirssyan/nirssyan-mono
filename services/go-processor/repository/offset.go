@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -37,16 +38,16 @@ func (r *OffsetRepository) GetLastProcessedRawPostID(ctx context.Context, prompt
 	return lastID, nil
 }
 
-// UpdateLastProcessedRawPostID updates or inserts the last processed raw post ID
-func (r *OffsetRepository) UpdateLastProcessedRawPostID(ctx context.Context, promptID, rawFeedID, rawPostID uuid.UUID) error {
+// UpdateLastProcessedRawPostID updates or inserts the last processed raw post ID and timestamp
+func (r *OffsetRepository) UpdateLastProcessedRawPostID(ctx context.Context, promptID, rawFeedID, rawPostID uuid.UUID, createdAt time.Time) error {
 	query := `
-		INSERT INTO prompts_raw_feeds_offsets (prompt_id, raw_feed_id, last_processed_raw_post_id)
-		VALUES ($1, $2, $3)
+		INSERT INTO prompts_raw_feeds_offsets (prompt_id, raw_feed_id, last_processed_raw_post_id, last_processed_created_at)
+		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (prompt_id, raw_feed_id)
-		DO UPDATE SET last_processed_raw_post_id = $3
+		DO UPDATE SET last_processed_raw_post_id = $3, last_processed_created_at = $4
 	`
 
-	_, err := r.pool.Exec(ctx, query, promptID, rawFeedID, rawPostID)
+	_, err := r.pool.Exec(ctx, query, promptID, rawFeedID, rawPostID, createdAt)
 	if err != nil {
 		return fmt.Errorf("update last processed: %w", err)
 	}

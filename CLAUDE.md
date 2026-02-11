@@ -177,3 +177,67 @@ ansible-playbook -i inventory/hosts.yml playbooks/backups/restore.yml
 Лейблы для подов:
 - `backup.infra/type: "database"` + `backup.infra/db-type: "postgresql|mysql|mongodb|redis"` — DB дамп
 - `backup.infra/enabled: "false"` — opt-out из PVC бэкапа
+
+## Feed Business Flow
+
+### 1. Создание ленты
+
+`POST /feeds/create` (go-api) → создаёт:
+- `feeds` — лента пользователя (name, type: SINGLE_POST/DIGEST)
+- `prompts` — AI конфигурация (views_config, filters_config)
+- `prompts_raw_feeds` — связь prompt ↔ raw_feed (источник)
+- `prompts_raw_feeds_offsets` — offset tracking для каждой пары prompt+raw_feed
+
+NATS events:
+- `feeds.created` → go-processor: генерация описания, трансформация views/filters, trigger initial sync
+- `feeds.initial_sync` → go-processor: берёт N последних raw_posts и обрабатывает
+
+### 2. Поллинг (go-poller)
+
+Тиры: FAST (1 мин), REGULAR (10 мин), SLOW (1 час), BACKGROUND (6 часов).
+Источники: Telegram (MTProto), RSS (gofeed), Website (scraper).
+
+Pipeline: poll → parse → dedup (rp_unique_code) → save raw_posts → NATS `posts.new.{raw_type}`
+
+Дедупликация на уровне go-poller:
+- `rp_unique_code` — уникальный код из источника (telegram: `tg_{chat_id}_{msg_id}`, rss: hash URL)
+- In-batch seen map для одного цикла поллинга
+- `ON CONFLICT (rp_unique_code) DO NOTHING` — DB-level safety net
+
+### 3. Обработка (go-processor)
+
+Подписка на `posts.new.*` + `feeds.created` + `feeds.initial_sync`.
+
+Для каждого raw_post × prompt:
+1. **Filter** — AI agent оценивает релевантность (`agents.evaluate_post`)
+2. **Views** — AI генерит представления по views_config (`agents.generate_view`)
+3. **Title** — AI генерит заголовок (`agents.generate_post_title`)
+4. **Save** — `INSERT INTO posts ... ON CONFLICT (feed_id, raw_post_id) DO NOTHING`
+
+Дедупликация на уровне go-processor:
+- `posts.raw_post_id` + partial unique index `(feed_id, raw_post_id) WHERE raw_post_id IS NOT NULL`
+- Один raw_post = максимум один post в каждой ленте
+
+Offset tracking:
+- `prompts_raw_feeds_offsets.last_processed_created_at` — timestamp-based
+- Запрос unprocessed: `rp.created_at > offset_created_at` (не UUID comparison)
+
+### 4. Связи таблиц
+
+```
+raw_feeds (источники: Telegram каналы, RSS, Web)
+  └── raw_posts (сырые посты из источников)
+        └── posts.raw_post_id → raw_posts.id
+
+feeds (ленты пользователей)
+  └── prompts (AI конфигурация)
+        └── prompts_raw_feeds (связь с источниками)
+              └── prompts_raw_feeds_offsets (progress tracking)
+        └── posts (обработанные посты)
+              └── sources (ссылки на оригинал)
+```
+
+### 5. Типы лент
+
+- **SINGLE_POST** — каждый raw_post обрабатывается индивидуально → один post
+- **DIGEST** — периодическая сводка из нескольких raw_posts → один digest post

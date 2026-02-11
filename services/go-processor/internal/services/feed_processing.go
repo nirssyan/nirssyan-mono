@@ -149,14 +149,15 @@ func (s *FeedProcessingService) processSinglePostPrompt(ctx context.Context, pro
 
 	createdCount := 0
 	var lastProcessedID uuid.UUID
+	var lastProcessedCreatedAt time.Time
 
 	for _, rawPost := range rawPosts {
-		// Skip moderation blocked posts
 		if rawPost.ModerationAction != nil && *rawPost.ModerationAction == "block" {
 			logger.Debug().
 				Str("raw_post_id", rawPost.ID.String()).
 				Msg("Skipping blocked post")
 			lastProcessedID = rawPost.ID
+			lastProcessedCreatedAt = rawPost.CreatedAt
 			continue
 		}
 
@@ -176,6 +177,7 @@ func (s *FeedProcessingService) processSinglePostPrompt(ctx context.Context, pro
 					Str("explanation", filterResp.Explanation).
 					Msg("Post filtered out")
 				lastProcessedID = rawPost.ID
+				lastProcessedCreatedAt = rawPost.CreatedAt
 				continue
 			}
 		}
@@ -201,18 +203,27 @@ func (s *FeedProcessingService) processSinglePostPrompt(ctx context.Context, pro
 			sourceURLs = append(sourceURLs, sourceURL)
 		}
 
-		if err := s.postRepo.CreatePostWithSources(ctx, post, sourceURLs); err != nil {
+		inserted, err := s.postRepo.CreatePostWithSources(ctx, post, sourceURLs)
+		if err != nil {
 			logger.Error().Err(err).
 				Str("raw_post_id", rawPost.ID.String()).
 				Msg("Failed to create post")
 			continue
 		}
 
+		lastProcessedID = rawPost.ID
+		lastProcessedCreatedAt = rawPost.CreatedAt
+
+		if !inserted {
+			logger.Debug().
+				Str("raw_post_id", rawPost.ID.String()).
+				Msg("Post already exists (dedup), skipping")
+			continue
+		}
+
 		observability.IncPostsCreated("SINGLE_POST")
 		createdCount++
-		lastProcessedID = rawPost.ID
 
-		// Publish post.created event for WebSocket notifications
 		if s.publisher != nil {
 			userID, err := s.feedRepo.GetFeedOwnerID(ctx, prompt.FeedID)
 			if err != nil {
@@ -224,15 +235,13 @@ func (s *FeedProcessingService) processSinglePostPrompt(ctx context.Context, pro
 			}
 		}
 
-		// Processing delay
 		if s.cfg.ProcessingDelaySeconds > 0 {
 			time.Sleep(time.Duration(s.cfg.ProcessingDelaySeconds * float64(time.Second)))
 		}
 	}
 
-	// Update offset
 	if lastProcessedID != uuid.Nil {
-		if err := s.offsetRepo.UpdateLastProcessedRawPostID(ctx, prompt.ID, rawFeedID, lastProcessedID); err != nil {
+		if err := s.offsetRepo.UpdateLastProcessedRawPostID(ctx, prompt.ID, rawFeedID, lastProcessedID, lastProcessedCreatedAt); err != nil {
 			logger.Error().Err(err).Msg("Failed to update offset")
 		}
 	}
@@ -349,11 +358,11 @@ func (s *FeedProcessingService) ProcessDigestEvent(ctx context.Context, event do
 		}
 	}
 
-	// Update offsets for all raw feeds
 	for _, rawFeedID := range rawFeedIDs {
 		posts, _ := s.rawPostRepo.GetUnprocessedByPromptAndRawFeed(ctx, prompt.ID, rawFeedID, 1)
 		if len(posts) > 0 {
-			s.offsetRepo.UpdateLastProcessedRawPostID(ctx, prompt.ID, rawFeedID, posts[len(posts)-1].ID)
+			last := posts[len(posts)-1]
+			s.offsetRepo.UpdateLastProcessedRawPostID(ctx, prompt.ID, rawFeedID, last.ID, last.CreatedAt)
 		}
 	}
 
@@ -536,6 +545,7 @@ func (s *FeedProcessingService) processPromptForRawPostsWithLimit(ctx context.Co
 
 	createdCount := 0
 	var lastProcessedID uuid.UUID
+	var lastProcessedCreatedAt time.Time
 
 	for _, rawPost := range rawPosts {
 		if createdCount >= limit {
@@ -545,6 +555,7 @@ func (s *FeedProcessingService) processPromptForRawPostsWithLimit(ctx context.Co
 		if rawPost.ModerationAction != nil && *rawPost.ModerationAction == "block" {
 			logger.Debug().Str("raw_post_id", rawPost.ID.String()).Msg("Skipping blocked post")
 			lastProcessedID = rawPost.ID
+			lastProcessedCreatedAt = rawPost.CreatedAt
 			continue
 		}
 
@@ -561,6 +572,7 @@ func (s *FeedProcessingService) processPromptForRawPostsWithLimit(ctx context.Co
 					Str("explanation", filterResp.Explanation).
 					Msg("Post filtered out")
 				lastProcessedID = rawPost.ID
+				lastProcessedCreatedAt = rawPost.CreatedAt
 				continue
 			}
 		}
@@ -582,14 +594,22 @@ func (s *FeedProcessingService) processPromptForRawPostsWithLimit(ctx context.Co
 			sourceURLs = append(sourceURLs, sourceURL)
 		}
 
-		if err := s.postRepo.CreatePostWithSources(ctx, post, sourceURLs); err != nil {
+		inserted, err := s.postRepo.CreatePostWithSources(ctx, post, sourceURLs)
+		if err != nil {
 			logger.Error().Err(err).Str("raw_post_id", rawPost.ID.String()).Msg("Failed to create post")
+			continue
+		}
+
+		lastProcessedID = rawPost.ID
+		lastProcessedCreatedAt = rawPost.CreatedAt
+
+		if !inserted {
+			logger.Debug().Str("raw_post_id", rawPost.ID.String()).Msg("Post already exists (dedup), skipping")
 			continue
 		}
 
 		observability.IncPostsCreated("SINGLE_POST")
 		createdCount++
-		lastProcessedID = rawPost.ID
 
 		if s.publisher != nil {
 			userID, err := s.feedRepo.GetFeedOwnerID(ctx, prompt.FeedID)
@@ -608,7 +628,7 @@ func (s *FeedProcessingService) processPromptForRawPostsWithLimit(ctx context.Co
 	}
 
 	if lastProcessedID != uuid.Nil {
-		if err := s.offsetRepo.UpdateLastProcessedRawPostID(ctx, prompt.ID, rawFeedID, lastProcessedID); err != nil {
+		if err := s.offsetRepo.UpdateLastProcessedRawPostID(ctx, prompt.ID, rawFeedID, lastProcessedID, lastProcessedCreatedAt); err != nil {
 			logger.Error().Err(err).Msg("Failed to update offset")
 		}
 	}
@@ -702,10 +722,12 @@ func (s *FeedProcessingService) createPost(ctx context.Context, feedID uuid.UUID
 		}
 	}
 
+	rawPostID := rawPost.ID
 	post := &domain.Post{
 		ID:                        uuid.New(),
 		CreatedAt:                 rawPost.CreatedAt,
 		FeedID:                    feedID,
+		RawPostID:                 &rawPostID,
 		Title:                     title,
 		MediaObjects:              rawPost.MediaObjects,
 		Views:                     views,
