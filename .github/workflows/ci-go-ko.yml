@@ -42,14 +42,18 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
-          cache-dependency-path: ${{ inputs.service-path }}/go.sum
+          cache: false
 
       - name: Record build start time
         id: build_start
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Install ko
-        run: go install github.com/google/ko@latest
+        run: |
+          KO_VERSION=0.17.1
+          if [ ! -f "$GOPATH/bin/ko" ]; then
+            go install github.com/google/ko@v${KO_VERSION}
+          fi
 
       - name: Configure registry auth
         run: |

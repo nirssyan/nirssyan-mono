@@ -10,10 +10,21 @@ template:
       - name: runner
         image: ghcr.io/actions/actions-runner:latest
         command: ["/home/runner/run.sh"]
+        env:
+          - name: GOPATH
+            value: /home/runner/_cache/go
+          - name: GOCACHE
+            value: /home/runner/_cache/go-build
         volumeMounts:
           - name: work
             mountPath: /home/runner/_work
+          - name: cache
+            mountPath: /home/runner/_cache
     restartPolicy: Never
     volumes:
       - name: work
         emptyDir: {}
+      - name: cache
+        hostPath:
+          path: /var/lib/arc-runner-ko-cache
+          type: DirectoryOrCreate
