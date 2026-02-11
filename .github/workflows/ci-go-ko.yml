@@ -100,10 +100,6 @@ jobs:
           kubectl config set-context default --cluster=k8s --user=sa
           kubectl config use-context default
 
-      - name: Record deploy start time
-        id: deploy_start
-        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
-
       - name: Deploy to Kubernetes
         run: |
           kubectl rollout restart deployment/${{ inputs.deployment-name }} -n ${{ inputs.namespace }}
@@ -136,13 +132,12 @@ jobs:
           SETUP_DONE="${{ steps.setup_done.outputs.time }}"
           KO_DONE="${{ steps.ko_done.outputs.time }}"
           BUILD_END="${{ steps.build_end.outputs.time }}"
-          DEPLOY_START="${{ steps.deploy_start.outputs.time }}"
           DEPLOY_END="${{ steps.deploy_end.outputs.time }}"
 
           SETUP_TIME=$(fmt_duration $((SETUP_DONE - JOB_START)))
           KO_TIME=$(fmt_duration $((KO_DONE - SETUP_DONE)))
           BUILD_TIME=$(fmt_duration $((BUILD_END - KO_DONE)))
-          DEPLOY_TIME=$(fmt_duration $((DEPLOY_END - DEPLOY_START)))
+          DEPLOY_TIME=$(fmt_duration $((DEPLOY_END - BUILD_END)))
           TOTAL_TIME=$(fmt_duration $((DEPLOY_END - JOB_START)))
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
