@@ -479,9 +479,7 @@ func (s *FeedProcessingService) ProcessFeedInitialSyncEvent(ctx context.Context,
 	// Process initial posts from each raw feed
 	totalCreated := 0
 	for _, rawFeedID := range rawFeedIDs {
-		// Get recent posts (last 7 days, max from config for filtering)
-		since := time.Now().AddDate(0, 0, -7)
-		rawPosts, err := s.rawPostRepo.GetRecentByRawFeed(ctx, rawFeedID, since, s.cfg.InitialSyncMaxRawPosts)
+		rawPosts, err := s.rawPostRepo.GetLatestByRawFeed(ctx, rawFeedID, s.cfg.InitialSyncMaxRawPosts)
 		if err != nil {
 			logger.Error().Err(err).Str("raw_feed_id", rawFeedID.String()).Msg("Failed to get posts")
 			continue

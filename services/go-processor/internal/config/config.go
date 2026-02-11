@@ -32,7 +32,7 @@ type Config struct {
 	LLMBatchSize            int           `envconfig:"LLM_BATCH_SIZE" default:"10"`
 	LLMRequestTimeout       time.Duration `envconfig:"LLM_REQUEST_TIMEOUT" default:"30s"`
 	DBConcurrentPostWrites  int           `envconfig:"DB_CONCURRENT_POST_WRITES" default:"5"`
-	InitialSyncMaxRawPosts  int           `envconfig:"INITIAL_SYNC_MAX_RAW_POSTS" default:"100"`
+	InitialSyncMaxRawPosts  int           `envconfig:"INITIAL_SYNC_MAX_RAW_POSTS" default:"15"`
 	InitialSyncTargetPosts  int           `envconfig:"INITIAL_SYNC_TARGET_POSTS" default:"10"`
 
 	// Observability
