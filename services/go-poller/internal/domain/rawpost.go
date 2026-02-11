@@ -27,7 +27,7 @@ func NewMediaObject(url string) MediaObject {
 	urlLower := strings.ToLower(url)
 	for _, ext := range videoExtensions {
 		if strings.HasSuffix(urlLower, ext) {
-			return MediaObject{Type: "video", URL: url, PreviewURL: &url}
+			return MediaObject{Type: "video", URL: url}
 		}
 	}
 	return MediaObject{Type: "photo", URL: url}

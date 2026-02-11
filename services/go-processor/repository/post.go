@@ -46,7 +46,20 @@ func (r *PostRepository) CreatePostWithSources(ctx context.Context, post *domain
 	}
 	defer tx.Rollback(ctx)
 
-	// Create post
+	if len(sourceURLs) > 0 {
+		var exists bool
+		err := tx.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM sources WHERE feed_id = $1 AND source_url = $2)`,
+			post.FeedID, sourceURLs[0],
+		).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("check source exists: %w", err)
+		}
+		if exists {
+			return nil
+		}
+	}
+
 	postQuery := `
 		INSERT INTO posts (id, created_at, feed_id, image_url, title, media_objects, views,
 		                   moderation_action, moderation_labels, moderation_matched_entities)

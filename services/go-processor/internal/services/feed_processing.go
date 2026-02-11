@@ -724,8 +724,6 @@ func (s *FeedProcessingService) createPost(ctx context.Context, feedID uuid.UUID
 			if mo.Type == "video" || mo.Type == "animation" {
 				if mo.PreviewURL != nil {
 					post.ImageURL = mo.PreviewURL
-				} else {
-					post.ImageURL = &mo.URL
 				}
 				break
 			}
