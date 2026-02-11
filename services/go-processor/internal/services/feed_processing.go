@@ -704,7 +704,7 @@ func (s *FeedProcessingService) createPost(ctx context.Context, feedID uuid.UUID
 
 	post := &domain.Post{
 		ID:                        uuid.New(),
-		CreatedAt:                 time.Now(),
+		CreatedAt:                 rawPost.CreatedAt,
 		FeedID:                    feedID,
 		Title:                     title,
 		MediaObjects:              rawPost.MediaObjects,
