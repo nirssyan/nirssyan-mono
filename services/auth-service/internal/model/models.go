@@ -28,15 +28,16 @@ type TokenFamily struct {
 }
 
 type RefreshToken struct {
-	ID         uuid.UUID `json:"id"`
-	TokenHash  string    `json:"-"`
-	UserID     uuid.UUID `json:"user_id"`
-	FamilyID   uuid.UUID `json:"family_id"`
-	Used       bool      `json:"used"`
-	DeviceInfo *string   `json:"device_info,omitempty"`
-	IPAddress  net.IP    `json:"ip_address,omitempty"`
-	ExpiresAt  time.Time `json:"expires_at"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID         uuid.UUID  `json:"id"`
+	TokenHash  string     `json:"-"`
+	UserID     uuid.UUID  `json:"user_id"`
+	FamilyID   uuid.UUID  `json:"family_id"`
+	Used       bool       `json:"used"`
+	UsedAt     *time.Time `json:"used_at,omitempty"`
+	DeviceInfo *string    `json:"device_info,omitempty"`
+	IPAddress  net.IP     `json:"ip_address,omitempty"`
+	ExpiresAt  time.Time  `json:"expires_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 type MagicLinkToken struct {

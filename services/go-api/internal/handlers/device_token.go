@@ -52,8 +52,14 @@ func (h *DeviceTokenHandler) RegisterToken(w http.ResponseWriter, r *http.Reques
 
 	token, isNew, err := h.deviceTokenRepo.Upsert(r.Context(), userID, req.Token, req.Platform)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to register device token")
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Error().Err(err).
+			Str("user_id", userID.String()).
+			Str("platform", req.Platform).
+			Msg("Failed to register device token")
+		writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"error":   "upsert_failed",
+			"message": err.Error(),
+		})
 		return
 	}
 

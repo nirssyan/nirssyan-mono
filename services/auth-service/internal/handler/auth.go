@@ -157,6 +157,8 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error().Err(err).Msg("token refresh failed")
 
 		switch {
+		case errors.Is(err, service.ErrTokenAlreadyRefreshed):
+			h.writeError(w, http.StatusUnauthorized, "token_already_refreshed", "Token was already refreshed, use the new token")
 		case errors.Is(err, service.ErrTokenReuse):
 			h.writeError(w, http.StatusUnauthorized, "token_reuse", "Security violation: token reused")
 		case errors.Is(err, service.ErrTokenExpired):
@@ -170,6 +172,12 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	respBytes, _ := json.Marshal(resp)
+	h.logger.Info().
+		Int("status", http.StatusOK).
+		Int("body_len", len(respBytes)).
+		Msg("refresh response sent")
 
 	h.writeJSON(w, http.StatusOK, resp)
 }
