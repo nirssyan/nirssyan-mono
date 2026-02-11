@@ -12,6 +12,7 @@ experimental:
 deployment:
   kind: Deployment
   replicas: 1
+  additionalVolumes: []
   imagePullSecrets:
     - name: dockerhub-registry
 
@@ -33,12 +34,12 @@ ports:
     port: 80
     expose:
       default: true
-    redirections:
-      entryPoint:
-        to: websecure
-        scheme: https
-        permanent: true
     http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
       encodedCharacters:
         allowEncodedSlash: true
         allowEncodedQuestionMark: true
@@ -60,6 +61,23 @@ providers:
     enabled: true
   kubernetesIngress:
     enabled: true
+
+additionalVolumeMounts: []
+
+logs:
+  access:
+    enabled: true
+    format: json
+    bufferingSize: 100
+    fields:
+      general:
+        defaultmode: keep
+      headers:
+        defaultmode: drop
+        names:
+          User-Agent: keep
+          X-Forwarded-For: keep
+          X-Real-Ip: keep
 
 rbac:
   enabled: true

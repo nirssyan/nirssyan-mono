@@ -81,6 +81,7 @@ func main() {
 	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(30 * time.Second))
+	r.Use(middleware.Logging(logger))
 	r.Use(rateLimiters.Middleware)
 
 	r.Get("/healthz", healthHandler.Healthz)
