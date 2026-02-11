@@ -6,6 +6,15 @@ minRunners: 0
 
 template:
   spec:
+    initContainers:
+      - name: init-cache-perms
+        image: ghcr.io/actions/actions-runner:latest
+        command: ["sh", "-c", "mkdir -p /cache/go /cache/go-build && chown -R 1001:1001 /cache"]
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+          - name: cache
+            mountPath: /cache
     containers:
       - name: runner
         image: ghcr.io/actions/actions-runner:latest
