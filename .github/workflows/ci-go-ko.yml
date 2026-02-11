@@ -57,6 +57,9 @@ jobs:
           AUTH=$(echo -n "${{ secrets.REGISTRY_USERNAME }}:${{ secrets.REGISTRY_PASSWORD }}" | base64 -w0)
           echo "{\"auths\":{\"${{ env.REGISTRY }}\":{\"auth\":\"${AUTH}\"}}}" > ~/.docker/config.json
 
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
       - name: Build and push with ko
         env:
           KO_DOCKER_REPO: ${{ env.REGISTRY }}/${{ inputs.image-name }}
