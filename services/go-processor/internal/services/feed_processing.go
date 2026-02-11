@@ -716,17 +716,18 @@ func (s *FeedProcessingService) createPost(ctx context.Context, feedID uuid.UUID
 
 	var mediaObjects []domain.MediaObject
 	if err := json.Unmarshal(rawPost.MediaObjects, &mediaObjects); err == nil {
+		var videoPreview *string
 		for _, mo := range mediaObjects {
 			if mo.Type == "photo" || mo.Type == "image" {
 				post.ImageURL = &mo.URL
 				break
 			}
-			if mo.Type == "video" || mo.Type == "animation" {
-				if mo.PreviewURL != nil {
-					post.ImageURL = mo.PreviewURL
-				}
-				break
+			if (mo.Type == "video" || mo.Type == "animation") && mo.PreviewURL != nil && videoPreview == nil {
+				videoPreview = mo.PreviewURL
 			}
+		}
+		if post.ImageURL == nil && videoPreview != nil {
+			post.ImageURL = videoPreview
 		}
 	}
 
