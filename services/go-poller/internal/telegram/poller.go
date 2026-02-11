@@ -118,11 +118,60 @@ func (p *Poller) pollingLoop(ctx context.Context) {
 	}
 }
 
+func (p *Poller) resolveNewChannels(ctx context.Context) {
+	feeds, err := p.rawFeedRepo.GetUnresolvedTelegramFeeds(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get unresolved Telegram feeds")
+		return
+	}
+
+	if len(feeds) == 0 {
+		return
+	}
+
+	log.Info().Int("count", len(feeds)).Msg("Resolving new Telegram channels")
+
+	for _, feed := range feeds {
+		if feed.FeedURL == nil {
+			continue
+		}
+
+		username := extractUsername(*feed.FeedURL)
+		if username == "" {
+			log.Warn().Str("feed_id", feed.ID.String()).Msg("Could not extract username from feed_url")
+			continue
+		}
+
+		peer, err := p.client.ResolveUsername(ctx, username)
+		if err != nil {
+			log.Error().Err(err).Str("username", username).Msg("Failed to resolve Telegram channel")
+			continue
+		}
+
+		chatIDStr := fmt.Sprintf("-100%d", peer.ChannelID)
+		var chatID int64
+		fmt.Sscanf(chatIDStr, "%d", &chatID)
+
+		if err := p.rawFeedRepo.UpdateTelegramChatID(ctx, feed.ID, chatID, username); err != nil {
+			log.Error().Err(err).Str("username", username).Msg("Failed to update telegram chat ID")
+			continue
+		}
+
+		log.Info().
+			Str("username", username).
+			Int64("chat_id", chatID).
+			Str("feed_id", feed.ID.String()).
+			Msg("Resolved new Telegram channel")
+	}
+}
+
 func (p *Poller) pollAllChannels(ctx context.Context) {
 	if !p.client.IsConnected() {
 		log.Warn().Msg("Telegram client not connected, skipping poll cycle")
 		return
 	}
+
+	p.resolveNewChannels(ctx)
 
 	tierIntervals := p.cfg.TelegramTierIntervals()
 	feeds, err := p.rawFeedRepo.GetTelegramFeedsDueForPoll(

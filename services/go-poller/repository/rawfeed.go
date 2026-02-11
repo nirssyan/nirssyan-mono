@@ -430,6 +430,41 @@ func (r *RawFeedRepository) UpdateFloodWaitAt(ctx context.Context, feedID uuid.U
 	return nil
 }
 
+func (r *RawFeedRepository) GetUnresolvedTelegramFeeds(ctx context.Context) ([]domain.RawFeed, error) {
+	query := `
+		SELECT
+			id, name, raw_type, feed_url, site_url, image_url,
+			telegram_chat_id, telegram_username,
+			last_execution, last_polled_at, last_message_id,
+			poll_error_count, polling_tier, priority_boost_until, last_flood_wait_at, created_at
+		FROM raw_feeds
+		WHERE raw_type = 'TELEGRAM' AND telegram_chat_id IS NULL
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query unresolved telegram feeds: %w", err)
+	}
+	defer rows.Close()
+
+	return scanRawFeeds(rows)
+}
+
+func (r *RawFeedRepository) UpdateTelegramChatID(ctx context.Context, feedID uuid.UUID, chatID int64, username string) error {
+	query := `
+		UPDATE raw_feeds
+		SET telegram_chat_id = $2, telegram_username = $3
+		WHERE id = $1
+	`
+
+	_, err := r.pool.Exec(ctx, query, feedID, chatID, username)
+	if err != nil {
+		return fmt.Errorf("update telegram chat id: %w", err)
+	}
+
+	return nil
+}
+
 func (r *RawFeedRepository) GetNextPollTime(ctx context.Context, feedID uuid.UUID, intervalSeconds int) (*time.Time, error) {
 	feed, err := r.GetByID(ctx, feedID)
 	if err != nil {
