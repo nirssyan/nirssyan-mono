@@ -35,6 +35,10 @@ jobs:
   build-and-deploy:
     runs-on: infatium-ko
     steps:
+      - name: Record job start time
+        id: job_start
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -44,8 +48,8 @@ jobs:
           go-version: '1.24'
           cache: false
 
-      - name: Record build start time
-        id: build_start
+      - name: Record setup done time
+        id: setup_done
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Install ko
@@ -54,6 +58,10 @@ jobs:
           if [ ! -f "$GOPATH/bin/ko" ]; then
             go install github.com/google/ko@v${KO_VERSION}
           fi
+
+      - name: Record ko installed time
+        id: ko_done
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Configure registry auth
         run: |
@@ -118,31 +126,24 @@ jobs:
 
           COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 100 | sed 's/"/\\"/g')
 
-          BUILD_START="${{ steps.build_start.outputs.time }}"
+          fmt_duration() {
+            local d=$1
+            if [[ -z "$d" ]]; then echo "N/A"; return; fi
+            echo "$((d / 60))m $((d % 60))s"
+          }
+
+          JOB_START="${{ steps.job_start.outputs.time }}"
+          SETUP_DONE="${{ steps.setup_done.outputs.time }}"
+          KO_DONE="${{ steps.ko_done.outputs.time }}"
           BUILD_END="${{ steps.build_end.outputs.time }}"
           DEPLOY_START="${{ steps.deploy_start.outputs.time }}"
           DEPLOY_END="${{ steps.deploy_end.outputs.time }}"
 
-          if [[ -n "$BUILD_START" && -n "$BUILD_END" ]]; then
-            BUILD_DURATION=$((BUILD_END - BUILD_START))
-            BUILD_TIME="$((BUILD_DURATION / 60))m $((BUILD_DURATION % 60))s"
-          else
-            BUILD_TIME="N/A"
-          fi
-
-          if [[ -n "$DEPLOY_START" && -n "$DEPLOY_END" ]]; then
-            DEPLOY_DURATION=$((DEPLOY_END - DEPLOY_START))
-            DEPLOY_TIME="$((DEPLOY_DURATION / 60))m $((DEPLOY_DURATION % 60))s"
-          else
-            DEPLOY_TIME="N/A"
-          fi
-
-          if [[ -n "$BUILD_START" && -n "$DEPLOY_END" ]]; then
-            TOTAL_DURATION=$((DEPLOY_END - BUILD_START))
-            TOTAL_TIME="$((TOTAL_DURATION / 60))m $((TOTAL_DURATION % 60))s"
-          else
-            TOTAL_TIME="N/A"
-          fi
+          SETUP_TIME=$(fmt_duration $((SETUP_DONE - JOB_START)))
+          KO_TIME=$(fmt_duration $((KO_DONE - SETUP_DONE)))
+          BUILD_TIME=$(fmt_duration $((BUILD_END - KO_DONE)))
+          DEPLOY_TIME=$(fmt_duration $((DEPLOY_END - DEPLOY_START)))
+          TOTAL_TIME=$(fmt_duration $((DEPLOY_END - JOB_START)))
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
@@ -150,5 +151,5 @@ jobs:
               \"chat_id\": \"-1002622491758\",
               \"message_thread_id\": 504,
               \"parse_mode\": \"HTML\",
-              \"text\": \"${STATUS} <b>${{ inputs.service-name }} DEV</b>\n\n📦 Image: ${{ inputs.image-name }}:dev (ko)\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\n\n⏱️ <b>Время:</b>\n   Build: ${BUILD_TIME}\n   Deploy: ${DEPLOY_TIME}\n   <b>Всего: ${TOTAL_TIME}</b>\"
+              \"text\": \"${STATUS} <b>${{ inputs.service-name }} DEV</b>\n\n📦 Image: ${{ inputs.image-name }}:dev (ko)\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\n\n⏱️ <b>Время:</b>\n   Setup Go: ${SETUP_TIME}\n   Install ko: ${KO_TIME}\n   Build+Push: ${BUILD_TIME}\n   Deploy: ${DEPLOY_TIME}\n   <b>Всего: ${TOTAL_TIME}</b>\"
             }"
