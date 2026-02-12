@@ -355,12 +355,14 @@ func (s *FeedProcessingService) processDigest(ctx context.Context, prompt domain
 	}
 
 	post := &domain.Post{
-		ID:           uuid.New(),
-		CreatedAt:    time.Now(),
-		FeedID:       prompt.FeedID,
-		Title:        &summaryResp.Title,
-		MediaObjects: json.RawMessage("[]"),
-		Views:        postViews,
+		ID:                        uuid.New(),
+		CreatedAt:                 time.Now(),
+		FeedID:                    prompt.FeedID,
+		Title:                     &summaryResp.Title,
+		MediaObjects:              json.RawMessage("[]"),
+		Views:                     postViews,
+		ModerationLabels:          []string{},
+		ModerationMatchedEntities: json.RawMessage("[]"),
 	}
 
 	if err := s.postRepo.CreatePost(ctx, post); err != nil {
