@@ -44,6 +44,12 @@ spec:
               value: "http://email-templates-server/email_change.html"
             - name: GOTRUE_MAILER_TEMPLATES_INVITE
               value: "http://email-templates-server/invite.html"
+            - name: GOTRUE_MAILER_EXTERNAL_HOSTS
+              value: "supabase.infatium.ru"
+            - name: GOTRUE_EXTERNAL_APPLE_REDIRECT_URI
+              value: "https://supabase.infatium.ru/auth/v1/callback"
+            - name: GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI
+              value: "https://supabase.infatium.ru/auth/v1/callback"
           resources:
             requests:
               cpu: 10m
