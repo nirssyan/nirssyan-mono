@@ -35,14 +35,14 @@ jobs:
         id: ko_done
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
-      - name: Build go-api with ko (no push)
+      - name: Build go-api with ko (tarball, no docker)
         env:
           KO_DOCKER_REPO: ko.local
           KO_DEFAULTBASEIMAGE: alpine:3.21
           GOFLAGS: "-trimpath -buildvcs=false"
           CGO_ENABLED: "0"
         working-directory: services/go-api
-        run: ko build --local --platform=linux/amd64 --sbom=none ./cmd/api
+        run: ko build --tarball=/tmp/go-api.tar --platform=linux/amd64 --sbom=none ./cmd/api
 
       - name: Record build done
         id: build_done
@@ -96,14 +96,14 @@ jobs:
         id: ko_done
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
-      - name: Build go-api with ko (no push)
+      - name: Build go-api with ko (tarball, no docker)
         env:
           KO_DOCKER_REPO: ko.local
           KO_DEFAULTBASEIMAGE: alpine:3.21
           GOFLAGS: "-trimpath -buildvcs=false"
           CGO_ENABLED: "0"
         working-directory: services/go-api
-        run: ko build --local --platform=linux/amd64 --sbom=none ./cmd/api
+        run: ko build --tarball=/tmp/go-api.tar --platform=linux/amd64 --sbom=none ./cmd/api
 
       - name: Record build done
         id: build_done
