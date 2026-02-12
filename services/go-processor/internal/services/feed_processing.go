@@ -298,31 +298,36 @@ func (s *FeedProcessingService) ProcessDigestEvent(ctx context.Context, event do
 		return nil
 	}
 
-	// Extract content for summarization
+	return s.processDigest(ctx, *prompt, allPosts, rawFeedIDs)
+}
+
+// processDigest creates a digest post from a collection of raw posts
+func (s *FeedProcessingService) processDigest(ctx context.Context, prompt domain.Prompt, allPosts []domain.RawPost, rawFeedIDs []uuid.UUID) error {
+	logger := log.With().
+		Str("prompt_id", prompt.ID.String()).
+		Str("feed_id", prompt.FeedID.String()).
+		Logger()
+
 	var contents []string
 	for _, p := range allPosts {
 		contents = append(contents, p.Content)
 	}
 
-	// Extract filter prompt for user_prompt
 	filterPrompt, _ := s.extractFilterPrompt(prompt.FiltersConfig)
 	if filterPrompt == "" {
 		filterPrompt = "Summarize the following posts"
 	}
 
-	// Call summary agent
 	summaryResp, err := s.agentsClient.SummarizePosts(ctx, filterPrompt, contents, "Digest", nil, "")
 	if err != nil {
 		return fmt.Errorf("summarize posts: %w", err)
 	}
 
-	// Create digest post
 	views, _ := s.parseViewsConfig(prompt.ViewsConfig)
 	postViews, _ := json.Marshal(map[string]string{
 		"default": summaryResp.Summary,
 	})
 
-	// Generate additional views in parallel
 	if len(views) > 0 {
 		var (
 			mu       sync.Mutex
@@ -364,7 +369,6 @@ func (s *FeedProcessingService) ProcessDigestEvent(ctx context.Context, event do
 
 	observability.IncPostsCreated("DIGEST")
 
-	// Publish post.created event for WebSocket notifications
 	if s.publisher != nil {
 		userID, err := s.feedRepo.GetFeedOwnerID(ctx, prompt.FeedID)
 		if err != nil {
@@ -384,7 +388,6 @@ func (s *FeedProcessingService) ProcessDigestEvent(ctx context.Context, event do
 		}
 	}
 
-	// Update last execution
 	s.promptRepo.UpdateLastExecution(ctx, prompt.ID)
 
 	logger.Info().
@@ -509,26 +512,46 @@ func (s *FeedProcessingService) ProcessFeedInitialSyncEvent(ctx context.Context,
 
 	// Process initial posts from each raw feed
 	totalCreated := 0
-	for _, rawFeedID := range rawFeedIDs {
-		rawPosts, err := s.rawPostRepo.GetLatestByRawFeed(ctx, rawFeedID, s.cfg.InitialSyncMaxRawPosts)
-		if err != nil {
-			logger.Error().Err(err).Str("raw_feed_id", rawFeedID.String()).Msg("Failed to get posts")
-			continue
-		}
 
-		if len(rawPosts) == 0 {
-			continue
+	if prompt.FeedType == "DIGEST" {
+		var allPosts []domain.RawPost
+		for _, rawFeedID := range rawFeedIDs {
+			rawPosts, err := s.rawPostRepo.GetLatestByRawFeed(ctx, rawFeedID, s.cfg.InitialSyncMaxRawPosts)
+			if err != nil {
+				logger.Error().Err(err).Str("raw_feed_id", rawFeedID.String()).Msg("Failed to get posts")
+				continue
+			}
+			allPosts = append(allPosts, rawPosts...)
 		}
-
-		created, err := s.processPromptForRawPostsWithLimit(ctx, *prompt, rawPosts, rawFeedID, s.cfg.InitialSyncTargetPosts-totalCreated)
-		if err != nil {
-			logger.Error().Err(err).Msg("Failed to process initial posts")
+		if len(allPosts) > 0 {
+			if err := s.processDigest(ctx, *prompt, allPosts, rawFeedIDs); err != nil {
+				logger.Error().Err(err).Msg("Failed to create initial digest")
+			} else {
+				totalCreated = 1
+			}
 		}
-		totalCreated += created
+	} else {
+		for _, rawFeedID := range rawFeedIDs {
+			rawPosts, err := s.rawPostRepo.GetLatestByRawFeed(ctx, rawFeedID, s.cfg.InitialSyncMaxRawPosts)
+			if err != nil {
+				logger.Error().Err(err).Str("raw_feed_id", rawFeedID.String()).Msg("Failed to get posts")
+				continue
+			}
 
-		if totalCreated >= s.cfg.InitialSyncTargetPosts {
-			logger.Info().Int("created", totalCreated).Msg("Reached initial sync target, stopping")
-			break
+			if len(rawPosts) == 0 {
+				continue
+			}
+
+			created, err := s.processPromptForRawPostsWithLimit(ctx, *prompt, rawPosts, rawFeedID, s.cfg.InitialSyncTargetPosts-totalCreated)
+			if err != nil {
+				logger.Error().Err(err).Msg("Failed to process initial posts")
+			}
+			totalCreated += created
+
+			if totalCreated >= s.cfg.InitialSyncTargetPosts {
+				logger.Info().Int("created", totalCreated).Msg("Reached initial sync target, stopping")
+				break
+			}
 		}
 	}
 
