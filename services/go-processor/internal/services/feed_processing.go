@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/MargoRSq/infatium-mono/services/go-processor/internal/clients"
 	"github.com/MargoRSq/infatium-mono/services/go-processor/internal/config"
 	"github.com/MargoRSq/infatium-mono/services/go-processor/internal/domain"
@@ -128,6 +131,13 @@ func (s *FeedProcessingService) processPromptForRawPosts(ctx context.Context, pr
 	}
 }
 
+type postResult struct {
+	post       *domain.Post
+	rawPost    domain.RawPost
+	inserted   bool
+	sourceURLs []string
+}
+
 // processSinglePostPrompt processes posts for SINGLE_POST feed type
 func (s *FeedProcessingService) processSinglePostPrompt(ctx context.Context, prompt domain.Prompt, rawPosts []domain.RawPost, rawFeedID uuid.UUID) error {
 	logger := log.With().
@@ -135,108 +145,103 @@ func (s *FeedProcessingService) processSinglePostPrompt(ctx context.Context, pro
 		Str("feed_id", prompt.FeedID.String()).
 		Logger()
 
-	// Parse filters config to get filter prompt
 	filterPrompt, err := s.extractFilterPrompt(prompt.FiltersConfig)
 	if err != nil {
 		return fmt.Errorf("extract filter prompt: %w", err)
 	}
 
-	// Parse views config
 	views, err := s.parseViewsConfig(prompt.ViewsConfig)
 	if err != nil {
 		return fmt.Errorf("parse views config: %w", err)
 	}
 
-	createdCount := 0
-	var lastProcessedID uuid.UUID
-	var lastProcessedCreatedAt time.Time
+	var userID uuid.UUID
+	if s.publisher != nil {
+		userID, err = s.feedRepo.GetFeedOwnerID(ctx, prompt.FeedID)
+		if err != nil {
+			logger.Warn().Err(err).Msg("Failed to get feed owner for notification")
+		}
+	}
+
+	var (
+		mu      sync.Mutex
+		results []postResult
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(s.cfg.LLMConcurrentRequests)
 
 	for _, rawPost := range rawPosts {
-		if rawPost.ModerationAction != nil && *rawPost.ModerationAction == "block" {
-			logger.Debug().
-				Str("raw_post_id", rawPost.ID.String()).
-				Msg("Skipping blocked post")
-			lastProcessedID = rawPost.ID
-			lastProcessedCreatedAt = rawPost.CreatedAt
-			continue
-		}
+		rp := rawPost
+		g.Go(func() error {
+			if rp.ModerationAction != nil && *rp.ModerationAction == "block" {
+				logger.Debug().Str("raw_post_id", rp.ID.String()).Msg("Skipping blocked post")
+				mu.Lock()
+				results = append(results, postResult{rawPost: rp})
+				mu.Unlock()
+				return nil
+			}
 
-		// Evaluate post against filter
-		if filterPrompt != "" {
-			filterResp, err := s.agentsClient.EvaluatePost(ctx, filterPrompt, rawPost.Content, nil, "")
+			if filterPrompt != "" {
+				filterResp, err := s.agentsClient.EvaluatePost(gctx, filterPrompt, rp.Content, nil, "")
+				if err != nil {
+					logger.Error().Err(err).Str("raw_post_id", rp.ID.String()).Msg("Failed to evaluate post")
+					return nil
+				}
+				if !filterResp.Result {
+					logger.Debug().Str("raw_post_id", rp.ID.String()).Str("explanation", filterResp.Explanation).Msg("Post filtered out")
+					mu.Lock()
+					results = append(results, postResult{rawPost: rp})
+					mu.Unlock()
+					return nil
+				}
+			}
+
+			post, err := s.processPostAICalls(gctx, rp, views, prompt.FeedID)
 			if err != nil {
-				logger.Error().Err(err).
-					Str("raw_post_id", rawPost.ID.String()).
-					Msg("Failed to evaluate post")
-				continue
+				logger.Error().Err(err).Str("raw_post_id", rp.ID.String()).Msg("Failed to process post AI calls")
+				return nil
 			}
 
-			if !filterResp.Result {
-				logger.Debug().
-					Str("raw_post_id", rawPost.ID.String()).
-					Str("explanation", filterResp.Explanation).
-					Msg("Post filtered out")
-				lastProcessedID = rawPost.ID
-				lastProcessedCreatedAt = rawPost.CreatedAt
-				continue
+			var sourceURLs []string
+			if rp.SourceURL != nil && *rp.SourceURL != "" {
+				sourceURLs = append(sourceURLs, *rp.SourceURL)
 			}
-		}
 
-		// Generate views for the post
-		postViews, err := s.generatePostViews(ctx, rawPost, views)
-		if err != nil {
-			logger.Error().Err(err).
-				Str("raw_post_id", rawPost.ID.String()).
-				Msg("Failed to generate views")
+			inserted, err := s.postRepo.CreatePostWithSources(gctx, post, sourceURLs)
+			if err != nil {
+				logger.Error().Err(err).Str("raw_post_id", rp.ID.String()).Msg("Failed to create post")
+				return nil
+			}
+
+			mu.Lock()
+			results = append(results, postResult{post: post, rawPost: rp, inserted: inserted, sourceURLs: sourceURLs})
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	_ = g.Wait()
+
+	var lastProcessedCreatedAt time.Time
+	var lastProcessedID uuid.UUID
+	createdCount := 0
+
+	for _, r := range results {
+		if r.rawPost.CreatedAt.After(lastProcessedCreatedAt) {
+			lastProcessedCreatedAt = r.rawPost.CreatedAt
+			lastProcessedID = r.rawPost.ID
+		}
+		if r.post == nil || !r.inserted {
 			continue
 		}
-
-		// Create post with AI-generated title
-		post := s.createPost(ctx, prompt.FeedID, rawPost, postViews)
-		sourceURL := ""
-		if rawPost.SourceURL != nil {
-			sourceURL = *rawPost.SourceURL
-		}
-
-		var sourceURLs []string
-		if sourceURL != "" {
-			sourceURLs = append(sourceURLs, sourceURL)
-		}
-
-		inserted, err := s.postRepo.CreatePostWithSources(ctx, post, sourceURLs)
-		if err != nil {
-			logger.Error().Err(err).
-				Str("raw_post_id", rawPost.ID.String()).
-				Msg("Failed to create post")
-			continue
-		}
-
-		lastProcessedID = rawPost.ID
-		lastProcessedCreatedAt = rawPost.CreatedAt
-
-		if !inserted {
-			logger.Debug().
-				Str("raw_post_id", rawPost.ID.String()).
-				Msg("Post already exists (dedup), skipping")
-			continue
-		}
-
 		observability.IncPostsCreated("SINGLE_POST")
 		createdCount++
 
-		if s.publisher != nil {
-			userID, err := s.feedRepo.GetFeedOwnerID(ctx, prompt.FeedID)
-			if err != nil {
-				logger.Warn().Err(err).Msg("Failed to get feed owner for notification")
-			} else if userID != uuid.Nil {
-				if err := s.publisher.PublishPostCreated(post.ID, prompt.FeedID, userID); err != nil {
-					logger.Warn().Err(err).Msg("Failed to publish post.created event")
-				}
+		if s.publisher != nil && userID != uuid.Nil {
+			if err := s.publisher.PublishPostCreated(r.post.ID, prompt.FeedID, userID); err != nil {
+				logger.Warn().Err(err).Msg("Failed to publish post.created event")
 			}
-		}
-
-		if s.cfg.ProcessingDelaySeconds > 0 {
-			time.Sleep(time.Duration(s.cfg.ProcessingDelaySeconds * float64(time.Second)))
 		}
 	}
 
@@ -543,87 +548,93 @@ func (s *FeedProcessingService) processPromptForRawPostsWithLimit(ctx context.Co
 		return 0, fmt.Errorf("parse views config: %w", err)
 	}
 
-	createdCount := 0
-	var lastProcessedID uuid.UUID
-	var lastProcessedCreatedAt time.Time
+	var userID uuid.UUID
+	if s.publisher != nil {
+		userID, err = s.feedRepo.GetFeedOwnerID(ctx, prompt.FeedID)
+		if err != nil {
+			logger.Warn().Err(err).Msg("Failed to get feed owner for notification")
+		}
+	}
+
+	var (
+		mu      sync.Mutex
+		results []postResult
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(s.cfg.LLMConcurrentRequests)
 
 	for _, rawPost := range rawPosts {
-		if createdCount >= limit {
-			break
-		}
+		rp := rawPost
+		g.Go(func() error {
+			if rp.ModerationAction != nil && *rp.ModerationAction == "block" {
+				logger.Debug().Str("raw_post_id", rp.ID.String()).Msg("Skipping blocked post")
+				mu.Lock()
+				results = append(results, postResult{rawPost: rp})
+				mu.Unlock()
+				return nil
+			}
 
-		if rawPost.ModerationAction != nil && *rawPost.ModerationAction == "block" {
-			logger.Debug().Str("raw_post_id", rawPost.ID.String()).Msg("Skipping blocked post")
-			lastProcessedID = rawPost.ID
-			lastProcessedCreatedAt = rawPost.CreatedAt
-			continue
-		}
+			if filterPrompt != "" {
+				filterResp, err := s.agentsClient.EvaluatePost(gctx, filterPrompt, rp.Content, nil, "")
+				if err != nil {
+					logger.Error().Err(err).Str("raw_post_id", rp.ID.String()).Msg("Failed to evaluate post")
+					return nil
+				}
+				if !filterResp.Result {
+					logger.Debug().Str("raw_post_id", rp.ID.String()).Str("explanation", filterResp.Explanation).Msg("Post filtered out")
+					mu.Lock()
+					results = append(results, postResult{rawPost: rp})
+					mu.Unlock()
+					return nil
+				}
+			}
 
-		if filterPrompt != "" {
-			filterResp, err := s.agentsClient.EvaluatePost(ctx, filterPrompt, rawPost.Content, nil, "")
+			post, err := s.processPostAICalls(gctx, rp, views, prompt.FeedID)
 			if err != nil {
-				logger.Error().Err(err).Str("raw_post_id", rawPost.ID.String()).Msg("Failed to evaluate post")
-				continue
+				logger.Error().Err(err).Str("raw_post_id", rp.ID.String()).Msg("Failed to process post AI calls")
+				return nil
 			}
 
-			if !filterResp.Result {
-				logger.Debug().
-					Str("raw_post_id", rawPost.ID.String()).
-					Str("explanation", filterResp.Explanation).
-					Msg("Post filtered out")
-				lastProcessedID = rawPost.ID
-				lastProcessedCreatedAt = rawPost.CreatedAt
-				continue
+			var sourceURLs []string
+			if rp.SourceURL != nil && *rp.SourceURL != "" {
+				sourceURLs = append(sourceURLs, *rp.SourceURL)
 			}
-		}
 
-		postViews, err := s.generatePostViews(ctx, rawPost, views)
-		if err != nil {
-			logger.Error().Err(err).Str("raw_post_id", rawPost.ID.String()).Msg("Failed to generate views")
+			inserted, err := s.postRepo.CreatePostWithSources(gctx, post, sourceURLs)
+			if err != nil {
+				logger.Error().Err(err).Str("raw_post_id", rp.ID.String()).Msg("Failed to create post")
+				return nil
+			}
+
+			mu.Lock()
+			results = append(results, postResult{post: post, rawPost: rp, inserted: inserted, sourceURLs: sourceURLs})
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	_ = g.Wait()
+
+	var lastProcessedCreatedAt time.Time
+	var lastProcessedID uuid.UUID
+	createdCount := 0
+
+	for _, r := range results {
+		if r.rawPost.CreatedAt.After(lastProcessedCreatedAt) {
+			lastProcessedCreatedAt = r.rawPost.CreatedAt
+			lastProcessedID = r.rawPost.ID
+		}
+		if r.post == nil || !r.inserted {
 			continue
 		}
-
-		post := s.createPost(ctx, prompt.FeedID, rawPost, postViews)
-		sourceURL := ""
-		if rawPost.SourceURL != nil {
-			sourceURL = *rawPost.SourceURL
-		}
-
-		var sourceURLs []string
-		if sourceURL != "" {
-			sourceURLs = append(sourceURLs, sourceURL)
-		}
-
-		inserted, err := s.postRepo.CreatePostWithSources(ctx, post, sourceURLs)
-		if err != nil {
-			logger.Error().Err(err).Str("raw_post_id", rawPost.ID.String()).Msg("Failed to create post")
-			continue
-		}
-
-		lastProcessedID = rawPost.ID
-		lastProcessedCreatedAt = rawPost.CreatedAt
-
-		if !inserted {
-			logger.Debug().Str("raw_post_id", rawPost.ID.String()).Msg("Post already exists (dedup), skipping")
-			continue
-		}
-
 		observability.IncPostsCreated("SINGLE_POST")
 		createdCount++
 
-		if s.publisher != nil {
-			userID, err := s.feedRepo.GetFeedOwnerID(ctx, prompt.FeedID)
-			if err != nil {
-				logger.Warn().Err(err).Msg("Failed to get feed owner for notification")
-			} else if userID != uuid.Nil {
-				if err := s.publisher.PublishPostCreated(post.ID, prompt.FeedID, userID); err != nil {
-					logger.Warn().Err(err).Msg("Failed to publish post.created event")
-				}
+		if s.publisher != nil && userID != uuid.Nil {
+			if err := s.publisher.PublishPostCreated(r.post.ID, prompt.FeedID, userID); err != nil {
+				logger.Warn().Err(err).Msg("Failed to publish post.created event")
 			}
-		}
-
-		if s.cfg.ProcessingDelaySeconds > 0 {
-			time.Sleep(time.Duration(s.cfg.ProcessingDelaySeconds * float64(time.Second)))
 		}
 	}
 
@@ -693,33 +704,63 @@ func (s *FeedProcessingService) parseViewsConfig(viewsConfig json.RawMessage) ([
 	return views, nil
 }
 
-func (s *FeedProcessingService) generatePostViews(ctx context.Context, rawPost domain.RawPost, views []domain.View) (json.RawMessage, error) {
-	result := map[string]string{
-		"default": rawPost.Content,
-	}
+func (s *FeedProcessingService) generatePostViewsParallel(ctx context.Context, rawPost domain.RawPost, views []domain.View) (json.RawMessage, error) {
+	var (
+		mu     sync.Mutex
+		result = map[string]string{"default": rawPost.Content}
+	)
 
+	g, gctx := errgroup.WithContext(ctx)
 	for _, view := range views {
-		viewResp, err := s.agentsClient.GenerateView(ctx, rawPost.Content, view.Prompt, nil, "")
-		if err != nil {
-			log.Warn().Err(err).Str("view", view.Name.En).Msg("Failed to generate view")
-			continue
-		}
-		result[view.Name.En] = viewResp.Content
+		v := view
+		g.Go(func() error {
+			viewResp, err := s.agentsClient.GenerateView(gctx, rawPost.Content, v.Prompt, nil, "")
+			if err != nil {
+				log.Warn().Err(err).Str("view", v.Name.En).Msg("Failed to generate view")
+				return nil
+			}
+			mu.Lock()
+			result[v.Name.En] = viewResp.Content
+			mu.Unlock()
+			return nil
+		})
 	}
+	_ = g.Wait()
 
 	return json.Marshal(result)
 }
 
-func (s *FeedProcessingService) createPost(ctx context.Context, feedID uuid.UUID, rawPost domain.RawPost, views json.RawMessage) *domain.Post {
-	// Generate AI title if content available
-	title := rawPost.Title
-	if rawPost.Content != "" {
-		titleResp, err := s.agentsClient.GeneratePostTitle(ctx, rawPost.Content, nil, "")
+func (s *FeedProcessingService) processPostAICalls(ctx context.Context, rawPost domain.RawPost, views []domain.View, feedID uuid.UUID) (*domain.Post, error) {
+	var (
+		postViews json.RawMessage
+		title     = rawPost.Title
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		v, err := s.generatePostViewsParallel(gctx, rawPost, views)
 		if err != nil {
-			log.Warn().Err(err).Str("raw_post_id", rawPost.ID.String()).Msg("Failed to generate AI title, using raw title")
-		} else {
-			title = &titleResp.Title
+			return fmt.Errorf("generate views: %w", err)
 		}
+		postViews = v
+		return nil
+	})
+
+	if rawPost.Content != "" {
+		g.Go(func() error {
+			titleResp, err := s.agentsClient.GeneratePostTitle(gctx, rawPost.Content, nil, "")
+			if err != nil {
+				log.Warn().Err(err).Str("raw_post_id", rawPost.ID.String()).Msg("Failed to generate AI title, using raw title")
+				return nil
+			}
+			title = &titleResp.Title
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
 	rawPostID := rawPost.ID
@@ -730,7 +771,7 @@ func (s *FeedProcessingService) createPost(ctx context.Context, feedID uuid.UUID
 		RawPostID:                 &rawPostID,
 		Title:                     title,
 		MediaObjects:              rawPost.MediaObjects,
-		Views:                     views,
+		Views:                     postViews,
 		ModerationAction:          rawPost.ModerationAction,
 		ModerationLabels:          rawPost.ModerationLabels,
 		ModerationMatchedEntities: rawPost.ModerationMatchedEntities,
@@ -753,5 +794,5 @@ func (s *FeedProcessingService) createPost(ctx context.Context, feedID uuid.UUID
 		}
 	}
 
-	return post
+	return post, nil
 }
