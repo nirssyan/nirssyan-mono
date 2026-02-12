@@ -240,7 +240,7 @@ func (c *Consumer) SetupFeedCreatedConsumer(ctx context.Context, handler FeedCre
 
 	c.consumers = append(c.consumers, consumer)
 
-	go c.consume(ctx, consumer, "feed_created", func(ctx context.Context, msg jetstream.Msg) error {
+	go c.consumeWithInProgress(ctx, consumer, "feed_created", func(ctx context.Context, msg jetstream.Msg) error {
 		var event domain.FeedCreatedEvent
 		if err := json.Unmarshal(msg.Data(), &event); err != nil {
 			log.Error().Err(err).Msg("Failed to unmarshal feed created event")

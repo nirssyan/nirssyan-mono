@@ -322,17 +322,30 @@ func (s *FeedProcessingService) ProcessDigestEvent(ctx context.Context, event do
 		"default": summaryResp.Summary,
 	})
 
-	// Generate additional views
-	for _, view := range views {
-		viewResp, err := s.agentsClient.GenerateView(ctx, summaryResp.Summary, view.Prompt, nil, "")
-		if err != nil {
-			logger.Warn().Err(err).Str("view", view.Name.En).Msg("Failed to generate view")
-			continue
-		}
-
-		var viewsMap map[string]string
+	// Generate additional views in parallel
+	if len(views) > 0 {
+		var (
+			mu       sync.Mutex
+			viewsMap map[string]string
+		)
 		json.Unmarshal(postViews, &viewsMap)
-		viewsMap[view.Name.En] = viewResp.Content
+
+		g, gctx := errgroup.WithContext(ctx)
+		for _, view := range views {
+			v := view
+			g.Go(func() error {
+				viewResp, err := s.agentsClient.GenerateView(gctx, summaryResp.Summary, v.Prompt, nil, "")
+				if err != nil {
+					logger.Warn().Err(err).Str("view", v.Name.En).Msg("Failed to generate view")
+					return nil
+				}
+				mu.Lock()
+				viewsMap[v.Name.En] = viewResp.Content
+				mu.Unlock()
+				return nil
+			})
+		}
+		g.Wait()
 		postViews, _ = json.Marshal(viewsMap)
 	}
 
@@ -412,7 +425,7 @@ func (s *FeedProcessingService) ProcessFeedCreatedEvent(ctx context.Context, eve
 		}
 	}
 
-	// Transform views and filters if provided
+	// Transform views and filters asynchronously — don't block feed creation and initial sync
 	if len(event.ViewsRaw) > 0 || len(event.FiltersRaw) > 0 {
 		var viewsRaw, filtersRaw []string
 		for _, v := range event.ViewsRaw {
@@ -427,19 +440,23 @@ func (s *FeedProcessingService) ProcessFeedCreatedEvent(ctx context.Context, eve
 		}
 
 		if len(viewsRaw) > 0 || len(filtersRaw) > 0 {
-			transformResp, err := s.agentsClient.TransformViewsAndFilters(ctx, viewsRaw, filtersRaw, nil, nil, "")
-			if err != nil {
-				logger.Warn().Err(err).Msg("Failed to transform views/filters")
-			} else {
+			go func() {
+				bgCtx := context.Background()
+				transformResp, err := s.agentsClient.TransformViewsAndFilters(bgCtx, viewsRaw, filtersRaw, nil, nil, "")
+				if err != nil {
+					logger.Warn().Err(err).Msg("Failed to transform views/filters (async)")
+					return
+				}
 				if len(transformResp.Views) > 0 {
 					viewsConfig, _ := json.Marshal(transformResp.Views)
-					s.promptRepo.UpdateViewsConfig(ctx, event.PromptID, viewsConfig)
+					s.promptRepo.UpdateViewsConfig(bgCtx, event.PromptID, viewsConfig)
 				}
 				if len(transformResp.Filters) > 0 {
 					filtersConfig, _ := json.Marshal(transformResp.Filters)
-					s.promptRepo.UpdateFiltersConfig(ctx, event.PromptID, filtersConfig)
+					s.promptRepo.UpdateFiltersConfig(bgCtx, event.PromptID, filtersConfig)
 				}
-			}
+				logger.Info().Msg("Views/filters transformed successfully (async)")
+			}()
 		}
 	}
 

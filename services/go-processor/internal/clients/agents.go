@@ -372,7 +372,9 @@ func (c *AgentsClient) TransformViewsAndFilters(ctx context.Context, views, filt
 		headers["X-Request-ID"] = requestID
 	}
 
-	resp, err := c.requester.RequestWithRetry(ctx, SubjectViewPromptTransformer, req, c.timeout, headers, c.maxRetries, c.retryBaseDelay)
+	timeout := 30 * time.Second
+	maxRetries := 2
+	resp, err := c.requester.RequestWithRetry(ctx, SubjectViewPromptTransformer, req, timeout, headers, maxRetries, c.retryBaseDelay)
 	if err != nil {
 		return nil, fmt.Errorf("transform views and filters: %w", err)
 	}
