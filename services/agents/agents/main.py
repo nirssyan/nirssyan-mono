@@ -7,6 +7,7 @@ Uses FastStream for NATS messaging.
 """
 
 import asyncio
+import logging
 import signal
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -34,7 +35,8 @@ from .utils.db import get_db_engine, set_db_engine
 
 def create_agents_broker() -> NatsBroker:
     middlewares = (NatsTelemetryMiddleware(),) if settings.otel_enabled else ()
-    return NatsBroker(settings.nats_url, logger=None, middlewares=middlewares)
+    faststream_logger = logging.getLogger("faststream")
+    return NatsBroker(settings.nats_url, logger=faststream_logger, middlewares=middlewares)
 
 
 class AgentsApp:

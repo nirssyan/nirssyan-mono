@@ -198,8 +198,8 @@ class FilterConfig(BaseModel):
 class ViewPromptTransformerRequest(BaseModel):
     """Request for ViewPromptTransformerAgent.transform."""
 
-    views: list[str]
-    filters: list[str]
+    views: list[str] = Field(default_factory=list)
+    filters: list[str] = Field(default_factory=list)
     context_posts: list[str] | None = None
     user_id: str | None = None
 

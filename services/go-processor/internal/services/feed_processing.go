@@ -432,7 +432,8 @@ func (s *FeedProcessingService) ProcessFeedCreatedEvent(ctx context.Context, eve
 
 	// Transform views and filters before initial sync
 	if len(event.ViewsRaw) > 0 || len(event.FiltersRaw) > 0 {
-		var viewsRaw, filtersRaw []string
+		viewsRaw := make([]string, 0)
+		filtersRaw := make([]string, 0)
 		for _, v := range event.ViewsRaw {
 			if text, ok := v["text"].(string); ok {
 				viewsRaw = append(viewsRaw, text)
