@@ -430,7 +430,7 @@ func (s *FeedProcessingService) ProcessFeedCreatedEvent(ctx context.Context, eve
 		}
 	}
 
-	// Transform views and filters asynchronously — don't block feed creation and initial sync
+	// Transform views and filters before initial sync
 	if len(event.ViewsRaw) > 0 || len(event.FiltersRaw) > 0 {
 		var viewsRaw, filtersRaw []string
 		for _, v := range event.ViewsRaw {
@@ -445,23 +445,20 @@ func (s *FeedProcessingService) ProcessFeedCreatedEvent(ctx context.Context, eve
 		}
 
 		if len(viewsRaw) > 0 || len(filtersRaw) > 0 {
-			go func() {
-				bgCtx := context.Background()
-				transformResp, err := s.agentsClient.TransformViewsAndFilters(bgCtx, viewsRaw, filtersRaw, nil, nil, "")
-				if err != nil {
-					logger.Warn().Err(err).Msg("Failed to transform views/filters (async)")
-					return
-				}
+			transformResp, err := s.agentsClient.TransformViewsAndFilters(ctx, viewsRaw, filtersRaw, nil, nil, "")
+			if err != nil {
+				logger.Warn().Err(err).Msg("Failed to transform views/filters")
+			} else {
 				if len(transformResp.Views) > 0 {
 					viewsConfig, _ := json.Marshal(transformResp.Views)
-					s.promptRepo.UpdateViewsConfig(bgCtx, event.PromptID, viewsConfig)
+					s.promptRepo.UpdateViewsConfig(ctx, event.PromptID, viewsConfig)
 				}
 				if len(transformResp.Filters) > 0 {
 					filtersConfig, _ := json.Marshal(transformResp.Filters)
-					s.promptRepo.UpdateFiltersConfig(bgCtx, event.PromptID, filtersConfig)
+					s.promptRepo.UpdateFiltersConfig(ctx, event.PromptID, filtersConfig)
 				}
-				logger.Info().Msg("Views/filters transformed successfully (async)")
-			}()
+				logger.Info().Msg("Views/filters transformed successfully")
+			}
 		}
 	}
 
