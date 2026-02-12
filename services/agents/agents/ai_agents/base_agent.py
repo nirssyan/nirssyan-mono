@@ -13,7 +13,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from loguru import logger
 from pydantic import BaseModel, SecretStr, ValidationError
-
 from shared.utils.llm_cost_tracker import track_llm_cost_async
 from shared.utils.llm_pricing import calculate_cost
 
@@ -443,6 +442,25 @@ class BaseJSONAgent(Generic[T]):
         result = self._try_fast_parse(text, expected_fields)
         if result:
             return result
+
+        # TIER 1.5: Brace wrapping - handle LLM returning fields without outer braces
+        if expected_fields:
+            has_field_keys = any(
+                f'"{f}"' in text or f"'{f}'" in text for f in expected_fields
+            )
+            if has_field_keys:
+                wrapped = "{" + text.strip().rstrip(",") + "}"
+                try:
+                    parsed = json.loads(wrapped)
+                    if isinstance(parsed, dict) and any(
+                        f in parsed for f in expected_fields
+                    ):
+                        logger.info(
+                            "Successfully parsed JSON by wrapping in braces (brace-wrap path)"
+                        )
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
 
         # TIER 2: Repair path - json_repair library (9% of cases, ~1-5ms)
         result = self._try_repair_parse(text, expected_fields)
