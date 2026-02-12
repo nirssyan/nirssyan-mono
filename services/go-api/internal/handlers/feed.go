@@ -741,6 +741,13 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resolvedViews := req.ViewsRaw
+	resolvedFilters := req.FiltersRaw
+	if h.suggestionRepo != nil {
+		resolvedViews = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.ViewsRaw)
+		resolvedFilters = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.FiltersRaw)
+	}
+
 	if h.nc != nil {
 		feedCreatedEvent := map[string]interface{}{
 			"event_type":   "feed.created",
@@ -751,8 +758,8 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 			"source_types": sourceTypes,
 			"prompt_text":  req.RawPrompt,
 			"feed_type":    req.FeedType,
-			"views_raw":    convertToMaps(req.ViewsRaw),
-			"filters_raw":  convertToMaps(req.FiltersRaw),
+			"views_raw":    convertToMaps(resolvedViews),
+			"filters_raw":  convertToMaps(resolvedFilters),
 		}
 		feedCreatedData, _ := json.Marshal(feedCreatedEvent)
 		if err := h.nc.Publish("feed.created", feedCreatedData); err != nil {
@@ -778,13 +785,6 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 
 	if h.adminNotify != nil && h.feedThreadID > 0 {
 		userEmail := middleware.GetUserEmail(r.Context())
-		// Resolve UUIDs to names for notification
-		resolvedViews := req.ViewsRaw
-		resolvedFilters := req.FiltersRaw
-		if h.suggestionRepo != nil {
-			resolvedViews = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.ViewsRaw)
-			resolvedFilters = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.FiltersRaw)
-		}
 		go func() {
 			h.adminNotify.NotifyNewFeed(context.Background(), h.feedThreadID, clients.NotifyFeedParams{
 				Email:        userEmail,
