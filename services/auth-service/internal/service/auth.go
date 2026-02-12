@@ -29,6 +29,7 @@ type AuthService struct {
 	tokenFamilyRepo  *repository.TokenFamilyRepository
 	refreshTokenRepo *repository.RefreshTokenRepository
 	magicLinkRepo    *repository.MagicLinkRepository
+	subscriptionRepo *repository.SubscriptionRepository
 
 	jwtService    *JWTService
 	googleService *GoogleService
@@ -46,6 +47,7 @@ func NewAuthService(
 	tokenFamilyRepo *repository.TokenFamilyRepository,
 	refreshTokenRepo *repository.RefreshTokenRepository,
 	magicLinkRepo *repository.MagicLinkRepository,
+	subscriptionRepo *repository.SubscriptionRepository,
 	jwtService *JWTService,
 	googleService *GoogleService,
 	appleService *AppleService,
@@ -58,6 +60,7 @@ func NewAuthService(
 		tokenFamilyRepo:  tokenFamilyRepo,
 		refreshTokenRepo: refreshTokenRepo,
 		magicLinkRepo:    magicLinkRepo,
+		subscriptionRepo: subscriptionRepo,
 		jwtService:       jwtService,
 		googleService:    googleService,
 		appleService:     appleService,
@@ -159,6 +162,10 @@ func (s *AuthService) VerifyMagicLink(ctx context.Context, token string, deviceI
 		user, err = s.userRepo.Create(ctx, magicLink.Email, "email", nil)
 		if err != nil {
 			return nil, err
+		}
+
+		if err := s.subscriptionRepo.EnsureFreeSubscription(ctx, user.ID); err != nil {
+			s.logger.Warn().Err(err).Str("user_id", user.ID.String()).Msg("failed to create free subscription")
 		}
 	}
 
@@ -295,7 +302,16 @@ func (s *AuthService) findOrCreateOAuthUser(ctx context.Context, provider, provi
 		return nil, err
 	}
 
-	return s.userRepo.Create(ctx, email, provider, &providerID)
+	user, err = s.userRepo.Create(ctx, email, provider, &providerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.subscriptionRepo.EnsureFreeSubscription(ctx, user.ID); err != nil {
+		s.logger.Warn().Err(err).Str("user_id", user.ID.String()).Msg("failed to create free subscription")
+	}
+
+	return user, nil
 }
 
 func (s *AuthService) issueTokens(ctx context.Context, user *model.User, deviceInfo *string, ipAddress net.IP) (*model.AuthResponse, error) {

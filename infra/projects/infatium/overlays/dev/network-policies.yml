@@ -386,3 +386,22 @@ spec:
       ports:
         - protocol: TCP
           port: 9000
+---
+# Allow egress to scrapers namespace (RSS feeds for source validation)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-scrapers-egress
+  namespace: infatium-dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: scrapers-dev
+      ports:
+        - protocol: TCP
+          port: 8080

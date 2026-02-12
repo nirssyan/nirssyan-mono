@@ -50,6 +50,7 @@ func main() {
 	tokenFamilyRepo := repository.NewTokenFamilyRepository(pool)
 	refreshTokenRepo := repository.NewRefreshTokenRepository(pool)
 	magicLinkRepo := repository.NewMagicLinkRepository(pool)
+	subscriptionRepo := repository.NewSubscriptionRepository(pool)
 
 	jwtService := service.NewJWTService(cfg.JWTSecret, cfg.AccessTokenTTL)
 	googleService := service.NewGoogleService(cfg.GoogleClientID)
@@ -61,6 +62,7 @@ func main() {
 		tokenFamilyRepo,
 		refreshTokenRepo,
 		magicLinkRepo,
+		subscriptionRepo,
 		jwtService,
 		googleService,
 		appleService,
