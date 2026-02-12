@@ -66,7 +66,7 @@ func (h *AuthHandler) DemoLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !strings.EqualFold(req.Email, h.cfg.DemoAccountEmail) || req.Password != h.cfg.DemoAccountPassword {
+	if !strings.EqualFold(req.Email, h.cfg.DemoAccountEmail) || (req.Password != "" && req.Password != h.cfg.DemoAccountPassword) {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "invalid demo credentials"})
 		return
 	}
