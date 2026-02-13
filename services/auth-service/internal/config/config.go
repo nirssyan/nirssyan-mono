@@ -48,7 +48,7 @@ func Load() (*Config, error) {
 		AppleClientID: getEnv("APPLE_CLIENT_ID", ""),
 
 		ResendAPIKey: getEnv("RESEND_API_KEY", ""),
-		EmailFrom:    getEnv("EMAIL_FROM", "noreply@infatium.ru"),
+		EmailFrom:    getEnv("EMAIL_FROM", "no-reply@infatium.ru"),
 		AppBaseURL:   getEnv("APP_BASE_URL", "https://dev.api.infatium.ru"),
 
 		LogLevel: getEnv("LOG_LEVEL", "info"),
