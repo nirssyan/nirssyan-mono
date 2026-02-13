@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -107,6 +108,80 @@ func (h *AuthHandler) MagicLink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, map[string]string{"message": "Magic link sent"})
+}
+
+func (h *AuthHandler) VerifyPage(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		http.Error(w, "missing token", http.StatusBadRequest)
+		return
+	}
+
+	deepLink := "makefeed://auth/callback?token=" + token
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход в infatium</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a; color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; padding: 20px;
+    }
+    .card {
+      background: #1a1a1a; border: 1px solid #333; border-radius: 16px;
+      padding: 48px 40px; max-width: 420px; width: 100%%; text-align: center;
+    }
+    .logo { width: 80px; height: 80px; margin-bottom: 24px; }
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .status { color: #b0b0b0; font-size: 16px; margin-bottom: 32px; }
+    .btn {
+      display: inline-block; padding: 14px 40px;
+      background: #fff; color: #000; text-decoration: none;
+      border-radius: 12px; font-size: 16px; font-weight: 600;
+    }
+    .fallback { display: none; margin-top: 24px; }
+    .fallback.show { display: block; }
+    .copy-btn {
+      background: none; border: 1px solid #555; color: #b0b0b0;
+      padding: 8px 16px; border-radius: 8px; cursor: pointer;
+      font-size: 13px; margin-top: 12px;
+    }
+    .copy-btn:hover { border-color: #888; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img src="/auth/static/logo.png" alt="infatium" class="logo" />
+    <h1>infatium</h1>
+    <p class="status" id="status">Открываем приложение...</p>
+    <div class="fallback" id="fallback">
+      <a href="%s" class="btn">Открыть в приложении</a>
+      <br/>
+      <button class="copy-btn" onclick="copyLink()">Скопировать ссылку</button>
+    </div>
+  </div>
+  <script>
+    var deepLink = %q;
+    window.location = deepLink;
+    setTimeout(function() {
+      document.getElementById('status').textContent = 'Нажмите кнопку, если приложение не открылось';
+      document.getElementById('fallback').classList.add('show');
+    }, 2000);
+    function copyLink() {
+      navigator.clipboard.writeText(deepLink).then(function() {
+        document.querySelector('.copy-btn').textContent = 'Скопировано!';
+      });
+    }
+  </script>
+</body>
+</html>`, deepLink, deepLink)
 }
 
 func (h *AuthHandler) Verify(w http.ResponseWriter, r *http.Request) {
