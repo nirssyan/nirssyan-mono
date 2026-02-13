@@ -111,6 +111,8 @@ type EndpointRateLimiters struct {
 func NewEndpointRateLimiters(logger zerolog.Logger) *EndpointRateLimiters {
 	return &EndpointRateLimiters{
 		limiters: map[string]*RateLimiter{
+			"/auth/login":      NewRateLimiter(10, time.Minute, logger),
+			"/auth/demo-login": NewRateLimiter(10, time.Minute, logger),
 			"/auth/google":     NewRateLimiter(10, time.Minute, logger),
 			"/auth/apple":      NewRateLimiter(10, time.Minute, logger),
 			"/auth/magic-link": NewRateLimiter(3, time.Minute, logger),

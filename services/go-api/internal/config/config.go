@@ -54,10 +54,6 @@ type Config struct {
 	RuStorePrivateKey     string `envconfig:"RUSTORE_PRIVATE_KEY"`
 	RuStorePrivateKeyPath string `envconfig:"RUSTORE_PRIVATE_KEY_PATH"`
 
-	DemoModeEnabled      bool   `envconfig:"DEMO_MODE_ENABLED" default:"false"`
-	DemoAccountEmail     string `envconfig:"DEMO_ACCOUNT_EMAIL" default:"demo@infatium.ru"`
-	DemoAccountPassword  string `envconfig:"DEMO_ACCOUNT_PASSWORD" default:"QLjegxHXOWIczmpMoYk#D2RY7QhFv!j5"`
-	DemoAccountUserID    string `envconfig:"DEMO_ACCOUNT_USER_ID"`
 }
 
 func Load() (*Config, error) {

@@ -55,6 +55,7 @@ auth-service/
 
 | Method | Endpoint | Description | Rate Limit |
 |--------|----------|-------------|------------|
+| POST | `/auth/login` | Email/password → JWT | 10/min |
 | POST | `/auth/google` | Google ID token → JWT | 10/min |
 | POST | `/auth/apple` | Apple ID token → JWT | 10/min |
 | POST | `/auth/magic-link` | Send magic link email | 3/min |

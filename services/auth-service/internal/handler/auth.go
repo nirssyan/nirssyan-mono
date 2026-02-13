@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/MargoRSq/infatium-mono/services/auth-service/internal/model"
 	"github.com/MargoRSq/infatium-mono/services/auth-service/internal/service"
@@ -12,14 +13,20 @@ import (
 )
 
 type AuthHandler struct {
-	authService *service.AuthService
-	logger      zerolog.Logger
+	authService         *service.AuthService
+	demoModeEnabled     bool
+	demoAccountEmail    string
+	demoAccountPassword string
+	logger              zerolog.Logger
 }
 
-func NewAuthHandler(authService *service.AuthService, logger zerolog.Logger) *AuthHandler {
+func NewAuthHandler(authService *service.AuthService, demoModeEnabled bool, demoAccountEmail, demoAccountPassword string, logger zerolog.Logger) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
-		logger:      logger,
+		authService:         authService,
+		demoModeEnabled:     demoModeEnabled,
+		demoAccountEmail:    demoAccountEmail,
+		demoAccountPassword: demoAccountPassword,
+		logger:              logger,
 	}
 }
 
@@ -201,6 +208,69 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.writeJSON(w, http.StatusOK, map[string]string{"message": "Logged out successfully"})
+}
+
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req model.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeError(w, http.StatusBadRequest, "invalid_request", "Invalid JSON body")
+		return
+	}
+
+	if req.Email == "" || req.Password == "" {
+		h.writeError(w, http.StatusBadRequest, "missing_fields", "email and password are required")
+		return
+	}
+
+	deviceInfo := getDeviceInfo(r)
+	ipAddress := parseIP(getClientIP(r))
+
+	resp, err := h.authService.AuthenticatePassword(r.Context(), req.Email, req.Password, deviceInfo, ipAddress)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidCredentials) {
+			h.writeError(w, http.StatusUnauthorized, "invalid_credentials", "Invalid email or password")
+			return
+		}
+		h.writeError(w, http.StatusInternalServerError, "server_error", "Authentication failed")
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *AuthHandler) DemoLogin(w http.ResponseWriter, r *http.Request) {
+	if !h.demoModeEnabled {
+		h.writeError(w, http.StatusNotFound, "not_found", "Not found")
+		return
+	}
+
+	var req model.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.writeError(w, http.StatusBadRequest, "invalid_request", "Invalid JSON body")
+		return
+	}
+
+	if req.Email == "" {
+		h.writeError(w, http.StatusBadRequest, "missing_fields", "email is required")
+		return
+	}
+
+	if !strings.EqualFold(req.Email, h.demoAccountEmail) {
+		h.writeError(w, http.StatusForbidden, "invalid_credentials", "Invalid demo credentials")
+		return
+	}
+
+	deviceInfo := getDeviceInfo(r)
+	ipAddress := parseIP(getClientIP(r))
+
+	resp, err := h.authService.AuthenticatePassword(r.Context(), h.demoAccountEmail, h.demoAccountPassword, deviceInfo, ipAddress)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("demo login authentication failed")
+		h.writeError(w, http.StatusInternalServerError, "server_error", "Authentication failed")
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *AuthHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {

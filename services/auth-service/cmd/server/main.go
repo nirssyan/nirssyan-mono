@@ -73,7 +73,7 @@ func main() {
 	)
 
 	healthHandler := handler.NewHealthHandler(pool)
-	authHandler := handler.NewAuthHandler(authService, logger)
+	authHandler := handler.NewAuthHandler(authService, cfg.DemoModeEnabled, cfg.DemoAccountEmail, cfg.DemoAccountPassword, logger)
 
 	rateLimiters := middleware.NewEndpointRateLimiters(logger)
 
@@ -90,6 +90,8 @@ func main() {
 	r.Get("/readyz", healthHandler.Readyz)
 
 	r.Route("/auth", func(r chi.Router) {
+		r.Post("/login", authHandler.Login)
+		r.Post("/demo-login", authHandler.DemoLogin)
 		r.Post("/google", authHandler.Google)
 		r.Post("/apple", authHandler.Apple)
 		r.Post("/magic-link", authHandler.MagicLink)

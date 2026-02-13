@@ -82,6 +82,11 @@ type LogoutRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message,omitempty"`

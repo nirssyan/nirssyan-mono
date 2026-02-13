@@ -24,6 +24,10 @@ type Config struct {
 	EmailFrom    string
 
 	LogLevel string
+
+	DemoModeEnabled     bool
+	DemoAccountEmail    string
+	DemoAccountPassword string
 }
 
 func Load() (*Config, error) {
@@ -46,6 +50,10 @@ func Load() (*Config, error) {
 		EmailFrom:    getEnv("EMAIL_FROM", "noreply@infatium.ru"),
 
 		LogLevel: getEnv("LOG_LEVEL", "info"),
+
+		DemoModeEnabled:     getEnv("DEMO_MODE_ENABLED", "") == "true",
+		DemoAccountEmail:    getEnv("DEMO_ACCOUNT_EMAIL", ""),
+		DemoAccountPassword: getEnv("DEMO_ACCOUNT_PASSWORD", ""),
 	}
 
 	return cfg, nil

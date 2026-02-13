@@ -20,6 +20,7 @@ var (
 	ErrMagicLinkUsed         = errors.New("magic link already used")
 	ErrMagicLinkExpired      = errors.New("magic link expired")
 	ErrInvalidMagicLink      = errors.New("invalid magic link")
+	ErrInvalidCredentials    = errors.New("invalid credentials")
 )
 
 const tokenReuseGracePeriod = 180 * time.Second
@@ -99,6 +100,32 @@ func (s *AuthService) AuthenticateApple(ctx context.Context, idToken string, dev
 	user, err := s.findOrCreateOAuthUser(ctx, "apple", claims.Sub, email)
 	if err != nil {
 		return nil, err
+	}
+
+	return s.issueTokens(ctx, user, deviceInfo, ipAddress)
+}
+
+func (s *AuthService) AuthenticatePassword(ctx context.Context, email, password string, deviceInfo *string, ipAddress net.IP) (*model.AuthResponse, error) {
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			HashPassword("dummy-password-timing-pad")
+			return nil, ErrInvalidCredentials
+		}
+		return nil, err
+	}
+
+	if user.PasswordHash == nil {
+		HashPassword("dummy-password-timing-pad")
+		return nil, ErrInvalidCredentials
+	}
+
+	match, err := VerifyPassword(password, *user.PasswordHash)
+	if err != nil {
+		return nil, err
+	}
+	if !match {
+		return nil, ErrInvalidCredentials
 	}
 
 	return s.issueTokens(ctx, user, deviceInfo, ipAddress)
