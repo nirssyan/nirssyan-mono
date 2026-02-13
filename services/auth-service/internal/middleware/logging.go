@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"time"
 
@@ -31,6 +33,16 @@ func Logging(logger zerolog.Logger) func(next http.Handler) http.Handler {
 			if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" {
 				next.ServeHTTP(w, r)
 				return
+			}
+
+			if r.Body != nil && r.ContentLength > 0 && r.ContentLength < 4096 {
+				bodyBytes, _ := io.ReadAll(r.Body)
+				r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+				logger.Debug().
+					Str("path", r.URL.Path).
+					Str("method", r.Method).
+					RawJSON("body", bodyBytes).
+					Msg("incoming request body")
 			}
 
 			start := time.Now()
