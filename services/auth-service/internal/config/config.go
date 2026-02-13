@@ -22,6 +22,7 @@ type Config struct {
 
 	ResendAPIKey string
 	EmailFrom    string
+	AppBaseURL   string
 
 	LogLevel string
 
@@ -48,6 +49,7 @@ func Load() (*Config, error) {
 
 		ResendAPIKey: getEnv("RESEND_API_KEY", ""),
 		EmailFrom:    getEnv("EMAIL_FROM", "noreply@infatium.ru"),
+		AppBaseURL:   getEnv("APP_BASE_URL", "https://dev.api.infatium.ru"),
 
 		LogLevel: getEnv("LOG_LEVEL", "info"),
 

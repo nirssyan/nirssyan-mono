@@ -8,21 +8,22 @@ import (
 )
 
 type EmailService struct {
-	client  *resend.Client
-	from    string
-	logoURL string
+	client     *resend.Client
+	from       string
+	appBaseURL string
 }
 
-func NewEmailService(apiKey, from string) *EmailService {
+func NewEmailService(apiKey, from, appBaseURL string) *EmailService {
 	return &EmailService{
-		client:  resend.NewClient(apiKey),
-		from:    from,
-		logoURL: "https://dev.supabase.infatium.ru/storage/v1/object/public/permanent-media/logos/infatium-optimized.png",
+		client:     resend.NewClient(apiKey),
+		from:       from,
+		appBaseURL: appBaseURL,
 	}
 }
 
 func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) error {
-	link := fmt.Sprintf("makefeed://auth/callback?token=%s", token)
+	link := fmt.Sprintf("%s/auth/verify?token=%s", s.appBaseURL, token)
+	logoURL := s.appBaseURL + "/auth/static/logo.png"
 
 	htmlContent := fmt.Sprintf(`<!DOCTYPE html>
 <html lang="ru">
@@ -107,7 +108,7 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
                 Если вы не запрашивали вход, просто проигнорируйте это письмо.
               </p>
               <p style="margin: 12px 0 0; font-size: 12px; color: #666666; text-align: center;">
-                © 2025 infatium. Все права защищены.
+                © 2026 infatium. Все права защищены.
               </p>
             </td>
           </tr>
@@ -119,7 +120,7 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
   </table>
 
 </body>
-</html>`, s.logoURL, link, link)
+</html>`, logoURL, link, link)
 
 	textContent := fmt.Sprintf(`Вход в аккаунт infatium
 
@@ -131,7 +132,7 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
 
 Если вы не запрашивали вход, просто проигнорируйте это письмо.
 
-© 2025 infatium. Все права защищены.`, link)
+© 2026 infatium. Все права защищены.`, link)
 
 	params := &resend.SendEmailRequest{
 		From:    s.from,

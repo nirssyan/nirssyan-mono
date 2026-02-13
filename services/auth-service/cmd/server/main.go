@@ -55,7 +55,7 @@ func main() {
 	jwtService := service.NewJWTService(cfg.JWTSecret, cfg.AccessTokenTTL)
 	googleService := service.NewGoogleService(cfg.GoogleClientID)
 	appleService := service.NewAppleService(cfg.AppleClientID, cfg.AppleTeamID, cfg.AppleKeyID)
-	emailService := service.NewEmailService(cfg.ResendAPIKey, cfg.EmailFrom)
+	emailService := service.NewEmailService(cfg.ResendAPIKey, cfg.EmailFrom, cfg.AppBaseURL)
 
 	authService := service.NewAuthService(
 		userRepo,
@@ -73,6 +73,7 @@ func main() {
 	)
 
 	healthHandler := handler.NewHealthHandler(pool)
+	staticHandler := handler.NewStaticHandler()
 	authHandler := handler.NewAuthHandler(authService, cfg.DemoModeEnabled, cfg.DemoAccountEmail, cfg.DemoAccountPassword, logger)
 
 	rateLimiters := middleware.NewEndpointRateLimiters(logger)
@@ -95,9 +96,11 @@ func main() {
 		r.Post("/google", authHandler.Google)
 		r.Post("/apple", authHandler.Apple)
 		r.Post("/magic-link", authHandler.MagicLink)
+		r.Get("/verify", authHandler.VerifyPage)
 		r.Post("/verify", authHandler.Verify)
 		r.Post("/refresh", authHandler.Refresh)
 		r.Post("/logout", authHandler.Logout)
+		r.Get("/static/logo.png", staticHandler.Logo)
 	})
 
 	srv := &http.Server{

@@ -11,6 +11,7 @@ data:
   REFRESH_TOKEN_TTL: "336h"
   MAGIC_LINK_TTL: "15m"
   EMAIL_FROM: "noreply@nirssyan.ru"
+  APP_BASE_URL: "https://dev.api.infatium.ru"
   DEMO_MODE_ENABLED: "true"
   DEMO_ACCOUNT_EMAIL: "demo@infatium.ru"
   DEMO_ACCOUNT_PASSWORD: "QLjegxHXOWIczmpMoYk#D2RY7QhFv!j5"
