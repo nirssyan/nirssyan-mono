@@ -161,6 +161,9 @@ func (s *FeedProcessingService) processSinglePostPrompt(ctx context.Context, pro
 		if err != nil {
 			logger.Warn().Err(err).Msg("Failed to get feed owner for notification")
 		}
+		if userID == uuid.Nil {
+			logger.Warn().Str("feed_id", prompt.FeedID.String()).Msg("Feed owner not found, skipping post.created notifications")
+		}
 	}
 
 	var (
@@ -240,8 +243,10 @@ func (s *FeedProcessingService) processSinglePostPrompt(ctx context.Context, pro
 
 		if s.publisher != nil && userID != uuid.Nil {
 			if err := s.publisher.PublishPostCreated(r.post.ID, prompt.FeedID, userID); err != nil {
-				logger.Warn().Err(err).Msg("Failed to publish post.created event")
+				logger.Warn().Err(err).Str("post_id", r.post.ID.String()).Msg("Failed to publish post.created event")
 			}
+		} else if s.publisher == nil {
+			logger.Warn().Msg("Publisher is nil, skipping post.created notification")
 		}
 	}
 
@@ -377,9 +382,13 @@ func (s *FeedProcessingService) processDigest(ctx context.Context, prompt domain
 			logger.Warn().Err(err).Msg("Failed to get feed owner for notification")
 		} else if userID != uuid.Nil {
 			if err := s.publisher.PublishPostCreated(post.ID, prompt.FeedID, userID); err != nil {
-				logger.Warn().Err(err).Msg("Failed to publish post.created event")
+				logger.Warn().Err(err).Str("post_id", post.ID.String()).Msg("Failed to publish post.created event")
 			}
+		} else {
+			logger.Warn().Str("feed_id", prompt.FeedID.String()).Msg("Feed owner not found, skipping digest post.created notification")
 		}
+	} else {
+		logger.Warn().Msg("Publisher is nil, skipping digest post.created notification")
 	}
 
 	for _, rawFeedID := range rawFeedIDs {
@@ -594,6 +603,9 @@ func (s *FeedProcessingService) processPromptForRawPostsWithLimit(ctx context.Co
 		if err != nil {
 			logger.Warn().Err(err).Msg("Failed to get feed owner for notification")
 		}
+		if userID == uuid.Nil {
+			logger.Warn().Str("feed_id", prompt.FeedID.String()).Msg("Feed owner not found, skipping post.created notifications")
+		}
 	}
 
 	var (
@@ -673,8 +685,10 @@ func (s *FeedProcessingService) processPromptForRawPostsWithLimit(ctx context.Co
 
 		if s.publisher != nil && userID != uuid.Nil {
 			if err := s.publisher.PublishPostCreated(r.post.ID, prompt.FeedID, userID); err != nil {
-				logger.Warn().Err(err).Msg("Failed to publish post.created event")
+				logger.Warn().Err(err).Str("post_id", r.post.ID.String()).Msg("Failed to publish post.created event")
 			}
+		} else if s.publisher == nil {
+			logger.Warn().Msg("Publisher is nil, skipping post.created notification")
 		}
 	}
 

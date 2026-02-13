@@ -53,7 +53,7 @@ func (p *Publisher) PublishPostCreated(postID, feedID, userID uuid.UUID) error {
 		return err
 	}
 
-	log.Debug().
+	log.Info().
 		Str("post_id", postID.String()).
 		Str("feed_id", feedID.String()).
 		Str("user_id", userID.String()).

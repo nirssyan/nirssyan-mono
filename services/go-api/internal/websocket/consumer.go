@@ -80,12 +80,14 @@ func (c *NotificationConsumer) handlePostCreated(msg *nats.Msg) {
 		log.Info().
 			Str("user_id", event.UserID.String()).
 			Str("post_id", event.PostID.String()).
+			Str("feed_id", event.FeedID.String()).
 			Int("sent_to", sentCount).
 			Msg("Sent post_created notification")
 	} else {
-		log.Debug().
+		log.Info().
 			Str("user_id", event.UserID.String()).
-			Msg("No WebSocket connections for user")
+			Str("feed_id", event.FeedID.String()).
+			Msg("No WebSocket connections for post_created")
 	}
 }
 
@@ -103,5 +105,10 @@ func (c *NotificationConsumer) handleFeedCreationFinished(msg *nats.Msg) {
 			Str("feed_id", event.FeedID.String()).
 			Int("sent_to", sentCount).
 			Msg("Sent feed_creation_finished notification")
+	} else {
+		log.Info().
+			Str("user_id", event.UserID.String()).
+			Str("feed_id", event.FeedID.String()).
+			Msg("No WebSocket connections for feed_creation_finished")
 	}
 }
