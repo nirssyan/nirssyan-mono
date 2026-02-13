@@ -31,12 +31,27 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="color-scheme" content="dark only">
+  <meta name="supported-color-schemes" content="dark only">
   <title>Вход по ссылке</title>
   <style>
+    :root { color-scheme: dark only; supported-color-schemes: dark only; }
     /* Reset */
     body, table, td, a { -webkit-text-size-adjust: 100%%; -ms-text-size-adjust: 100%%; }
     table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
     img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%%; outline: none; text-decoration: none; }
+
+    [data-ogsc] body, [data-ogsb] body { background-color: #0a0a0a !important; }
+    [data-ogsc] .container, [data-ogsb] .container { background-color: #1a1a1a !important; }
+    [data-ogsc] h1, [data-ogsb] h1 { color: #ffffff !important; }
+    [data-ogsc] p, [data-ogsb] p { color: inherit !important; }
+
+    @media (prefers-color-scheme: light) {
+      body, .body-bg { background-color: #0a0a0a !important; }
+      .container { background-color: #1a1a1a !important; }
+      .footer-bg { background-color: #1e1e1e !important; }
+      h1 { color: #ffffff !important; }
+    }
 
     /* Responsive */
     @media only screen and (max-width: 600px) {
@@ -48,7 +63,7 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
     }
   </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+<body class="body-bg" style="margin: 0; padding: 0; background-color: #0a0a0a; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
 
   <!-- Wrapper -->
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%%" style="background-color: #0a0a0a;">
@@ -103,7 +118,7 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
 
           <!-- Footer -->
           <tr>
-            <td style="padding: 32px 40px; background-color: #1e1e1e; border-top: 1px solid #333333; border-radius: 0 0 16px 16px;">
+            <td class="footer-bg" style="padding: 32px 40px; background-color: #1e1e1e; border-top: 1px solid #333333; border-radius: 0 0 16px 16px;">
               <p style="margin: 0; font-size: 13px; color: #808080; line-height: 1.5; text-align: center;">
                 Если вы не запрашивали вход, просто проигнорируйте это письмо.
               </p>
