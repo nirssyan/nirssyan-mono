@@ -3,15 +3,20 @@
 /// This service listens for deep links in the formats:
 /// - makefeed://auth/callback?token=...&type=magiclink (auth)
 /// - makefeed://feed/{feedId} (feed subscription via custom scheme)
+/// - makefeed://marketplace/{slug} (marketplace feed via custom scheme)
 /// - https://infatium.ru/feed/{feedId} (feed subscription via universal link)
+/// - https://infatium.ru/marketplace/{slug} (marketplace feed via universal link)
 ///
 /// Used by custom auth-service for passwordless authentication
 /// and for feed subscription via deep links.
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
+import 'package:http/http.dart' as http;
 import 'package:uni_links/uni_links.dart';
+import '../config/api_config.dart';
 import '../config/auth_config.dart';
 import '../app.dart';
 import 'auth_service.dart';
@@ -91,11 +96,15 @@ class DeepLinkService {
     print('DeepLinkService: Handling deep link - scheme: ${uri.scheme}, host: ${uri.host}, path: ${uri.path}');
     print('DeepLinkService: Query parameters: ${uri.queryParameters}');
 
-    // Handle universal links (https://infatium.ru/feed/{feedId} or https://dev.infatium.ru/feed/{feedId})
+    // Handle universal links (https://infatium.ru/... or https://dev.infatium.ru/...)
     if (uri.scheme == 'https' && uri.host.contains('infatium.ru')) {
       final pathSegments = uri.pathSegments;
       if (pathSegments.isNotEmpty && pathSegments.first == 'feed' && pathSegments.length >= 2) {
         _handleFeedDeepLink(uri, linkType: 'universal');
+        return;
+      }
+      if (pathSegments.isNotEmpty && pathSegments.first == 'marketplace' && pathSegments.length >= 2) {
+        _handleMarketplaceDeepLink(pathSegments[1], linkType: 'universal');
         return;
       }
       print('DeepLinkService: Unknown universal link path: ${uri.path}');
@@ -120,6 +129,14 @@ class DeepLinkService {
     } else if (uri.host == 'feed') {
       // makefeed://feed/{feedId}
       _handleFeedDeepLink(uri, linkType: 'custom_scheme');
+    } else if (uri.host == 'marketplace') {
+      // makefeed://marketplace/{slug}
+      final pathSegments = uri.pathSegments;
+      if (pathSegments.isNotEmpty) {
+        _handleMarketplaceDeepLink(pathSegments.first, linkType: 'custom_scheme');
+      } else {
+        print('DeepLinkService: Missing slug in marketplace deep link');
+      }
     } else {
       print('DeepLinkService: Unknown host: ${uri.host}');
     }
@@ -205,6 +222,83 @@ class DeepLinkService {
     _processFeedLink(feedId);
   }
 
+  /// Handle marketplace deep link by resolving slug to feedId.
+  ///
+  /// Supported formats:
+  /// - makefeed://marketplace/{slug} (custom scheme)
+  /// - https://infatium.ru/marketplace/{slug} (universal link)
+  void _handleMarketplaceDeepLink(String slug, {required String linkType}) {
+    print('DeepLinkService: Marketplace deep link - slug: $slug, linkType: $linkType');
+
+    // Track analytics
+    AnalyticsService().capture(EventSchema.feedDeepLinkOpened, properties: {
+      'slug': slug,
+      'link_type': linkType,
+      'source': 'marketplace',
+    });
+
+    // Check authentication
+    if (!AuthService().isAuthenticated) {
+      print('DeepLinkService: User not authenticated, saving pending marketplace link');
+      // Store as makefeed://marketplace/{slug} for later processing
+      _pendingFeedLink = Uri.parse('makefeed://marketplace/$slug');
+      return;
+    }
+
+    _resolveMarketplaceSlug(slug);
+  }
+
+  /// Resolve marketplace slug to feedId via API, then show feed preview.
+  Future<void> _resolveMarketplaceSlug(String slug) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/marketplace/$slug'),
+        headers: ApiConfig.commonHeaders,
+      );
+
+      if (response.statusCode != 200) {
+        print('DeepLinkService: Marketplace API returned ${response.statusCode} for slug: $slug');
+        _showMarketplaceError();
+        return;
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final feedId = data['id'] as String?;
+
+      if (feedId == null || feedId.isEmpty) {
+        print('DeepLinkService: No feedId in marketplace response for slug: $slug');
+        _showMarketplaceError();
+        return;
+      }
+
+      print('DeepLinkService: Resolved marketplace slug "$slug" → feedId: $feedId');
+      _processFeedLink(feedId);
+    } catch (e) {
+      print('DeepLinkService: Error resolving marketplace slug: $e');
+      _showMarketplaceError();
+    }
+  }
+
+  /// Show error dialog for marketplace deep link failures.
+  void _showMarketplaceError() {
+    final navigatorState = MyApp.navigatorKey.currentState;
+    if (navigatorState == null) return;
+
+    showCupertinoDialog(
+      context: navigatorState.context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('Error'),
+        content: const Text('Could not find this feed. It may have been removed.'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Process pending feed deep link after authentication.
   ///
   /// Call this after user logs in and data is loaded.
@@ -214,6 +308,25 @@ class DeepLinkService {
 
     _pendingFeedLink = null;
     print('DeepLinkService: Processing pending feed link: $uri');
+
+    // Handle pending marketplace links (makefeed://marketplace/{slug})
+    if (uri.host == 'marketplace' || (uri.scheme == 'https' && uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'marketplace')) {
+      final slug = uri.host == 'marketplace'
+          ? uri.pathSegments.firstOrNull
+          : (uri.pathSegments.length >= 2 ? uri.pathSegments[1] : null);
+      if (slug != null && slug.isNotEmpty) {
+        AnalyticsService().capture(EventSchema.feedDeepLinkOpened, properties: {
+          'slug': slug,
+          'link_type': 'custom_scheme',
+          'source': 'marketplace',
+          'was_pending': true,
+        });
+        _resolveMarketplaceSlug(slug);
+        return;
+      }
+      print('DeepLinkService: Invalid pending marketplace link');
+      return;
+    }
 
     // Determine link type
     final linkType = uri.scheme == 'https' ? 'universal' : 'custom_scheme';
