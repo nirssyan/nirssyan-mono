@@ -21,7 +21,19 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install alembic psycopg2-binary
+        run: |
+          pip install alembic psycopg2-binary
+          pip install -e services/shared-python
+
+      - name: Validate migration graph
+        working-directory: database/migrations
+        run: |
+          HEAD_COUNT=$(alembic heads | grep -c "head")
+          if [ "$HEAD_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 head, found $HEAD_COUNT"
+            alembic heads
+            exit 1
+          fi
 
       - name: Run migrations
         working-directory: database/migrations
