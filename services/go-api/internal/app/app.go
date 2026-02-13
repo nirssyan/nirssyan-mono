@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -196,6 +197,23 @@ func (a *App) Run(ctx context.Context) error {
 	router.Get("/healthz", healthHandler.Healthz)
 	router.Get("/readyz", healthHandler.Readyz)
 	router.Handle("/metrics", observability.MetricsHandler())
+
+	router.Post("/debug/echo", func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Error().Err(err).Msg("debug/echo: failed to read body")
+			http.Error(w, "failed to read body", http.StatusBadRequest)
+			return
+		}
+		log.Info().
+			Str("method", r.Method).
+			Str("path", r.URL.Path).
+			Str("content_type", r.Header.Get("Content-Type")).
+			Str("body", string(body)).
+			Msg("debug/echo: received request")
+		w.WriteHeader(http.StatusOK)
+		w.Write(body)
+	})
 
 	router.Get("/ws/feeds", wsHandler.HandleFeedNotifications)
 
