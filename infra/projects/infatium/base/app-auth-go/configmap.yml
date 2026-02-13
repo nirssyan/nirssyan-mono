@@ -6,8 +6,11 @@ metadata:
     app: app-auth-go
 data:
   SERVER_ADDR: ":8080"
-  LOG_LEVEL: "info"
+  LOG_LEVEL: "debug"
   ACCESS_TOKEN_TTL: "15m"
   REFRESH_TOKEN_TTL: "336h"
   MAGIC_LINK_TTL: "15m"
   EMAIL_FROM: "noreply@nirssyan.ru"
+  DEMO_MODE_ENABLED: "true"
+  DEMO_ACCOUNT_EMAIL: "demo@infatium.ru"
+  DEMO_ACCOUNT_PASSWORD: "QLjegxHXOWIczmpMoYk#D2RY7QhFv!j5"
