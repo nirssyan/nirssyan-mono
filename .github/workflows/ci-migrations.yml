@@ -35,6 +35,12 @@ jobs:
             exit 1
           fi
 
+      - name: Stamp DB to new HEAD (one-time fix for revision rename)
+        working-directory: database/migrations
+        env:
+          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+        run: alembic stamp a1b2c3d4e600
+
       - name: Run migrations
         working-directory: database/migrations
         env:
