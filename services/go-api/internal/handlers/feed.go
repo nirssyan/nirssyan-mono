@@ -471,9 +471,10 @@ func (h *FeedHandler) SummarizeUnseen(w http.ResponseWriter, r *http.Request) {
 
 	summaryTitle := "Summary of " + feed.Name
 	newPost, err := h.postRepo.Create(r.Context(), repository.CreatePostParams{
-		ID:     uuid.New(),
-		FeedID: feedID,
-		Title:  &summaryTitle,
+		ID:           uuid.New(),
+		FeedID:       feedID,
+		Title:        &summaryTitle,
+		MediaObjects: json.RawMessage("[]"),
 		Views: map[string]string{
 			"full_text": summary,
 		},
