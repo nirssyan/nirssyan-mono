@@ -73,6 +73,7 @@ func Logging(logger zerolog.Logger) func(next http.Handler) http.Handler {
 				Dur("duration", duration).
 				Str("request_id", reqID).
 				Str("ip", r.RemoteAddr).
+				Str("xff", r.Header.Get("X-Forwarded-For")).
 				Msg("HTTP request")
 		})
 	}
