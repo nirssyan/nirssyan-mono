@@ -423,9 +423,17 @@ func (h *FeedHandler) SummarizeUnseen(w http.ResponseWriter, r *http.Request) {
 	postsData := make([]clients.PostSummary, 0, len(unseenPosts))
 	sourcesInfo := make([]SummarizeSourceInfo, 0)
 	postIDs := make([]uuid.UUID, 0, len(unseenPosts))
+	var allMedia []json.RawMessage
 
 	for _, p := range unseenPosts {
 		postIDs = append(postIDs, p.ID)
+
+		if len(p.MediaObjects) > 2 {
+			var items []json.RawMessage
+			if json.Unmarshal(p.MediaObjects, &items) == nil {
+				allMedia = append(allMedia, items...)
+			}
+		}
 
 		title := ""
 		if p.Title != nil {
@@ -469,12 +477,29 @@ func (h *FeedHandler) SummarizeUnseen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mergedMedia, _ := json.Marshal(allMedia)
+	if mergedMedia == nil {
+		mergedMedia = json.RawMessage("[]")
+	}
+	var imageURL *string
+	for _, item := range allMedia {
+		var mo struct {
+			Type string `json:"type"`
+			URL  string `json:"url"`
+		}
+		if json.Unmarshal(item, &mo) == nil && (mo.Type == "photo" || mo.Type == "image") {
+			imageURL = &mo.URL
+			break
+		}
+	}
+
 	summaryTitle := "Summary of " + feed.Name
 	newPost, err := h.postRepo.Create(r.Context(), repository.CreatePostParams{
 		ID:           uuid.New(),
 		FeedID:       feedID,
 		Title:        &summaryTitle,
-		MediaObjects: json.RawMessage("[]"),
+		ImageURL:     imageURL,
+		MediaObjects: mergedMedia,
 		Views: map[string]string{
 			"full_text": summary,
 		},

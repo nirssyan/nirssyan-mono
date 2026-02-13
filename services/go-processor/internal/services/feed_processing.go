@@ -314,8 +314,15 @@ func (s *FeedProcessingService) processDigest(ctx context.Context, prompt domain
 		Logger()
 
 	var contents []string
+	var allMedia []json.RawMessage
 	for _, p := range allPosts {
 		contents = append(contents, p.Content)
+		if len(p.MediaObjects) > 2 {
+			var items []json.RawMessage
+			if json.Unmarshal(p.MediaObjects, &items) == nil {
+				allMedia = append(allMedia, items...)
+			}
+		}
 	}
 
 	filterPrompt, _ := s.extractFilterPrompt(prompt.FiltersConfig)
@@ -359,12 +366,35 @@ func (s *FeedProcessingService) processDigest(ctx context.Context, prompt domain
 		postViews, _ = json.Marshal(viewsMap)
 	}
 
+	mergedMedia, _ := json.Marshal(allMedia)
+	if mergedMedia == nil {
+		mergedMedia = json.RawMessage("[]")
+	}
+	var imageURL *string
+	var mediaObjects []domain.MediaObject
+	if json.Unmarshal(mergedMedia, &mediaObjects) == nil {
+		var videoPreview *string
+		for _, mo := range mediaObjects {
+			if mo.Type == "photo" || mo.Type == "image" {
+				imageURL = &mo.URL
+				break
+			}
+			if (mo.Type == "video" || mo.Type == "animation") && mo.PreviewURL != nil && videoPreview == nil {
+				videoPreview = mo.PreviewURL
+			}
+		}
+		if imageURL == nil && videoPreview != nil {
+			imageURL = videoPreview
+		}
+	}
+
 	post := &domain.Post{
 		ID:                        uuid.New(),
 		CreatedAt:                 time.Now(),
 		FeedID:                    prompt.FeedID,
 		Title:                     &summaryResp.Title,
-		MediaObjects:              json.RawMessage("[]"),
+		ImageURL:                  imageURL,
+		MediaObjects:              mergedMedia,
 		Views:                     postViews,
 		ModerationLabels:          []string{},
 		ModerationMatchedEntities: json.RawMessage("[]"),
