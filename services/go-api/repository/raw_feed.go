@@ -72,6 +72,30 @@ func (r *RawFeedRepository) LinkToPrompt(ctx context.Context, promptID, rawFeedI
 	return err
 }
 
+func (r *RawFeedRepository) GetByFeedID(ctx context.Context, feedID uuid.UUID) ([]RawFeed, error) {
+	query := `SELECT rf.id, rf.created_at, rf.name, rf.feed_url, rf.raw_type
+	          FROM raw_feeds rf
+	          JOIN prompts_raw_feeds prf ON prf.raw_feed_id = rf.id
+	          JOIN prompts p ON prf.prompt_id = p.id
+	          WHERE p.feed_id = $1`
+
+	rows, err := r.pool.Query(ctx, query, feedID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var feeds []RawFeed
+	for rows.Next() {
+		var rf RawFeed
+		if err := rows.Scan(&rf.ID, &rf.CreatedAt, &rf.Name, &rf.FeedURL, &rf.RawType); err != nil {
+			return nil, err
+		}
+		feeds = append(feeds, rf)
+	}
+	return feeds, rows.Err()
+}
+
 // FindIDsByURLs returns raw_feed IDs for the given URLs (checking both feed_url and site_url)
 func (r *RawFeedRepository) FindIDsByURLs(ctx context.Context, urls []string) ([]uuid.UUID, error) {
 	if len(urls) == 0 {

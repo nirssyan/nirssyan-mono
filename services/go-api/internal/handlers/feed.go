@@ -98,6 +98,8 @@ type FeedResponse struct {
 	IsMarketplace      bool      `json:"is_marketplace"`
 	IsCreatingFinished bool      `json:"is_creating_finished"`
 	UnreadCount        int       `json:"unread_count"`
+	RawFeedsCount      int       `json:"raw_feeds_count"`
+	PostsCount         int       `json:"posts_count"`
 }
 
 func (h *FeedHandler) GetUserFeeds(w http.ResponseWriter, r *http.Request) {
@@ -117,6 +119,8 @@ func (h *FeedHandler) GetUserFeeds(w http.ResponseWriter, r *http.Request) {
 	response := make([]FeedResponse, 0, len(feeds))
 	for _, f := range feeds {
 		unseenCount, _ := h.postRepo.CountUnseenPosts(r.Context(), userID, f.ID)
+		rawFeedsCount, _ := h.feedRepo.CountRawFeedsByFeedID(r.Context(), f.ID)
+		postsCount, _ := h.postRepo.CountByFeedID(r.Context(), f.ID)
 		response = append(response, FeedResponse{
 			ID:                 f.ID,
 			Name:               f.Name,
@@ -126,6 +130,8 @@ func (h *FeedHandler) GetUserFeeds(w http.ResponseWriter, r *http.Request) {
 			IsMarketplace:      f.IsMarketplace,
 			IsCreatingFinished: f.IsCreatingFinished,
 			UnreadCount:        unseenCount,
+			RawFeedsCount:      rawFeedsCount,
+			PostsCount:         postsCount,
 		})
 	}
 

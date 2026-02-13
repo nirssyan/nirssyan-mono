@@ -118,6 +118,15 @@ func (r *FeedRepository) GetFeedWithPrompt(ctx context.Context, feedID uuid.UUID
 	return &f, nil
 }
 
+func (r *FeedRepository) CountRawFeedsByFeedID(ctx context.Context, feedID uuid.UUID) (int, error) {
+	query := `SELECT COUNT(*) FROM prompts_raw_feeds prf
+	          JOIN prompts p ON prf.prompt_id = p.id
+	          WHERE p.feed_id = $1`
+	var count int
+	err := r.pool.QueryRow(ctx, query, feedID).Scan(&count)
+	return count, err
+}
+
 type CreateFeedParams struct {
 	ID          uuid.UUID
 	Name        string

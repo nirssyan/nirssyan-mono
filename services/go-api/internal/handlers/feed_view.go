@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -12,20 +13,23 @@ import (
 )
 
 type FeedViewHandler struct {
-	feedRepo *repository.FeedRepository
-	postRepo *repository.PostRepository
-	agents   *clients.AgentsClient
+	feedRepo    *repository.FeedRepository
+	postRepo    *repository.PostRepository
+	rawFeedRepo *repository.RawFeedRepository
+	agents      *clients.AgentsClient
 }
 
 func NewFeedViewHandler(
 	feedRepo *repository.FeedRepository,
 	postRepo *repository.PostRepository,
+	rawFeedRepo *repository.RawFeedRepository,
 	agents *clients.AgentsClient,
 ) *FeedViewHandler {
 	return &FeedViewHandler{
-		feedRepo: feedRepo,
-		postRepo: postRepo,
-		agents:   agents,
+		feedRepo:    feedRepo,
+		postRepo:    postRepo,
+		rawFeedRepo: rawFeedRepo,
+		agents:      agents,
 	}
 }
 
@@ -39,12 +43,21 @@ func (h *FeedViewHandler) Routes() chi.Router {
 }
 
 type FeedModalResponse struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	Description *string   `json:"description,omitempty"`
-	PostsCount  int       `json:"posts_count"`
-	Sources     []string  `json:"sources,omitempty"`
+	ID          uuid.UUID       `json:"id"`
+	Name        string          `json:"name"`
+	Type        string          `json:"type"`
+	Description *string         `json:"description,omitempty"`
+	PostsCount  int             `json:"posts_count"`
+	Sources     []SourceItem    `json:"sources"`
+	Views       json.RawMessage `json:"views,omitempty"`
+	Filters     json.RawMessage `json:"filters,omitempty"`
+}
+
+type SourceItem struct {
+	En   string `json:"en"`
+	Ru   string `json:"ru"`
+	URL  string `json:"url"`
+	Type string `json:"type"`
 }
 
 func (h *FeedViewHandler) GetFeedModal(w http.ResponseWriter, r *http.Request) {
@@ -72,17 +85,47 @@ func (h *FeedViewHandler) GetFeedModal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	feed, err := h.feedRepo.GetByID(r.Context(), feedID)
+	feed, err := h.feedRepo.GetFeedWithPrompt(r.Context(), feedID)
 	if err != nil || feed == nil {
-		http.Error(w, "feed not found", http.StatusNotFound)
+		plainFeed, err2 := h.feedRepo.GetByID(r.Context(), feedID)
+		if err2 != nil || plainFeed == nil {
+			http.Error(w, "feed not found", http.StatusNotFound)
+			return
+		}
+		postsCount, _ := h.postRepo.CountByFeedID(r.Context(), feedID)
+		writeJSON(w, http.StatusOK, FeedModalResponse{
+			ID:          plainFeed.ID,
+			Name:        plainFeed.Name,
+			Type:        plainFeed.Type,
+			Description: plainFeed.Description,
+			PostsCount:  postsCount,
+			Sources:     []SourceItem{},
+		})
 		return
 	}
 
-	posts, err := h.postRepo.GetFeedPosts(r.Context(), feedID, 100, 0)
+	postsCount, _ := h.postRepo.CountByFeedID(r.Context(), feedID)
+
+	rawFeeds, err := h.rawFeedRepo.GetByFeedID(r.Context(), feedID)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to get feed posts")
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
+		log.Warn().Err(err).Msg("Failed to get raw feeds for modal")
+	}
+	sources := make([]SourceItem, 0, len(rawFeeds))
+	for _, rf := range rawFeeds {
+		sources = append(sources, SourceItem{
+			En:   rf.Name,
+			Ru:   rf.Name,
+			URL:  rf.FeedURL,
+			Type: rf.RawType,
+		})
+	}
+
+	var viewsJSON, filtersJSON json.RawMessage
+	if feed.ViewsConfig != nil {
+		viewsJSON, _ = json.Marshal(feed.ViewsConfig)
+	}
+	if feed.FiltersConfig != nil {
+		filtersJSON, _ = json.Marshal(feed.FiltersConfig)
 	}
 
 	writeJSON(w, http.StatusOK, FeedModalResponse{
@@ -90,7 +133,10 @@ func (h *FeedViewHandler) GetFeedModal(w http.ResponseWriter, r *http.Request) {
 		Name:        feed.Name,
 		Type:        feed.Type,
 		Description: feed.Description,
-		PostsCount:  len(posts),
+		PostsCount:  postsCount,
+		Sources:     sources,
+		Views:       viewsJSON,
+		Filters:     filtersJSON,
 	})
 }
 
