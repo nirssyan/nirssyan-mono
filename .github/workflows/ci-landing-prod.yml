@@ -9,155 +9,154 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: registry.infra.makekod.ru
+  REGISTRY: docker-registry.infrastructure:5000
   IMAGE_NAME: infatium-landing
+  IMAGE_TAG: prod
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
-
+    runs-on: infatium
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: npm
-        cache-dependency-path: web/landing/package-lock.json
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/landing/package-lock.json
 
-    - name: Install dependencies
-      working-directory: web/landing
-      run: npm ci
+      - name: Install dependencies
+        working-directory: web/landing
+        run: npm ci
 
-    - name: Run lint
-      working-directory: web/landing
-      run: npm run lint || true
+      - name: Run lint
+        working-directory: web/landing
+        run: npm run lint || true
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Record build start time
+        id: build_start
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ secrets.DOCKER_REGISTRY_USERNAME }}
-        password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+          buildkitd-config-inline: |
+            [registry."docker-registry.infrastructure:5000"]
+              http = true
 
-    - name: Record build start time
-      id: build_start
-      run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+      - name: Login to Registry
+        run: |
+          mkdir -p ~/.docker
+          AUTH=$(echo -n "${{ secrets.REGISTRY_USERNAME }}:${{ secrets.REGISTRY_PASSWORD }}" | base64 -w0)
+          echo "{\"auths\":{\"${{ env.REGISTRY }}\":{\"auth\":\"${AUTH}\"}}}" > ~/.docker/config.json
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: ./web/landing
-        file: ./web/landing/Dockerfile
-        push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:prod
-        build-args: |
-          NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
-          NEXT_PUBLIC_APPSTORE_URL=${{ secrets.NEXT_PUBLIC_APPSTORE_URL }}
-          NEXT_PUBLIC_RUSTORE_URL=${{ secrets.NEXT_PUBLIC_RUSTORE_URL }}
-          NEXT_PUBLIC_MATOMO_URL=${{ secrets.NEXT_PUBLIC_MATOMO_URL }}
-          NEXT_PUBLIC_MATOMO_SITE_ID=${{ secrets.NEXT_PUBLIC_MATOMO_SITE_ID }}
-          NEXT_PUBLIC_ENABLE_ANALYTICS=${{ secrets.NEXT_PUBLIC_ENABLE_ANALYTICS }}
-          NEXT_PUBLIC_YANDEX_METRIKA_ID=${{ secrets.NEXT_PUBLIC_YANDEX_METRIKA_ID }}
-          NEXT_PUBLIC_ENABLE_YANDEX_METRIKA=${{ secrets.NEXT_PUBLIC_ENABLE_YANDEX_METRIKA }}
-          API_KEY=${{ secrets.API_KEY }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        platforms: linux/amd64
-        provenance: false
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web/landing
+          push: true
+          platforms: linux/amd64
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-prod
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-prod,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_APPSTORE_URL=${{ secrets.NEXT_PUBLIC_APPSTORE_URL }}
+            NEXT_PUBLIC_RUSTORE_URL=${{ secrets.NEXT_PUBLIC_RUSTORE_URL }}
+            NEXT_PUBLIC_MATOMO_URL=${{ secrets.NEXT_PUBLIC_MATOMO_URL }}
+            NEXT_PUBLIC_MATOMO_SITE_ID=${{ secrets.NEXT_PUBLIC_MATOMO_SITE_ID }}
+            NEXT_PUBLIC_ENABLE_ANALYTICS=${{ secrets.NEXT_PUBLIC_ENABLE_ANALYTICS }}
+            NEXT_PUBLIC_YANDEX_METRIKA_ID=${{ secrets.NEXT_PUBLIC_YANDEX_METRIKA_ID }}
+            NEXT_PUBLIC_ENABLE_YANDEX_METRIKA=${{ secrets.NEXT_PUBLIC_ENABLE_YANDEX_METRIKA }}
+            API_KEY=${{ secrets.API_KEY }}
 
-    - name: Record build end time
-      id: build_end
-      run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+      - name: Record build end time
+        id: build_end
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
-    - name: Setup kubectl
-      uses: azure/setup-kubectl@v4
-      with:
-        version: 'latest'
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
 
-    - name: Configure kubectl
-      run: |
-        mkdir -p $HOME/.kube
-        echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
-        chmod 600 $HOME/.kube/config
+      - name: Configure kubectl
+        run: |
+          kubectl config set-cluster k8s --server=https://kubernetes.default.svc --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          kubectl config set-credentials sa --token=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+          kubectl config set-context default --cluster=k8s --user=sa
+          kubectl config use-context default
 
-    - name: Record deploy start time
-      id: deploy_start
-      run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+      - name: Record deploy start time
+        id: deploy_start
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
-    - name: Detect deployment name
-      id: deployment_name
-      run: |
-        if timeout 30s kubectl get deployment app-landing-typescript -n infatium-prod --request-timeout=20s >/dev/null 2>&1; then
-          echo "name=app-landing-typescript" >> $GITHUB_OUTPUT
-        elif timeout 30s kubectl get deployment landing -n infatium-prod --request-timeout=20s >/dev/null 2>&1; then
-          echo "name=landing" >> $GITHUB_OUTPUT
-        else
-          echo "No landing deployment found in namespace infatium-prod"
-          timeout 30s kubectl get deployment -n infatium-prod --request-timeout=20s || true
-          exit 1
-        fi
+      - name: Detect deployment name
+        id: deployment_name
+        run: |
+          if kubectl get deployment app-landing-typescript -n infatium-prod >/dev/null 2>&1; then
+            echo "name=app-landing-typescript" >> $GITHUB_OUTPUT
+          elif kubectl get deployment landing -n infatium-prod >/dev/null 2>&1; then
+            echo "name=landing" >> $GITHUB_OUTPUT
+          else
+            echo "No landing deployment found in infatium-prod"
+            kubectl get deployment -n infatium-prod || true
+            exit 1
+          fi
 
-    - name: Deploy to Kubernetes (prod)
-      run: |
-        timeout 30s kubectl rollout restart deployment/${{ steps.deployment_name.outputs.name }} -n infatium-prod --request-timeout=20s
-        timeout 330s kubectl rollout status deployment/${{ steps.deployment_name.outputs.name }} -n infatium-prod --request-timeout=20s --timeout=5m
+      - name: Deploy to Kubernetes (prod)
+        run: |
+          kubectl rollout restart deployment/${{ steps.deployment_name.outputs.name }} -n infatium-prod
+          kubectl rollout status deployment/${{ steps.deployment_name.outputs.name }} -n infatium-prod --timeout=5m
 
-    - name: Record deploy end time
-      id: deploy_end
-      run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
+      - name: Record deploy end time
+        id: deploy_end
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
-    - name: Send Telegram notification
-      if: always()
-      env:
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_DEPLOY_BOT_TOKEN }}
-        COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-      run: |
-        if [[ "${{ job.status }}" == "success" ]]; then
-          STATUS="✅ PROD Landing деплой успешен"
-        else
-          STATUS="❌ PROD Landing деплой провален"
-        fi
+      - name: Send Telegram notification
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_DEPLOY_BOT_TOKEN }}
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            STATUS="✅"
+          else
+            STATUS="❌"
+          fi
 
-        COMMIT_MSG=$(echo "$COMMIT_MESSAGE" | head -1 | sed 's/"/\\"/g')
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 100 | sed 's/"/\\"/g')
 
-        BUILD_START="${{ steps.build_start.outputs.time }}"
-        BUILD_END="${{ steps.build_end.outputs.time }}"
-        DEPLOY_START="${{ steps.deploy_start.outputs.time }}"
-        DEPLOY_END="${{ steps.deploy_end.outputs.time }}"
+          BUILD_START="${{ steps.build_start.outputs.time }}"
+          BUILD_END="${{ steps.build_end.outputs.time }}"
+          DEPLOY_START="${{ steps.deploy_start.outputs.time }}"
+          DEPLOY_END="${{ steps.deploy_end.outputs.time }}"
 
-        if [[ -n "$BUILD_START" && -n "$BUILD_END" ]]; then
-          BUILD_DURATION=$((BUILD_END - BUILD_START))
-          BUILD_TIME="$((BUILD_DURATION / 60))m $((BUILD_DURATION % 60))s"
-        else
-          BUILD_TIME="N/A"
-        fi
+          if [[ -n "$BUILD_START" && -n "$BUILD_END" ]]; then
+            BUILD_DURATION=$((BUILD_END - BUILD_START))
+            BUILD_TIME="$((BUILD_DURATION / 60))m $((BUILD_DURATION % 60))s"
+          else
+            BUILD_TIME="N/A"
+          fi
 
-        if [[ -n "$DEPLOY_START" && -n "$DEPLOY_END" ]]; then
-          DEPLOY_DURATION=$((DEPLOY_END - DEPLOY_START))
-          DEPLOY_TIME="$((DEPLOY_DURATION / 60))m $((DEPLOY_DURATION % 60))s"
-        else
-          DEPLOY_TIME="N/A"
-        fi
+          if [[ -n "$DEPLOY_START" && -n "$DEPLOY_END" ]]; then
+            DEPLOY_DURATION=$((DEPLOY_END - DEPLOY_START))
+            DEPLOY_TIME="$((DEPLOY_DURATION / 60))m $((DEPLOY_DURATION % 60))s"
+          else
+            DEPLOY_TIME="N/A"
+          fi
 
-        if [[ -n "$BUILD_START" && -n "$DEPLOY_END" ]]; then
-          TOTAL_DURATION=$((DEPLOY_END - BUILD_START))
-          TOTAL_TIME="$((TOTAL_DURATION / 60))m $((TOTAL_DURATION % 60))s"
-        else
-          TOTAL_TIME="N/A"
-        fi
+          if [[ -n "$BUILD_START" && -n "$DEPLOY_END" ]]; then
+            TOTAL_DURATION=$((DEPLOY_END - BUILD_START))
+            TOTAL_TIME="$((TOTAL_DURATION / 60))m $((TOTAL_DURATION % 60))s"
+          else
+            TOTAL_TIME="N/A"
+          fi
 
-        curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-          -H "Content-Type: application/json" \
-          -d "{
-            \"chat_id\": \"-1002622491758\",
-            \"message_thread_id\": 239,
-            \"parse_mode\": \"HTML\",
-            \"disable_web_page_preview\": true,
-            \"text\": \"${STATUS}\n\n📦 <b>Сервис:</b> landing\n🌐 <b>Окружение:</b> prod (infatium.ru)\n📝 <b>Коммит:</b> ${COMMIT_MSG}\n👤 <b>Автор:</b> ${{ github.event.head_commit.author.name }}\n\n⏱️ <b>Время:</b>\n   Build: ${BUILD_TIME}\n   Deploy: ${DEPLOY_TIME}\n   <b>Всего: ${TOTAL_TIME}</b>\n\n🔗 <a href=\\\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\\\">Workflow Run</a>\"
-          }"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"-1002622491758\",
+              \"message_thread_id\": 239,
+              \"parse_mode\": \"HTML\",
+              \"text\": \"${STATUS} <b>landing PROD</b>\n\n📦 Image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\n\n⏱️ <b>Время:</b>\n   Build: ${BUILD_TIME}\n   Deploy: ${DEPLOY_TIME}\n   <b>Всего: ${TOTAL_TIME}</b>\"
+            }"
