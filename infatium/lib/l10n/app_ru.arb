@@ -1,0 +1,990 @@
+{
+  "@@locale": "ru",
+  "appTitle": "AI Чат",
+
+  "signIn": "Войти",
+  "signUp": "Зарегистрироваться",
+  "registration": "Регистрация",
+  "signInToAccount": "Войдите в свой аккаунт",
+  "createNewAccount": "Создайте новый аккаунт",
+  "signInWithGoogle": "Войти через Google",
+  "signInWithApple": "Войти через Apple",
+  "signInWithMagicLink": "Войти с email",
+  "checkYourEmail": "Проверьте почту",
+  "magicLinkSent": "Мы отправили вам ссылку для входа",
+  "magicLinkDescription": "Перейдите по ссылке в письме для входа",
+  "continueWithEmail": "Продолжить с email",
+  "enterYourEmail": "Введите ваш email",
+  "magicLinkSentToEmail": "Мы отправили ссылку для входа на ваш email",
+  "clickLinkToSignIn": "Перейдите по ссылке в письме для входа в аккаунт",
+  "cantFindEmail": "Не нашли письмо?",
+  "checkSpamFolder": "Проверьте папку \"Спам\" или \"Нежелательные\"",
+  "resendEmail": "Отправить повторно",
+  "resendEmailIn": "Повторная отправка через {seconds} сек",
+  "or": "или",
+  "email": "Email",
+  "password": "Пароль",
+  "confirmPassword": "Подтвердите пароль",
+  "fillAllFields": "Заполните все поля",
+  "enterValidEmail": "Введите корректный email",
+  "passwordsDoNotMatch": "Пароли не совпадают",
+  "noAccount": "Нет аккаунта? ",
+  "haveAccount": "Уже есть аккаунт? ",
+
+  "home": "Главная",
+  "search": "Поиск",
+  "chats": "Создать",
+  "profile": "Профиль",
+
+  "news": "Лента",
+  "all": "Все",
+  "technology": "Технологии",
+  "ai": "ИИ",
+  "science": "Наука",
+  "space": "Космос",
+  "ecology": "Экология",
+
+  "minutesAgo": "{minutes} мин назад",
+  "hoursAgo": "{hours} ч назад",
+  "daysAgo": "{days} дн назад",
+
+  "products": "Продукты",
+  "techCrunch": "TechCrunch",
+  "appleNews": "Apple News",
+  "scienceToday": "Science Today",
+  "aiWeekly": "AI Weekly",
+  "ecoNews": "EcoNews",
+  "spaceExplorer": "Space Explorer",
+
+  "searchPage": "Поиск",
+  "chatsPage": "Создать",
+  "settings": "Настройки",
+  "appIcon": "Иконка приложения",
+  "darkIcon": "Темная",
+  "lightIcon": "Светлая",
+  "language": "Язык",
+  "theme": "Тема",
+  "darkMode": "Темная тема",
+  "lightMode": "Светлая тема",
+  "zenMode": "Режим концентрации",
+  "zenModeDescription": "Скрыть счетчики непрочитанных",
+  "zenModeEnabled": "Включен",
+  "zenModeDisabled": "Выключен",
+  "zenModeEnabledDescription": "Счетчики непрочитанных скрыты",
+  "zenModeDisabledDescription": "Счетчики непрочитанных видны",
+  "zenModeInfo": "Когда режим концентрации включен, все счетчики непрочитанных и значки будут скрыты во всем приложении. Это поможет вам сосредоточиться на контенте без отвлечения на уведомления.",
+  "viewSettings": "Настройки вида",
+  "imagePreviews": "Превью изображений",
+  "imagePreviewsDescription": "Показывать превью в ленте новостей",
+  "imagePreviewsEnabled": "Включено",
+  "imagePreviewsDisabled": "Выключено",
+  "imagePreviewsEnabledDescription": "Превью изображений видны",
+  "imagePreviewsDisabledDescription": "Превью изображений скрыты",
+  "imagePreviewsInfo": "Когда выключено, карточки новостей не будут показывать превью изображений и видео, делая ленту более компактной и текстовой.",
+  "defaultContent": "Контент по умолчанию",
+  "defaultContentDescription": "Выберите, что показывать первым",
+  "summaryFirstDescription": "Краткая сводка показывается первой",
+  "fullTextFirstDescription": "Полный текст показывается первым",
+  "defaultContentInfo": "Эта настройка меняет порядок вкладок контента. Выберите, хотите ли вы видеть краткую сводку или полный текст первым при открытии новости.",
+  "logout": "Выйти",
+  "logoutConfirm": "Вы уверены, что хотите выйти?",
+  "cancel": "Отмена",
+  "account": "Аккаунт",
+
+  "deepseekChat": "DeepSeek AI",
+  "aiAssistant": "ИИ Ассистент",
+  "startConversation": "Начните разговор с ИИ",
+  "typeMessage": "Введите сообщение...",
+  "aiIsTyping": "ИИ печатает...",
+
+  "feedTyping1": "Собираем ленту",
+  "feedTyping2": "Лента в пути",
+  "feedTyping3": "Готовим контент",
+  "feedTyping4": "Почти готово",
+  "feedTyping5": "Создаём магию",
+  "feedTyping6": "Секундочку",
+  "feedTyping7": "Готовимся",
+  "feedTyping8": "Уже скоро",
+  "feedTyping9": "Заваривается",
+  "feedTyping10": "Загружаем",
+
+  "feedSubtext1": "Подождите",
+  "feedSubtext2": "Ищем жемчужины",
+  "feedSubtext3": "Момент",
+  "feedSubtext4": "Персонализируем",
+  "feedSubtext5": "Почти там",
+  "feedSubtext6": "Сортируем",
+  "feedSubtext7": "Для вас",
+  "feedSubtext8": "Работаем",
+  "feedSubtext9": "Не уходите",
+  "feedSubtext10": "Финиш близко",
+
+  "sendMessage": "Отправить сообщение",
+
+  "viewComment": "Комментарий AI",
+  "viewOverview": "Обзор",
+
+  "contactUs": "Связаться с нами",
+  "emailCopied": "Скопировано!",
+  "emailCopiedMessage": "Email адрес скопирован в буфер обмена",
+
+  "feedManagement": "Управление лентой",
+  "renameFeed": "Переименовать",
+  "deleteFeed": "Отписаться",
+  "confirmDeleteFeed": "Вы уверены, что хотите отписаться от этой ленты?",
+  "confirmDeleteFeedMessage": "Это действие нельзя отменить. Все посты из этой ленты будут удалены из вашей ленты.",
+  "delete": "Удалить",
+  "rename": "Переименовать",
+  "enterNewName": "Введите новое название ленты",
+  "feedNameRequired": "Название ленты обязательно",
+  "feedRenamed": "Лента успешно переименована",
+  "feedDeleted": "Отписка от ленты выполнена",
+  "errorRenamingFeed": "Ошибка переименования ленты",
+  "errorDeletingFeed": "Ошибка отписки от ленты",
+  "save": "Сохранить",
+
+  "readAllPosts": "Прочитать все",
+  "postsMarkedAsRead": "Отмечено постов: {count}",
+  "@postsMarkedAsRead": {
+    "description": "Success message showing number of posts marked as read",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "The number of posts marked as read."
+      }
+    }
+  },
+  "errorMarkingPostsAsRead": "Ошибка отметки постов",
+
+  "sourceCount": "{count,plural, =0{Нет источников} =1{{count} источник} few{{count} источника} many{{count} источников} other{{count} источника}}",
+  "@sourceCount": {
+    "description": "A label that shows the number of sources for a news item.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "The number of sources."
+      }
+    }
+  },
+
+  "noFeedsTitle": "У вас пока нет лент",
+  "noFeedsSubtitle": "Нажмите +, чтобы создать первую ленту",
+  "noFeedsDescription": "Добавьте любимые источники и получайте персонализированный контент с помощью ИИ.",
+  "goToChat": "Перейти к созданию",
+
+  "feedOnTheWay": "Ваша лента уже в пути",
+  "feedLoadingDescription": "Мы собираем для вас лучшие новости",
+  "feedGenerating": "Генерируем ленту специально для вас",
+
+  "chat": "Сессия",
+  "startAConversation": "Начните создание",
+  "newChat": "Новая сессия",
+  "deleteChat": "Удалить",
+  "deleteSession": "Удалить",
+  "confirmDeleteChat": "Удалить сессию?",
+  "confirmDeleteChatMessage": "Эта сессия и все её сообщения будут безвозвратно удалены.",
+  "chatDeleted": "Сессия удалена",
+  "sessionDeleted": "Сессия удалена",
+  "errorLoadingChats": "Ошибка загрузки сессий",
+  "errorLoadingSessions": "Ошибка загрузки сессий",
+  "tryAgain": "Попробовать снова",
+  "errorCreatingChat": "Ошибка создания сессии",
+  "errorCreatingSession": "Ошибка создания сессии",
+  "errorDeletingChat": "Ошибка удаления сессии",
+  "errorDeletingSession": "Ошибка удаления сессии",
+  "yesterday": "Вчера",
+
+  "forgotPassword": "Забыли пароль?",
+  "resetPassword": "Сброс пароля",
+  "enterEmailToReset": "Введите ваш email, и мы отправим вам инструкции по восстановлению пароля.",
+  "send": "Отправить",
+  "resetPasswordSuccess": "Инструкции отправлены",
+  "resetPasswordSuccessMessage": "Проверьте вашу почту для получения инструкций по восстановлению пароля.",
+
+  "success": "Успешно",
+  "passwordChangedSuccessfully": "Ваш пароль успешно изменен!",
+  "createNewPassword": "Создайте новый пароль",
+  "enterNewPasswordBelow": "Введите новый пароль ниже",
+  "newPassword": "Новый пароль",
+  "passwordRequirements": "Минимум 8 символов, включая заглавные, строчные буквы, цифры и спецсимволы",
+
+  "backToSignIn": "Вернуться к входу",
+
+  "continueButton": "Продолжить",
+  "retry": "Повторить",
+  "error": "Ошибка",
+
+  "sourcesModalTitle": "Источники",
+
+  "feedback": "Обратная связь",
+  "sendFeedback": "Отправить отзыв",
+  "shareYourFeedback": "Поделитесь мнением",
+  "shareYourThoughts": "Поделитесь с нами вашими мыслями",
+  "feedbackSubtitle": "Мы будем рады услышать ваши мысли, предложения или любые проблемы, с которыми вы столкнулись",
+  "feedbackPlaceholder": "Идеи, баги, отзыв...",
+  "sendingFeedback": "Отправка отзыва...",
+  "feedbackSent": "Спасибо!",
+  "feedbackSentMessage": "Ваш отзыв получен. Мы ценим, что вы нашли время, чтобы помочь нам стать лучше!",
+  "feedbackError": "Ошибка отправки отзыва",
+  "feedbackEmpty": "Пожалуйста, введите ваш отзыв",
+  "characterLimit": "{count} / {max} символов",
+  "@characterLimit": {
+    "description": "Character counter format",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "Current character count"
+      },
+      "max": {
+        "type": "int",
+        "description": "Maximum character limit"
+      }
+    }
+  },
+  "closingAutomatically": "Закрывается автоматически",
+  "appTakingBreak": "Приложение отдыхает",
+  "appTakingBreakDescription": "Мы скоро вернёмся. Попробуйте позже.",
+
+  "viewSettingsSubtitle": "Настройте вашу ленту",
+  "viewSettingsPageSubtitle": "Настройте внешний вид ленты",
+
+  "profileDetails": "Детали профиля",
+  "deleteAccount": "Удалить аккаунт",
+  "deleteAccountConfirmTitle": "Удалить аккаунт?",
+  "deleteAccountConfirmMessage": "Это действие удалит ваш аккаунт и все связанные с ним данные навсегда. Это действие нельзя отменить.",
+  "yes": "Да",
+  "deleteAccountProcessing": "Удаление аккаунта...",
+  "accountDeleted": "Аккаунт удален",
+  "deleteAccountError": "Ошибка удаления аккаунта",
+  "pleaseWaitSeconds": "Подождите {seconds} сек...",
+  "@pleaseWaitSeconds": {
+    "description": "Wait timer message",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "description": "Seconds remaining"
+      }
+    }
+  },
+  "dangerZone": "Опасная зона",
+  "accountInfo": "Информация об аккаунте",
+
+  "agreeToTerms": "Продолжая, вы соглашаетесь с нашими {terms} и {privacy}",
+  "@agreeToTerms": {
+    "description": "Terms and privacy agreement text",
+    "placeholders": {
+      "terms": {
+        "type": "String",
+        "description": "Terms of Service link text"
+      },
+      "privacy": {
+        "type": "String",
+        "description": "Privacy Policy link text"
+      }
+    }
+  },
+
+  "termsOfService": "Условиями использования",
+  "@termsOfService": {
+    "description": "Terms of Service link text"
+  },
+
+  "privacyPolicy": "Политикой конфиденциальности",
+  "@privacyPolicy": {
+    "description": "Privacy Policy link text"
+  },
+
+  "mustAgreeToTerms": "Пожалуйста, согласитесь с Условиями и Политикой конфиденциальности для продолжения",
+  "@mustAgreeToTerms": {
+    "description": "Error message when user hasn't agreed to terms"
+  },
+
+  "agreeToTermsPrefix": "Продолжая, вы соглашаетесь с нашими ",
+  "@agreeToTermsPrefix": {
+    "description": "Prefix text for terms agreement"
+  },
+
+  "andText": " и ",
+  "@andText": {
+    "description": "Conjunction text between terms and privacy"
+  },
+
+  "feedCreatorTitle": "Создать ленту",
+  "@feedCreatorTitle": {
+    "description": "Title for feed creator form"
+  },
+
+  "promptLabel": "Формат отображения",
+  "@promptLabel": {
+    "description": "Label for prompt input field"
+  },
+
+  "promptHint": "Какой контент вы хотите?",
+  "@promptHint": {
+    "description": "Hint for prompt input field"
+  },
+
+  "sourcesLabel": "Источники",
+  "@sourcesLabel": {
+    "description": "Label for sources input field"
+  },
+
+  "sourcesHint": "@канал1, @канал2, https://...",
+  "@sourcesHint": {
+    "description": "Hint for sources input field"
+  },
+
+  "feedTypeLabel": "Тип ленты",
+  "@feedTypeLabel": {
+    "description": "Label for feed type selection"
+  },
+
+  "singlePostType": "Отдельные посты",
+  "@singlePostType": {
+    "description": "Single post feed type option"
+  },
+
+  "singlePostTypeDescription": "Каждый пост показывается отдельно",
+  "@singlePostTypeDescription": {
+    "description": "Description for single post type"
+  },
+
+  "digestType": "Сводка",
+  "@digestType": {
+    "description": "Digest feed type option"
+  },
+
+  "digestTypeDescription": "Посты объединяются в сводку",
+  "@digestTypeDescription": {
+    "description": "Description for digest type"
+  },
+
+  "createFeedButton": "Создать",
+  "@createFeedButton": {
+    "description": "Create feed button text"
+  },
+
+  "creatingFeed": "Создаём вашу ленту...",
+  "@creatingFeed": {
+    "description": "Loading text when creating feed"
+  },
+  "creatingDigest": "Создаём вашу сводку...",
+  "@creatingDigest": {
+    "description": "Loading text when creating digest"
+  },
+  "feedItemCreating": "Создаётся...",
+  "@feedItemCreating": {
+    "description": "Short status text for feed item being created"
+  },
+  "waitingForFirstPost": "Ожидание первого поста",
+  "@waitingForFirstPost": {
+    "description": "Loading text when waiting for first post via WebSocket"
+  },
+  "timeout": "Тайм-аут",
+  "@timeout": {
+    "description": "Timeout error title"
+  },
+
+  "promptRequired": "Пожалуйста, введите промпт",
+  "@promptRequired": {
+    "description": "Error when prompt is empty"
+  },
+
+  "sourcesRequired": "Пожалуйста, введите хотя бы один источник",
+  "@sourcesRequired": {
+    "description": "Error when sources are empty"
+  },
+
+  "digestDuration": "Продолжительность",
+  "@digestDuration": {
+    "description": "Title for digest duration selector"
+  },
+
+  "digestMinutes": "{count} мин",
+  "@digestMinutes": {
+    "description": "Minutes format for digest duration",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "digestHours": "{count} ч",
+  "@digestHours": {
+    "description": "Hours format for digest duration",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "presets": "Типовые",
+  "@presets": {
+    "description": "Label for preset durations section"
+  },
+
+  "reset": "Сбросить",
+  "@reset": {
+    "description": "Reset button text"
+  },
+
+  "feedTitle": "Название",
+  "@feedTitle": {
+    "description": "Label for feed title field"
+  },
+
+  "feedTitlePlaceholder": "Дайте название ленте",
+  "@feedTitlePlaceholder": {
+    "description": "Placeholder for feed title field"
+  },
+
+  "feedDescription": "Описание",
+  "@feedDescription": {
+    "description": "Label for feed description field"
+  },
+
+  "feedDescriptionPlaceholder": "Опишите, о чём эта лента",
+  "@feedDescriptionPlaceholder": {
+    "description": "Placeholder for feed description field"
+  },
+
+  "feedFilters": "Фильтры контента",
+  "@feedFilters": {
+    "description": "Label for filters section in feed edit"
+  },
+
+  "filterDuplicates": "Удалять дубликаты",
+  "@filterDuplicates": {
+    "description": "Filter option: remove duplicate posts"
+  },
+
+  "filterAds": "Фильтровать рекламу",
+  "@filterAds": {
+    "description": "Filter option: filter advertising content"
+  },
+
+  "filterSpam": "Убирать спам",
+  "@filterSpam": {
+    "description": "Filter option: remove spam content"
+  },
+
+  "filterClickbait": "Без кликбейта",
+  "@filterClickbait": {
+    "description": "Filter option: filter clickbait content"
+  },
+
+  "feedTags": "Теги",
+  "@feedTags": {
+    "description": "Label for feed tags field"
+  },
+
+  "feedTagsPlaceholder": "Добавьте теги (до 4)",
+  "@feedTagsPlaceholder": {
+    "description": "Placeholder for feed tags field"
+  },
+
+  "feedTagsLimitError": "Максимум 4 тега",
+  "@feedTagsLimitError": {
+    "description": "Error message when more than 4 tags are added"
+  },
+
+  "feedNotReady": "Лента ещё не готова к созданию",
+  "@feedNotReady": {
+    "description": "Error message when feed cannot be created yet"
+  },
+
+  "feedCreatedSuccess": "Лента успешно создана!",
+  "@feedCreatedSuccess": {
+    "description": "Success message after feed creation"
+  },
+
+  "digestsTab": "Сводки",
+  "@digestsTab": {
+    "description": "Digests tab title in home page"
+  },
+
+  "feedsTab": "Ленты",
+  "@feedsTab": {
+    "description": "Feeds tab title in home page"
+  },
+
+  "noDigestsTitle": "Пока нет сводок",
+  "@noDigestsTitle": {
+    "description": "Empty state title when no digest feeds exist"
+  },
+
+  "noDigestsHint": "Создайте сводку, чтобы объединить несколько источников",
+  "@noDigestsHint": {
+    "description": "Empty state hint text for digests tab"
+  },
+
+  "noRegularFeedsHint": "Создайте ленту, чтобы получать отдельные посты из любимых источников",
+  "@noRegularFeedsHint": {
+    "description": "Empty state hint text for feeds tab"
+  },
+
+  "linkTelegram": "Привязать Telegram",
+  "telegramLinked": "Telegram привязан",
+  "linkTelegramSubtitle": "Получайте уведомления в Telegram",
+  "linkTelegramLoading": "Подключение...",
+  "linkTelegramError": "Не удалось получить ссылку. Попробуйте ещё раз.",
+
+  "summarizeUnseenTitle": "Собрать непрочитанное?",
+  "@summarizeUnseenTitle": {
+    "description": "Title for summarize confirmation modal"
+  },
+
+  "summarizeUnseenMessage": "Создать AI-сводку из {count} непрочитанных постов в «{feedName}». Они будут отмечены как прочитанные.",
+  "@summarizeUnseenMessage": {
+    "description": "Message for summarize confirmation modal",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "Number of unseen posts"
+      },
+      "feedName": {
+        "type": "String",
+        "description": "Name of the feed"
+      }
+    }
+  },
+
+  "summarizeUnseenConfirm": "Создать сводку",
+  "@summarizeUnseenConfirm": {
+    "description": "Confirm button for summarize modal"
+  },
+
+  "summarizeUnseenCancel": "Отмена",
+  "@summarizeUnseenCancel": {
+    "description": "Cancel button for summarize modal"
+  },
+
+  "summarizeUnseenOverLimit": "Слишком много непрочитанных постов ({count}). Максимум для сводки — {limit}. Прочитайте часть постов, чтобы создать сводку.",
+  "@summarizeUnseenOverLimit": {
+    "description": "Message when unread posts exceed limit for digest",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "Current number of unread posts"
+      },
+      "limit": {
+        "type": "int",
+        "description": "Maximum allowed unread posts for digest"
+      }
+    }
+  },
+
+  "summarizeStatusPreparing": "Подготовка сводки...",
+  "@summarizeStatusPreparing": {
+    "description": "Status text while preparing summarization"
+  },
+
+  "summarizeStatusCollecting": "Собираем посты...",
+  "@summarizeStatusCollecting": {
+    "description": "Status text while collecting posts for summarization"
+  },
+
+  "summarizeStatusGenerating": "Генерация сводки...",
+  "@summarizeStatusGenerating": {
+    "description": "Status text while AI generates the digest"
+  },
+
+  "summarizeStatusReady": "Сводка готова!",
+  "@summarizeStatusReady": {
+    "description": "Status text when digest is ready"
+  },
+
+  "summarizeStatusFailed": "Не удалось создать сводку",
+  "@summarizeStatusFailed": {
+    "description": "Status text when digest creation fails"
+  },
+
+  "noMorePosts": "Больше нет постов",
+  "@noMorePosts": {
+    "description": "Text shown when all posts have been loaded"
+  },
+
+  "offlineMode": "Офлайн - показаны сохраненные данные",
+  "@offlineMode": {
+    "description": "Banner text shown when app is offline and using cached data"
+  },
+
+  "noPostsYet": "Пока нет постов",
+  "@noPostsYet": {
+    "description": "Title shown when a feed has been created but has no posts"
+  },
+
+  "noPostsYetDescription": "Посты появятся здесь, когда будут сгенерированы для этой ленты.",
+  "@noPostsYetDescription": {
+    "description": "Description shown when a feed has been created but has no posts"
+  },
+
+  "onboardingStep1Title": "Ленты",
+  "@onboardingStep1Title": {
+    "description": "Title for onboarding step 1 - Home tab"
+  },
+  "onboardingStep1Description": "Здесь живут ваши ленты, отдельная вкладка для обычных лент и сводок.",
+  "@onboardingStep1Description": {
+    "description": "Description for onboarding step 1"
+  },
+  "onboardingStep2Title": "Создание ленты",
+  "@onboardingStep2Title": {
+    "description": "Title for onboarding step 2 - Create tab"
+  },
+  "onboardingStep2Description": "Соберите свою персональную ленту. Ваш контент — ваши правила.",
+  "@onboardingStep2Description": {
+    "description": "Description for onboarding step 2"
+  },
+  "onboardingStep3Title": "Редактирование ленты",
+  "@onboardingStep3Title": {
+    "description": "Title for onboarding step 3 - Feeds tab"
+  },
+  "onboardingStep3Description": "Здесь можно в любой момент донастроить ваши ленты.",
+  "@onboardingStep3Description": {
+    "description": "Description for onboarding step 3"
+  },
+  "onboardingStep4Title": "Настройки",
+  "@onboardingStep4Title": {
+    "description": "Title for onboarding step 4 - Profile tab"
+  },
+  "onboardingStep4Description": "Профиль, тема, настройки приложения и всё остальное — здесь.",
+  "@onboardingStep4Description": {
+    "description": "Description for onboarding step 4"
+  },
+  "onboardingSkip": "Пропустить",
+  "@onboardingSkip": {
+    "description": "Skip button text in onboarding"
+  },
+  "onboardingNext": "Далее",
+  "@onboardingNext": {
+    "description": "Next button text in onboarding"
+  },
+  "onboardingFinish": "Понятно!",
+  "@onboardingFinish": {
+    "description": "Finish button text in onboarding"
+  },
+
+  "authErrorInvalidCredentials": "Неверный email или пароль",
+  "authErrorEmailNotConfirmed": "Подтвердите email перед входом",
+  "authErrorInvalidLoginData": "Неверные данные для входа",
+  "authErrorInvalidEmailFormat": "Неверный формат email",
+  "authErrorTooManyAttempts": "Слишком много попыток. Попробуйте позже",
+  "authErrorSignInFailed": "Ошибка входа",
+  "authErrorSignInError": "Ошибка входа",
+  "authErrorEmailAlreadyRegistered": "Email уже зарегистрирован",
+  "authErrorTooManySignUpAttempts": "Слишком много попыток регистрации. Попробуйте позже",
+  "authErrorSignUpFailed": "Ошибка регистрации",
+  "authErrorSignUpError": "Ошибка регистрации",
+  "authErrorPasswordTooShort": "Пароль должен содержать минимум 8 символов",
+  "authErrorPasswordNeedsUppercase": "Пароль должен содержать заглавные буквы",
+  "authErrorPasswordNeedsLowercase": "Пароль должен содержать строчные буквы",
+  "authErrorPasswordNeedsNumbers": "Пароль должен содержать цифры",
+  "authErrorPasswordNeedsSpecialChars": "Пароль должен содержать специальные символы",
+  "authErrorGoogleCancelled": "Вход через Google отменен",
+  "authErrorGoogleFailed": "Не удалось войти через Google",
+  "authErrorGoogleNoIdToken": "Не удалось получить ID токен от Google",
+  "authErrorGoogleError": "Ошибка входа через Google",
+  "authErrorAppleCancelled": "Вход через Apple отменен",
+  "authErrorAppleError": "Ошибка входа через Apple",
+  "authErrorOAuthCancelled": "Вход отменен",
+  "authErrorOAuthError": "Ошибка OAuth авторизации",
+  "authErrorOAuthTimeout": "Превышено время ожидания авторизации",
+  "authErrorSessionRefreshFailed": "Не удалось обновить сессию",
+  "authErrorSessionRefreshError": "Ошибка обновления сессии",
+  "authErrorPasswordResetFailed": "Не удалось отправить сброс пароля",
+  "authErrorPasswordResetError": "Ошибка сброса пароля",
+  "authErrorPasswordUpdateFailed": "Не удалось изменить пароль",
+  "authErrorPasswordUpdateError": "Ошибка изменения пароля",
+  "authErrorNoDataToUpdate": "Нет данных для обновления",
+  "authErrorProfileUpdateFailed": "Не удалось обновить профиль",
+  "authErrorProfileUpdateError": "Ошибка обновления профиля",
+  "authErrorNotAuthenticated": "Пользователь не авторизован",
+  "authErrorAccountDeleteFailed": "Не удалось удалить аккаунт",
+  "authErrorAccountDeleteError": "Ошибка удаления аккаунта",
+  "authErrorMagicLinkSendError": "Не удалось отправить ссылку для входа",
+  "authErrorMagicLinkError": "Ошибка отправки ссылки",
+  "authErrorDemoLoginMissingToken": "Ошибка сервера: отсутствует токен",
+  "authErrorDemoLoginFailed": "Ошибка демо-входа",
+  "authErrorDemoLoginConnectionError": "Ошибка подключения к серверу",
+  "authErrorUserNotFound": "Пользователь не найден",
+  "authErrorEmailConfirmationError": "Не удалось отправить подтверждение",
+  "authErrorNetworkError": "Ошибка сети. Проверьте подключение",
+  "authErrorUnknownError": "Произошла непредвиденная ошибка",
+  "authMessageCheckEmailForConfirmation": "Проверьте email для подтверждения регистрации",
+  "authMessagePasswordResetSent": "Инструкции по сбросу пароля отправлены на email",
+  "authMessagePasswordChanged": "Пароль успешно изменен",
+  "authMessageAccountDeleted": "Аккаунт удален",
+  "authMessageCheckEmailForLink": "Проверьте почту для входа. Письмо придет в течение минуты.",
+  "authMessageConfirmationEmailSent": "Письмо с подтверждением отправлено",
+
+  "slideFeedTypeTitle": "Какую ленту создать?",
+  "slideFeedTypeSubtitle": "Выберите формат отображения постов",
+  "slideFeedTypeIndividualPosts": "Отдельные\nпосты",
+  "slideFeedTypeIndividualPostsDesc": "Каждый пост отдельно",
+  "slideFeedTypeDigest": "Сводка",
+  "slideFeedTypeDigestDesc": "Объединяем в сводку",
+  "slideContentTitle": "Откуда брать контент?",
+  "slideContentSubtitle": "Блоги, Telegram каналы и RSS",
+  "slideContentSourceHint": "@channel или https://...",
+  "slideContentPopular": "Популярные:",
+  "slideConfigTitle": "Настройка контента",
+  "slideConfigSubtitle": "Как обрабатывать и что фильтровать",
+  "slideConfigProcessingStyle": "Стиль обработки",
+  "slideConfigProcessingHint": "Как AI будет обрабатывать новости",
+  "slideConfigCustomStyle": "Свой стиль...",
+  "slideConfigFilters": "Фильтры",
+  "slideConfigFiltersHint": "Что убирать из ленты",
+  "slideConfigCustomFilter": "Свой фильтр...",
+  "slideConfigAddCustom": "Добавить свой",
+  "slideFinalizeTitle": "Почти готово!",
+  "slideFinalizeSubtitle": "Проверьте настройки ленты",
+  "slideFinalizeName": "Название",
+  "slideFinalizeSummary": "Сводка",
+  "slideFinalizeSave": "Сохранить",
+  "slideFinalizeCreateFeed": "Создать ленту",
+  "slideFinalizeNameHint": "Придумайте название",
+  "slideFinalizeType": "Тип",
+  "slideFinalizeIndividualPosts": "Отдельные посты",
+  "slideFinalizeDigest": "Сводка",
+  "slideFinalizeFrequency": "Частота",
+  "slideFinalizeSources": "Источники",
+  "slideFinalizeStyle": "Стиль",
+  "slideFinalizeFilters": "Фильтры",
+  "slideNext": "Далее",
+  "slideDone": "Готово",
+  "slideDigestFrequency": "Частота сводки",
+  "slideDigestFrequencyHint": "Как часто собирать новости",
+  "slideDigestEveryHour": "Каждый час",
+  "slideDigestEvery3Hours": "Каждые 3ч",
+  "slideDigestEvery6Hours": "Каждые 6ч",
+  "slideDigestEvery12Hours": "Каждые 12ч",
+  "slideDigestDaily": "Раз в день",
+  "slideDigestEvery2Days": "Раз в 2 дня",
+  "slideDigestCustom": "Другое",
+  "slideDigestCancel": "Отмена",
+  "slidePostsPreview": "Так будут выглядеть посты",
+  "slideDailyDigest": "Сводка за день",
+  "slidePostsCombined": "3 поста объединены",
+
+  "aiStyleBrief": "Кратко",
+  "aiStyleEssence": "Суть",
+  "aiStyleFull": "Полно",
+  "aiStyleCustom": "Свой",
+  "aiStyleBriefDesc": "2-3 строки, только главное",
+  "aiStyleEssenceDesc": "Основные факты и контекст",
+  "aiStyleFullDesc": "Полный текст с деталями",
+  "aiStyleCustomDesc": "Опишите своими словами",
+  "aiStyleHowToDisplay": "Как показывать?",
+  "aiStyleSwipeHint": "Свайп для выбора стиля",
+  "aiStyleCustomStyle": "Свой стиль",
+  "aiStyleCustomProcessingStyle": "Свой стиль обработки",
+  "aiStyleSwipeRight": "Свайп вправо",
+  "aiStyleCustomPlaceholder": "Например: без воды, только факты",
+  "aiStyleChipNoAds": "без рекламы",
+  "aiStyleChipNumbersOnly": "только цифры",
+  "aiStyleChipCasual": "неформально",
+  "aiStyleHowToProcess": "Как обрабатывать?",
+  "aiStyleAiAdaptsHint": "AI адаптирует текст под ваш стиль",
+  "aiStylePreview": "Превью",
+  "aiStyleEnterAbove": "Введите свой стиль выше...",
+  "aiStylePreviewTitle": "Apple представила M4",
+  "aiStylePreviewBrief": "Новый чип на 50% быстрее. Выходит в ноябре.",
+  "aiStylePreviewEssence": "Новый чип M4 на 50% быстрее предшественника. Доступен с ноября в линейке MacBook Pro и iMac.",
+  "aiStylePreviewFull": "Apple анонсировала новый процессор M4 на специальном мероприятии. Чип на 50% быстрее M3, улучшенный нейронный движок и поддержка 32 ГБ RAM. Выход запланирован на ноябрь в линейке MacBook Pro, iMac и Mac mini.",
+
+  "feedEditTitle": "Редактирование",
+  "feedEditName": "Название",
+  "feedEditNameHint": "Название ленты",
+  "feedEditSources": "Источники",
+  "feedEditSchedule": "Расписание",
+  "feedEditFilters": "Фильтры",
+  "feedEditFilterHint": "Фильтр...",
+  "feedEditSave": "Сохранить",
+  "feedEditFailedToLoad": "Не удалось загрузить данные",
+  "feedEditSourceAlreadyAdded": "Источник уже добавлен",
+  "feedEditNetworkError": "Ошибка сети",
+  "feedEditNotFound": "Не найден",
+  "feedEditError": "Ошибка",
+  "feedEditFilterAlreadyExists": "Такой фильтр уже добавлен",
+  "feedEditEnterName": "Введите название",
+  "feedEditWaitForValidation": "Дождитесь проверки источников",
+  "feedEditAddSource": "Добавьте хотя бы один источник",
+  "feedEditFailedToSave": "Не удалось сохранить",
+  "feedEditDeleteFeedTitle": "Удалить ленту?",
+  "feedEditDeleteFeedMessage": "Лента \"{name}\" будет удалена безвозвратно.",
+  "@feedEditDeleteFeedMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "feedEditFailedToDelete": "Не удалось удалить",
+  "feedEditEveryHour": "Каждый час",
+  "feedEditEvery3Hours": "Каждые 3 часа",
+  "feedEditEvery6Hours": "Каждые 6 часов",
+  "feedEditEvery12Hours": "Каждые 12 часов",
+  "feedEditOnceADay": "Раз в день",
+
+  "formSelectFeedType": "Выберите тип ленты",
+  "formAddSource": "Добавьте хотя бы один источник",
+  "formWaitForValidation": "Дождитесь проверки источников",
+  "formAddValidSource": "Добавьте хотя бы один валидный источник",
+  "formCreateFailed": "Не удалось создать ленту. Проверьте данные и попробуйте снова.",
+  "formAuthError": "Ошибка авторизации. Войдите в аккаунт снова.",
+  "formLimitReached": "Достигнут лимит. Пока доступно ограниченное количество.",
+  "formSomethingWentWrong": "Что-то пошло не так. Попробуйте позже.",
+  "formServerError": "Ошибка сервера. Попробуйте позже.",
+  "formCreateError": "Не удалось создать ленту. Попробуйте позже.",
+  "formNetworkError": "Ошибка сети. Проверьте подключение к интернету.",
+  "formUnexpectedError": "Что-то пошло не так. Попробуйте позже.",
+
+  "previewFilterMode": "Фильтрация",
+  "previewDigestMode": "Сводка",
+  "previewCommentsMode": "Комментарии",
+  "previewReadMode": "Чтение",
+  "previewDescription": "ОПИСАНИЕ",
+  "previewPrompt": "ПРОМПТ",
+  "previewUnknown": "Неизвестно",
+  "previewSourcesCount": "ИСТОЧНИКИ ({count})",
+  "@previewSourcesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previewFiltersCount": "ФИЛЬТРЫ ({count})",
+  "@previewFiltersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previewSubscribing": "Подписка...",
+  "previewCreating": "Создание...",
+  "previewSubscribe": "Подписаться",
+  "previewCreateFeed": "Создать ленту",
+
+  "limitMoreFeaturesSoon": "Скоро здесь будет больше возможностей",
+  "limitGotIt": "Понятно",
+  "limitSourcesTitle": "Лимит источников",
+  "limitFiltersTitle": "Лимит фильтров",
+  "limitStylesTitle": "Лимит стилей",
+  "limitFeedsTitle": "Лимит лент",
+  "limitSourcesMessage": "Пока доступно только {limit} источников на ленту.",
+  "@limitSourcesMessage": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "limitFiltersMessage": "Пока доступно только {limit} фильтров на ленту.",
+  "@limitFiltersMessage": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "limitStylesMessage": "Пока доступно только {limit} стилей на ленту.",
+  "@limitStylesMessage": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "limitFeedsMessage": "Пока доступно только {limit} лент.",
+  "@limitFeedsMessage": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+
+  "feedSavedSuccess": "Лента успешно сохранена!",
+  "addAtLeastOneSource": "Добавьте хотя бы один источник",
+  "myFeeds": "Мои ленты",
+  "loadingError": "Ошибка загрузки",
+  "retryButton": "Повторить",
+  "noFeedsYet": "Пока нет лент",
+  "createFirstFeedHint": "Создайте первую ленту, чтобы получать персонализированные новости с помощью ИИ.",
+  "createFeed": "Создать ленту",
+  "shareImage": "Поделиться изображением",
+  "shareImageFailed": "Не удалось поделиться изображением",
+  "saving": "Сохранение...",
+  "imageSavedToGallery": "Изображение сохранено в галерею",
+  "noPermissionToSave": "Нет разрешения на сохранение изображений",
+  "imageSaveError": "Ошибка при сохранении изображения",
+  "cannotShare": "Невозможно поделиться",
+  "noShareIdAvailable": "У этой новости отсутствует идентификатор для шаринга.",
+  "couldNotOpenLink": "Не удалось открыть ссылку: {href}",
+  "@couldNotOpenLink": {
+    "placeholders": {
+      "href": {
+        "type": "String"
+      }
+    }
+  },
+  "connectionError": "Не удалось подключиться к серверу. Проверьте интернет-соединение.",
+  "feedCreationSlow": "Создание ленты занимает больше времени, чем обычно. Попробуйте обновить позже.",
+  "couldNotLoadNews": "Не удалось загрузить новости",
+  "checkInternetConnection": "Проверьте подключение к интернету",
+  "tryAgainButton": "Попробовать еще раз",
+
+  "unsafeUrl": "Небезопасный URL",
+  "unsafeUrlBlocked": "Заблокирована попытка перехода на опасный URL",
+  "contentLoadFailed": "Не удалось загрузить содержимое",
+  "videoBlockedForSafety": "Это видео заблокировано для вашей безопасности",
+  "closeButton": "Закрыть",
+  "loadingText": "Загрузка...",
+  "videoUnsafeUrl": "Небезопасный URL",
+  "videoUnsafeMessage": "Это видео не может быть открыто для вашей безопасности",
+  "videoTitle": "Видео",
+
+  "urlEmpty": "URL пустой",
+  "urlInvalidFormat": "Некорректный формат URL",
+  "urlDangerousProtocol": "Опасный протокол: {scheme}://",
+  "@urlDangerousProtocol": {
+    "placeholders": {
+      "scheme": {
+        "type": "String"
+      }
+    }
+  },
+  "urlOnlyHttpAllowed": "Разрешены только https:// и http:// протоколы",
+  "urlUnsafeVideoUnknownSource": "Это видео из неизвестного источника и использует небезопасное соединение (http://)",
+  "urlUnsafeVideoUnknown": "Это видео из неизвестного источника",
+
+  "feedBuilderStartCreating": "Начните создание",
+  "feedBuilderSession": "Сессия",
+  "feedTypeIndividualPosts": "Отдельные посты",
+  "feedTypeDigestLabel": "Сводка",
+  "feedTypeIndividualPostsDesc": "Каждый пост отображается отдельно",
+  "feedTypeDigestLabelDesc": "Посты объединяются в сводку",
+  "configBriefSummary": "Краткий пересказ",
+  "configWithAnalysis": "С анализом",
+  "configOriginal": "Оригинал",
+  "configKeyPointsOnly": "Только главное",
+  "configRemoveDuplicates": "Удалять дубликаты",
+  "configFilterAds": "Фильтровать рекламу",
+  "configRemoveSpam": "Убирать спам",
+  "configNoClickbait": "Без кликбейта",
+
+  "feedNotFound": "Лента не найдена",
+  "alreadySubscribed": "Вы уже подписаны",
+  "feedLoadError": "Не удалось загрузить ленту",
+  "feedSubscribeError": "Не удалось подписаться на ленту",
+
+  "analyticsConsent": "Сбор аналитики",
+  "analyticsConsentDescription": "Помочь улучшить приложение, отправляя анонимные данные об использовании",
+
+  "errorLoadingPosts": "Не удалось загрузить посты",
+  "tapToRetry": "Нажмите, чтобы повторить"
+}

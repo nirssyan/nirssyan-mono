@@ -1,0 +1,6 @@
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
+#include "Generated.xcconfig"
+
+// Dev-specific settings
+PRODUCT_BUNDLE_IDENTIFIER = com.nirssyan.makefeed.dev
+APP_DISPLAY_NAME = infatium DEV
