@@ -52,7 +52,7 @@ jobs:
             STATUS="❌"
           fi
 
-          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 100 | sed 's/"/\\"/g')
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 100 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\\"/g')
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
