@@ -113,40 +113,6 @@ func (c *AgentsClient) generateSimpleTitle(sources []SourceInfo) string {
 	return "My Feed"
 }
 
-type LocalizedName struct {
-	En string `json:"en"`
-	Ru string `json:"ru"`
-}
-
-type ResolvedViewConfig struct {
-	Name   LocalizedName `json:"name"`
-	Prompt string        `json:"prompt"`
-}
-
-type ResolvedFilterConfig struct {
-	Name   LocalizedName `json:"name"`
-	Prompt string        `json:"prompt"`
-}
-
-type ViewPromptTransformerRequest struct {
-	Views   []string `json:"views"`
-	Filters []string `json:"filters"`
-}
-
-type ViewPromptTransformerResponse struct {
-	Views   []ResolvedViewConfig   `json:"views"`
-	Filters []ResolvedFilterConfig `json:"filters"`
-}
-
-func (c *AgentsClient) TransformViewsAndFilters(ctx context.Context, views, filters []string) (*ViewPromptTransformerResponse, error) {
-	req := ViewPromptTransformerRequest{Views: views, Filters: filters}
-	var resp ViewPromptTransformerResponse
-	if err := c.request(ctx, "agents.feed.view_prompt_transformer", req, &resp); err != nil {
-		return nil, fmt.Errorf("transform views and filters: %w", err)
-	}
-	return &resp, nil
-}
-
 type SummarizeUnseenRequest struct {
 	FeedID     string         `json:"feed_id"`
 	PostsData  []PostSummary  `json:"posts_data"`

@@ -20,13 +20,15 @@ const (
 	RawPostsStreamName   = "RAW_POSTS"
 	DigestsStreamName    = "DIGESTS"
 	FeedSyncStreamName   = "FEED_SYNC"
-	FeedCreatedStreamName = "FEED_CREATED"
+	FeedCreatedStreamName  = "FEED_CREATED"
+	FeedUpdatedStreamName  = "FEED_UPDATED"
 
 	// Consumer names
-	RawPostsConsumerName   = "go-processor-raw-posts"
-	DigestsConsumerName    = "go-processor-digests"
-	FeedSyncConsumerName   = "go-processor-feed-sync"
+	RawPostsConsumerName    = "go-processor-raw-posts"
+	DigestsConsumerName     = "go-processor-digests"
+	FeedSyncConsumerName    = "go-processor-feed-sync"
 	FeedCreatedConsumerName = "go-processor-feed-created"
+	FeedUpdatedConsumerName = "go-processor-feed-updated"
 )
 
 // MessageHandler handles a specific type of NATS message
@@ -45,6 +47,9 @@ type FeedSyncHandler func(ctx context.Context, event domain.FeedInitialSyncEvent
 
 // FeedCreatedHandler processes feed created events
 type FeedCreatedHandler func(ctx context.Context, event domain.FeedCreatedEvent) error
+
+// FeedUpdatedHandler processes feed updated events
+type FeedUpdatedHandler func(ctx context.Context, event domain.FeedUpdatedEvent) error
 
 // Consumer manages NATS JetStream consumers
 type Consumer struct {
@@ -253,6 +258,52 @@ func (c *Consumer) SetupFeedCreatedConsumer(ctx context.Context, handler FeedCre
 		Str("stream", FeedCreatedStreamName).
 		Str("consumer", FeedCreatedConsumerName).
 		Msg("Feed created consumer started")
+
+	return nil
+}
+
+// SetupFeedUpdatedConsumer creates consumer for feed.updated subject
+func (c *Consumer) SetupFeedUpdatedConsumer(ctx context.Context, handler FeedUpdatedHandler) error {
+	js := c.natsClient.JetStream()
+
+	_, err := c.natsClient.EnsureStream(ctx, FeedUpdatedStreamName,
+		[]string{"feed.updated"},
+		jetstream.WorkQueuePolicy,
+		7*24*time.Hour,
+	)
+	if err != nil {
+		return fmt.Errorf("ensure feed updated stream: %w", err)
+	}
+
+	consumerCfg := jetstream.ConsumerConfig{
+		Name:          FeedUpdatedConsumerName,
+		Durable:       FeedUpdatedConsumerName,
+		FilterSubject: "feed.updated",
+		AckPolicy:     jetstream.AckExplicitPolicy,
+		AckWait:       time.Duration(c.cfg.NATSConsumerAckWaitSec) * time.Second,
+		MaxDeliver:    c.cfg.NATSConsumerMaxDeliver,
+	}
+
+	consumer, err := js.CreateOrUpdateConsumer(ctx, FeedUpdatedStreamName, consumerCfg)
+	if err != nil {
+		return fmt.Errorf("create feed updated consumer: %w", err)
+	}
+
+	c.consumers = append(c.consumers, consumer)
+
+	go c.consumeWithInProgress(ctx, consumer, "feed_updated", func(ctx context.Context, msg jetstream.Msg) error {
+		var event domain.FeedUpdatedEvent
+		if err := json.Unmarshal(msg.Data(), &event); err != nil {
+			log.Error().Err(err).Msg("Failed to unmarshal feed updated event")
+			return err
+		}
+		return handler(ctx, event)
+	})
+
+	log.Info().
+		Str("stream", FeedUpdatedStreamName).
+		Str("consumer", FeedUpdatedConsumerName).
+		Msg("Feed updated consumer started")
 
 	return nil
 }

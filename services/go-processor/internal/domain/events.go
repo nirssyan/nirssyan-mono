@@ -50,6 +50,16 @@ type FeedInitialSyncEvent struct {
 	UserID    uuid.UUID `json:"user_id"`
 }
 
+// FeedUpdatedEvent - consumed from feed.updated subject
+type FeedUpdatedEvent struct {
+	EventType  string           `json:"event_type"`
+	FeedID     uuid.UUID        `json:"feed_id"`
+	PromptID   uuid.UUID        `json:"prompt_id"`
+	UserID     uuid.UUID        `json:"user_id"`
+	ViewsRaw   []map[string]any `json:"views_raw"`
+	FiltersRaw []map[string]any `json:"filters_raw"`
+}
+
 // FeedCreatedEvent - consumed from feed.created subject
 type FeedCreatedEvent struct {
 	EventType   string            `json:"event_type"`

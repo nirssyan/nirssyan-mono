@@ -525,6 +525,55 @@ func (s *FeedProcessingService) ProcessFeedCreatedEvent(ctx context.Context, eve
 	return nil
 }
 
+// ProcessFeedUpdatedEvent handles feed updated events (async views/filters transform)
+func (s *FeedProcessingService) ProcessFeedUpdatedEvent(ctx context.Context, event domain.FeedUpdatedEvent) error {
+	logger := log.With().
+		Str("feed_id", event.FeedID.String()).
+		Str("prompt_id", event.PromptID.String()).
+		Logger()
+
+	logger.Info().Msg("Processing feed updated event")
+
+	viewsRaw := make([]string, 0)
+	filtersRaw := make([]string, 0)
+	for _, v := range event.ViewsRaw {
+		if text, ok := v["text"].(string); ok {
+			viewsRaw = append(viewsRaw, text)
+		}
+	}
+	for _, f := range event.FiltersRaw {
+		if text, ok := f["text"].(string); ok {
+			filtersRaw = append(filtersRaw, text)
+		}
+	}
+
+	if len(viewsRaw) == 0 && len(filtersRaw) == 0 {
+		logger.Info().Msg("No views/filters to transform")
+		return nil
+	}
+
+	transformResp, err := s.agentsClient.TransformViewsAndFilters(ctx, viewsRaw, filtersRaw, nil, nil, "")
+	if err != nil {
+		return fmt.Errorf("transform views/filters: %w", err)
+	}
+
+	if len(transformResp.Views) > 0 {
+		viewsConfig, _ := json.Marshal(transformResp.Views)
+		if err := s.promptRepo.UpdateViewsConfig(ctx, event.PromptID, viewsConfig); err != nil {
+			return fmt.Errorf("update views config: %w", err)
+		}
+	}
+	if len(transformResp.Filters) > 0 {
+		filtersConfig, _ := json.Marshal(transformResp.Filters)
+		if err := s.promptRepo.UpdateFiltersConfig(ctx, event.PromptID, filtersConfig); err != nil {
+			return fmt.Errorf("update filters config: %w", err)
+		}
+	}
+
+	logger.Info().Msg("Views/filters transformed successfully")
+	return nil
+}
+
 // ProcessFeedInitialSyncEvent handles initial sync events
 func (s *FeedProcessingService) ProcessFeedInitialSyncEvent(ctx context.Context, event domain.FeedInitialSyncEvent) error {
 	logger := log.With().
