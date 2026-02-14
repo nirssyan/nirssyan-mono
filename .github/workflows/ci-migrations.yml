@@ -2,7 +2,7 @@ name: Run DB Migrations
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, master]
     paths:
       - 'database/migrations/**'
       - '.github/workflows/ci-migrations.yml'
@@ -38,7 +38,7 @@ jobs:
       - name: Run migrations
         working-directory: database/migrations
         env:
-          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+          DATABASE_URL: ${{ github.ref == 'refs/heads/master' && secrets.PROD_DATABASE_URL || secrets.DEV_DATABASE_URL }}
         run: alembic upgrade head
 
       - name: Send Telegram notification
@@ -60,5 +60,5 @@ jobs:
               \"chat_id\": \"-1002622491758\",
               \"message_thread_id\": 504,
               \"parse_mode\": \"HTML\",
-              \"text\": \"${STATUS} <b>DB Migrations DEV</b>\n\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\"
+              \"text\": \"${STATUS} <b>DB Migrations ${{ github.ref == 'refs/heads/master' && 'PROD' || 'DEV' }}</b>\n\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\"
             }"
