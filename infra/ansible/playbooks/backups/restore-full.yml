@@ -1,0 +1,723 @@
+---
+# Non-interactive Full Restore from Yandex Disk
+# Single-command disaster recovery playbook
+#
+# Usage:
+#   # Full DR (latest backup)
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/restore-full.yml
+#
+#   # Specific backup
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/restore-full.yml \
+#     -e "backup_file=2024/03/backup-2024-03-15.tar.zst.age"
+#
+#   # Only DB for one namespace
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/restore-full.yml \
+#     -e "target_namespace=infatium-dev skip_k3s=true skip_secrets=true skip_pvc=true"
+#
+#   # Only secrets+configmaps (no DB, no PVC, no K3s)
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/restore-full.yml \
+#     -e "skip_k3s=true skip_db=true skip_pvc=true"
+#
+#   # Dry-run
+#   ansible-playbook -i inventory/hosts.yml playbooks/backups/restore-full.yml --check
+
+- name: Full Restore from Yandex Disk
+  hosts: infra_nodes
+  gather_facts: true
+  vars:
+    backup_base_dir: "/var/backups/kubernetes"
+    age_key_path: "/root/.config/age/backup.key"
+    yandex_disk_remote: "ydisk"
+    team_name: "nirssyan"
+    backup_file: ""
+    target_namespace: ""
+    skip_k3s: false
+    skip_secrets: false
+    skip_db: false
+    skip_pvc: false
+    pod_wait_timeout: 300
+    k3s_wait_timeout: 300
+    telegram_bot_token: "8162983730:AAET6ZLo73MpHSOOhXyBrmhw7x03tnOAaUg"
+    telegram_chat_id: "-1002622491758"
+    telegram_thread_id: "2672"
+
+  tasks:
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 0: Pre-flight checks
+    # ═══════════════════════════════════════════════════════════════════
+    - name: Record start time
+      ansible.builtin.set_fact:
+        restore_start_epoch: "{{ ansible_date_time.epoch }}"
+
+    - name: "STEP 0: Pre-flight checks"
+      ansible.builtin.debug:
+        msg: "Running pre-flight checks..."
+
+    - name: Check kubectl access
+      ansible.builtin.command:
+        cmd: kubectl cluster-info
+      changed_when: false
+      register: kubectl_check
+      failed_when: kubectl_check.rc != 0
+
+    - name: Check rclone configuration
+      ansible.builtin.command:
+        cmd: rclone listremotes
+      register: rclone_remotes
+      changed_when: false
+
+    - name: Fail if Yandex Disk remote not configured
+      ansible.builtin.fail:
+        msg: "rclone remote '{{ yandex_disk_remote }}' not found. Available: {{ rclone_remotes.stdout }}"
+      when: yandex_disk_remote not in rclone_remotes.stdout
+
+    - name: Check age key exists
+      ansible.builtin.stat:
+        path: "{{ age_key_path }}"
+      register: age_key_stat
+
+    - name: Fail if age key missing
+      ansible.builtin.fail:
+        msg: "Age key not found at {{ age_key_path }}"
+      when: not age_key_stat.stat.exists
+
+    - name: Check disk space
+      ansible.builtin.shell:
+        cmd: df -BG --output=avail "{{ backup_base_dir }}" 2>/dev/null | tail -1 | tr -d ' G'
+        executable: /bin/bash
+      register: disk_space
+      changed_when: false
+      failed_when: false
+
+    - name: Warn if disk space low
+      ansible.builtin.debug:
+        msg: "WARNING: Only {{ disk_space.stdout }}GB available at {{ backup_base_dir }}"
+      when: disk_space.stdout | default('999') | int < 10
+
+    - name: Ensure backup directory exists
+      ansible.builtin.file:
+        path: "{{ backup_base_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Pre-flight checks passed
+      ansible.builtin.debug:
+        msg:
+          - "Pre-flight checks passed"
+          - "  kubectl: OK"
+          - "  rclone: OK ({{ yandex_disk_remote }})"
+          - "  age key: OK"
+          - "  disk space: {{ disk_space.stdout | default('?') }}GB available"
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 1: Download from Yandex Disk
+    # ═══════════════════════════════════════════════════════════════════
+    - name: "STEP 1: Download from Yandex Disk"
+      ansible.builtin.debug:
+        msg: "{{ 'Using specified backup: ' + backup_file if backup_file else 'Auto-detecting latest backup...' }}"
+
+    - name: Find latest backup on Yandex Disk
+      ansible.builtin.shell:
+        cmd: |
+          rclone lsf "{{ yandex_disk_remote }}:/{{ team_name }} Backups" \
+            --include "*.tar.zst.age" --include "*.tar.zst" \
+            --include "*.tar.gz.age" --include "*.tar.gz" \
+            -R 2>/dev/null | sort -r | head -1
+        executable: /bin/bash
+      register: latest_backup
+      changed_when: false
+      when: backup_file == ""
+
+    - name: Fail if no backup found on Yandex Disk
+      ansible.builtin.fail:
+        msg: "No backups found on Yandex Disk at {{ yandex_disk_remote }}:/{{ team_name }} Backups"
+      when:
+        - backup_file == ""
+        - latest_backup.stdout | trim == ""
+
+    - name: Set backup file to download
+      ansible.builtin.set_fact:
+        target_backup_file: "{{ backup_file if backup_file else latest_backup.stdout | trim }}"
+
+    - name: Display selected backup
+      ansible.builtin.debug:
+        msg: "Downloading: {{ target_backup_file }}"
+
+    - name: Download backup from Yandex Disk
+      ansible.builtin.shell:
+        cmd: |
+          rclone copy \
+            "{{ yandex_disk_remote }}:/{{ team_name }} Backups/{{ target_backup_file }}" \
+            "{{ backup_base_dir }}/" \
+            --progress \
+            --stats-one-line \
+            --stats 10s
+        executable: /bin/bash
+      register: download_result
+      when: not ansible_check_mode
+
+    - name: Set local backup path
+      ansible.builtin.set_fact:
+        local_backup_path: "{{ backup_base_dir }}/{{ target_backup_file | basename }}"
+
+    - name: Verify downloaded file exists
+      ansible.builtin.stat:
+        path: "{{ local_backup_path }}"
+      register: backup_stat
+      when: not ansible_check_mode
+
+    - name: Fail if download failed
+      ansible.builtin.fail:
+        msg: "Downloaded file not found at {{ local_backup_path }}"
+      when:
+        - not ansible_check_mode
+        - not (backup_stat.stat.exists | default(false))
+
+    # ═══════════════════════════════════════════════════════════════════
+    # STEP 2: Decrypt + Extract
+    # ═══════════════════════════════════════════════════════════════════
+    - name: "STEP 2: Decrypt + Extract"
+      ansible.builtin.debug:
+        msg: "Extracting {{ local_backup_path }}..."
+
+    - name: Dry-run mode
+      ansible.builtin.debug:
+        msg: "DRY-RUN: Would restore from {{ target_backup_file }}"
+      when: ansible_check_mode
+
+    - name: Extract and restore
+      when: not ansible_check_mode
+      block:
+        - name: Create temp directory
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: "restore-full-"
+          register: temp_dir
+
+        - name: Extract backup
+          ansible.builtin.shell:
+            cmd: |
+              set -e
+              FILE="{{ local_backup_path }}"
+              DEST="{{ temp_dir.path }}"
+
+              echo "Extracting backup..."
+              if [[ "$FILE" == *.age ]]; then
+                INNER="${FILE%.age}"
+                if [[ "$INNER" == *.zst ]]; then
+                  age -d -i {{ age_key_path }} "$FILE" | zstd -d | tar -xf - -C "$DEST"
+                else
+                  age -d -i {{ age_key_path }} "$FILE" | tar -xzf - -C "$DEST"
+                fi
+              elif [[ "$FILE" == *.zst ]]; then
+                zstd -d -c "$FILE" | tar -xf - -C "$DEST"
+              else
+                tar -xzf "$FILE" -C "$DEST"
+              fi
+
+              # Find the date directory
+              DATE_DIR=$(find "$DEST" -maxdepth 1 -type d -name "20*" | head -1)
+              if [ -z "$DATE_DIR" ]; then
+                echo "ERROR: No date directory found in backup"
+                exit 1
+              fi
+              echo "$DATE_DIR"
+            executable: /bin/bash
+          register: extract_result
+
+        - name: Set extracted path
+          ansible.builtin.set_fact:
+            extracted_path: "{{ extract_result.stdout_lines[-1] }}"
+
+        - name: Verify extracted structure
+          ansible.builtin.shell:
+            cmd: |
+              echo "Backup contents:"
+              ls -la "{{ extracted_path }}/"
+              echo ""
+              echo "Namespaces found:"
+              for d in "{{ extracted_path }}"/*/; do
+                [ -d "$d" ] || continue
+                NS=$(basename "$d")
+                [ "$NS" = "k3s-state" ] && continue
+                echo "  - $NS"
+              done
+            executable: /bin/bash
+          register: backup_contents
+          changed_when: false
+
+        - name: Display backup contents
+          ansible.builtin.debug:
+            msg: "{{ backup_contents.stdout_lines }}"
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 3: Restore K3s state
+        # ═══════════════════════════════════════════════════════════════
+        - name: "STEP 3: Restore K3s state{{ ' (SKIPPED)' if skip_k3s | bool else '' }}"
+          ansible.builtin.debug:
+            msg: "{{ 'Skipped (skip_k3s=true)' if skip_k3s | bool else 'Checking for K3s state in backup...' }}"
+
+        - name: Check for K3s state
+          ansible.builtin.stat:
+            path: "{{ extracted_path }}/k3s-state/state.db"
+          register: k3s_state
+          when: not skip_k3s | bool
+
+        - name: Restore K3s state
+          when:
+            - not skip_k3s | bool
+            - k3s_state.stat.exists | default(false)
+          block:
+            - name: Stop K3s
+              ansible.builtin.systemd:
+                name: k3s
+                state: stopped
+
+            - name: Copy state.db
+              ansible.builtin.copy:
+                src: "{{ extracted_path }}/k3s-state/state.db"
+                dest: /var/lib/rancher/k3s/server/db/state.db
+                remote_src: true
+                mode: "0600"
+
+            - name: Copy state.db-shm
+              ansible.builtin.copy:
+                src: "{{ extracted_path }}/k3s-state/state.db-shm"
+                dest: /var/lib/rancher/k3s/server/db/state.db-shm
+                remote_src: true
+                mode: "0600"
+              failed_when: false
+
+            - name: Copy state.db-wal
+              ansible.builtin.copy:
+                src: "{{ extracted_path }}/k3s-state/state.db-wal"
+                dest: /var/lib/rancher/k3s/server/db/state.db-wal
+                remote_src: true
+                mode: "0600"
+              failed_when: false
+
+            - name: Start K3s
+              ansible.builtin.systemd:
+                name: k3s
+                state: started
+
+            - name: Wait for K3s nodes to be ready
+              ansible.builtin.command:
+                cmd: kubectl wait --for=condition=ready node --all --timeout={{ k3s_wait_timeout }}s
+              register: k3s_wait
+              retries: 3
+              delay: 10
+              until: k3s_wait.rc == 0
+              changed_when: false
+
+            - name: K3s state restored
+              ansible.builtin.debug:
+                msg: "K3s state restored, nodes ready"
+
+        - name: No K3s state in backup
+          ansible.builtin.debug:
+            msg: "No K3s state found in backup, skipping"
+          when:
+            - not skip_k3s | bool
+            - not (k3s_state.stat.exists | default(false))
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 4: Restore namespaces (secrets + configmaps)
+        # ═══════════════════════════════════════════════════════════════
+        - name: Find namespace directories
+          ansible.builtin.find:
+            paths: "{{ extracted_path }}"
+            file_type: directory
+            recurse: false
+            excludes:
+              - "k3s-state"
+          register: namespace_dirs_all
+
+        - name: Filter namespaces
+          ansible.builtin.set_fact:
+            namespace_dirs: >-
+              {{ namespace_dirs_all.files | selectattr('path', 'match', '.*/' + target_namespace + '$') | list
+                 if target_namespace
+                 else namespace_dirs_all.files }}
+
+        - name: Display target namespaces
+          ansible.builtin.debug:
+            msg: "Target namespaces: {{ namespace_dirs | map(attribute='path') | map('basename') | join(', ') }}{{ ' (filtered by target_namespace=' + target_namespace + ')' if target_namespace else '' }}"
+
+        - name: Fail if target namespace not found in backup
+          ansible.builtin.fail:
+            msg: "Namespace '{{ target_namespace }}' not found in backup. Available: {{ namespace_dirs_all.files | map(attribute='path') | map('basename') | join(', ') }}"
+          when:
+            - target_namespace | length > 0
+            - namespace_dirs | length == 0
+
+        - name: "STEP 4: Restore namespaces (secrets + configmaps){{ ' (SKIPPED)' if skip_secrets | bool else '' }}"
+          ansible.builtin.debug:
+            msg: "{{ 'Skipped (skip_secrets=true)' if skip_secrets | bool else 'Restoring namespace resources...' }}"
+
+        - name: Restore namespace resources
+          ansible.builtin.shell:
+            cmd: |
+              set -e
+              NS_DIR="{{ item.path }}"
+              NS=$(basename "$NS_DIR")
+
+              echo "══════════════════════════════════════════════════════════════"
+              echo "Namespace: $NS"
+              echo "══════════════════════════════════════════════════════════════"
+
+              # Create namespace (idempotent)
+              kubectl create namespace "$NS" --dry-run=client -o yaml 2>/dev/null | kubectl apply -f - || true
+
+              # Restore secrets
+              if [ -f "$NS_DIR/secrets.yaml" ]; then
+                echo "  Restoring secrets..."
+                kubectl apply -f "$NS_DIR/secrets.yaml" 2>&1 | head -20
+              fi
+
+              # Restore configmaps
+              if [ -f "$NS_DIR/configmaps.yaml" ]; then
+                echo "  Restoring configmaps..."
+                kubectl apply -f "$NS_DIR/configmaps.yaml" 2>&1 | head -20
+              fi
+
+              echo "  Done"
+            executable: /bin/bash
+          loop: "{{ namespace_dirs }}"
+          loop_control:
+            label: "{{ item.path | basename }}"
+          register: ns_restore_results
+          when: not skip_secrets | bool
+
+        - name: Wait for pods to stabilize
+          ansible.builtin.shell:
+            cmd: |
+              echo "Waiting for pods to stabilize..."
+              sleep 15
+              kubectl get pods --all-namespaces --no-headers 2>/dev/null | \
+                grep -v "Running\|Completed\|Succeeded" | head -20 || echo "All pods healthy"
+            executable: /bin/bash
+          changed_when: false
+          register: pod_status
+          when: not skip_secrets | bool
+
+        - name: Display pod status
+          ansible.builtin.debug:
+            msg: "{{ pod_status.stdout_lines }}"
+          when:
+            - not skip_secrets | bool
+            - pod_status.stdout_lines is defined
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 5: Restore DB dumps
+        # ═══════════════════════════════════════════════════════════════
+        - name: "STEP 5: Restore DB dumps{{ ' (SKIPPED)' if skip_db | bool else '' }}"
+          ansible.builtin.debug:
+            msg: "{{ 'Skipped (skip_db=true)' if skip_db | bool else 'Restoring database dumps...' }}"
+
+        - name: Find namespaces with db-dumps
+          ansible.builtin.find:
+            paths: "{{ extracted_path + '/' + target_namespace if target_namespace else extracted_path }}"
+            file_type: directory
+            patterns: "db-dumps"
+            recurse: true
+          register: db_dump_dirs
+          when: not skip_db | bool
+
+        - name: Restore database dumps
+          ansible.builtin.shell:
+            cmd: |
+              set -e
+              DB_DIR="{{ item.path }}"
+              NS_DIR=$(dirname "$DB_DIR")
+              NS=$(basename "$NS_DIR")
+              RESULTS=""
+
+              echo "══════════════════════════════════════════════════════════════"
+              echo "DB Dumps for namespace: $NS"
+              echo "══════════════════════════════════════════════════════════════"
+
+              for DUMP_FILE in "$DB_DIR"/*; do
+                [ -f "$DUMP_FILE" ] || continue
+                FILENAME=$(basename "$DUMP_FILE")
+
+                echo ""
+                echo "  Processing: $FILENAME"
+
+                # PostgreSQL: *.sql.gz
+                if [[ "$FILENAME" == *.sql.gz ]]; then
+                  POD_NAME="${FILENAME%.sql.gz}"
+                  POD=$(kubectl get pods -n "$NS" --no-headers 2>/dev/null | \
+                    grep "$POD_NAME" | grep Running | awk '{print $1}' | head -1)
+
+                  if [ -z "$POD" ]; then
+                    echo "    SKIP: Pod '$POD_NAME' not running in namespace '$NS'"
+                    RESULTS="$RESULTS\n  SKIP $FILENAME (pod not running)"
+                    continue
+                  fi
+
+                  PG_USER=$(kubectl exec -n "$NS" "$POD" -- printenv POSTGRES_USER 2>/dev/null || echo "postgres")
+                  echo "    Restoring PostgreSQL dump to $POD (user: $PG_USER)..."
+
+                  if gunzip -c "$DUMP_FILE" | kubectl exec -i -n "$NS" "$POD" -- psql -U "$PG_USER" -d postgres 2>&1 | tail -5; then
+                    echo "    OK: PostgreSQL restored"
+                    RESULTS="$RESULTS\n  OK   $FILENAME -> $POD"
+                  else
+                    echo "    FAIL: PostgreSQL restore failed"
+                    RESULTS="$RESULTS\n  FAIL $FILENAME"
+                  fi
+
+                # MongoDB: *.archive.gz
+                elif [[ "$FILENAME" == *.archive.gz ]]; then
+                  POD_NAME="${FILENAME%.archive.gz}"
+                  POD=$(kubectl get pods -n "$NS" --no-headers 2>/dev/null | \
+                    grep "$POD_NAME" | grep Running | awk '{print $1}' | head -1)
+
+                  if [ -z "$POD" ]; then
+                    echo "    SKIP: Pod '$POD_NAME' not running in namespace '$NS'"
+                    RESULTS="$RESULTS\n  SKIP $FILENAME (pod not running)"
+                    continue
+                  fi
+
+                  echo "    Restoring MongoDB dump to $POD..."
+                  if cat "$DUMP_FILE" | kubectl exec -i -n "$NS" "$POD" -- mongorestore --archive --gzip --drop 2>&1 | tail -5; then
+                    echo "    OK: MongoDB restored"
+                    RESULTS="$RESULTS\n  OK   $FILENAME -> $POD"
+                  else
+                    echo "    FAIL: MongoDB restore failed"
+                    RESULTS="$RESULTS\n  FAIL $FILENAME"
+                  fi
+
+                # Redis: *.rdb
+                elif [[ "$FILENAME" == *.rdb ]]; then
+                  POD_NAME="${FILENAME%.rdb}"
+                  POD=$(kubectl get pods -n "$NS" --no-headers 2>/dev/null | \
+                    grep "$POD_NAME" | grep Running | awk '{print $1}' | head -1)
+
+                  if [ -z "$POD" ]; then
+                    echo "    SKIP: Pod '$POD_NAME' not running in namespace '$NS'"
+                    RESULTS="$RESULTS\n  SKIP $FILENAME (pod not running)"
+                    continue
+                  fi
+
+                  echo "    Restoring Redis RDB to $POD..."
+                  # Stop Redis, copy RDB, restart
+                  if kubectl cp "$DUMP_FILE" "$NS/$POD:/data/dump.rdb" 2>/dev/null; then
+                    kubectl exec -n "$NS" "$POD" -- redis-cli SHUTDOWN NOSAVE 2>/dev/null || true
+                    sleep 5
+                    # Pod should restart automatically via k8s
+                    echo "    OK: Redis RDB copied, pod restarting"
+                    RESULTS="$RESULTS\n  OK   $FILENAME -> $POD"
+                  else
+                    echo "    FAIL: Redis restore failed"
+                    RESULTS="$RESULTS\n  FAIL $FILENAME"
+                  fi
+
+                else
+                  echo "    SKIP: Unknown dump format"
+                  RESULTS="$RESULTS\n  SKIP $FILENAME (unknown format)"
+                fi
+              done
+
+              echo ""
+              echo "DB restore summary for $NS:"
+              echo -e "$RESULTS"
+            executable: /bin/bash
+          loop: "{{ db_dump_dirs.files | default([]) }}"
+          loop_control:
+            label: "{{ item.path | dirname | basename }}"
+          register: db_restore_results
+          when:
+            - not skip_db | bool
+            - (db_dump_dirs.files | default([])) | length > 0
+
+        - name: No DB dumps found
+          ansible.builtin.debug:
+            msg: "{{ 'Skipped (skip_db=true)' if skip_db | bool else 'No database dumps found in backup' }}"
+          when: skip_db | bool or (db_dump_dirs.files | default([])) | length == 0
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 6: Restore PVC data
+        # ═══════════════════════════════════════════════════════════════
+        - name: "STEP 6: Restore PVC data{{ ' (SKIPPED)' if skip_pvc | bool else '' }}"
+          ansible.builtin.debug:
+            msg: "{{ 'Skipped (skip_pvc=true)' if skip_pvc | bool else 'Restoring PVC data...' }}"
+
+        - name: Find namespaces with pvc-data
+          ansible.builtin.find:
+            paths: "{{ extracted_path + '/' + target_namespace if target_namespace else extracted_path }}"
+            file_type: directory
+            patterns: "pvc-data"
+            recurse: true
+          register: pvc_data_dirs
+          when: not skip_pvc | bool
+
+        - name: Restore PVC data
+          ansible.builtin.shell:
+            cmd: |
+              set -e
+              PVC_DIR="{{ item.path }}"
+              NS_DIR=$(dirname "$PVC_DIR")
+              NS=$(basename "$NS_DIR")
+              RESULTS=""
+
+              echo "══════════════════════════════════════════════════════════════"
+              echo "PVC Data for namespace: $NS"
+              echo "══════════════════════════════════════════════════════════════"
+
+              for POD_DIR in "$PVC_DIR"/*/; do
+                [ -d "$POD_DIR" ] || continue
+                DIR_NAME=$(basename "$POD_DIR")
+
+                # Extract pod name and mount path from directory name
+                # Format: podname_mount_path (underscores replace slashes)
+                POD_NAME=$(echo "$DIR_NAME" | sed 's/_[^_]*$//' | sed 's/_/-/g')
+                MOUNT_PATH=$(echo "$DIR_NAME" | grep -oP '_[^_]+$' | sed 's/^_/\//' | tr '_' '/')
+                [ -z "$MOUNT_PATH" ] && MOUNT_PATH="/"
+
+                echo ""
+                echo "  $DIR_NAME -> pod:$POD_NAME mount:$MOUNT_PATH"
+
+                # Find running pod
+                POD=$(kubectl get pods -n "$NS" --no-headers 2>/dev/null | \
+                  grep "^${POD_NAME}" | grep Running | awk '{print $1}' | head -1)
+
+                if [ -z "$POD" ]; then
+                  echo "    SKIP: Pod '$POD_NAME' not running"
+                  RESULTS="$RESULTS\n  SKIP $DIR_NAME (pod not running)"
+                  continue
+                fi
+
+                # Try kubectl cp first
+                if kubectl cp "$POD_DIR" "$NS/$POD:$MOUNT_PATH" 2>/dev/null; then
+                  echo "    OK: Restored via kubectl cp"
+                  RESULTS="$RESULTS\n  OK   $DIR_NAME -> $POD:$MOUNT_PATH"
+                else
+                  # Fallback: file-by-file copy
+                  echo "    Fallback: file-by-file copy..."
+                  FAIL=0
+                  while IFS= read -r -d '' FILE; do
+                    REL_PATH="${FILE#$POD_DIR}"
+                    DEST_PATH="$MOUNT_PATH/$REL_PATH"
+                    kubectl cp "$FILE" "$NS/$POD:$DEST_PATH" 2>/dev/null || FAIL=$((FAIL+1))
+                  done < <(find "$POD_DIR" -type f -print0)
+
+                  if [ "$FAIL" -eq 0 ]; then
+                    echo "    OK: Restored file-by-file"
+                    RESULTS="$RESULTS\n  OK   $DIR_NAME -> $POD:$MOUNT_PATH (file-by-file)"
+                  else
+                    echo "    PARTIAL: $FAIL files failed"
+                    RESULTS="$RESULTS\n  WARN $DIR_NAME ($FAIL files failed)"
+                  fi
+                fi
+              done
+
+              echo ""
+              echo "PVC restore summary for $NS:"
+              echo -e "$RESULTS"
+            executable: /bin/bash
+          loop: "{{ pvc_data_dirs.files | default([]) }}"
+          loop_control:
+            label: "{{ item.path | dirname | basename }}"
+          register: pvc_restore_results
+          when:
+            - not skip_pvc | bool
+            - (pvc_data_dirs.files | default([])) | length > 0
+
+        - name: No PVC data found
+          ansible.builtin.debug:
+            msg: "{{ 'Skipped (skip_pvc=true)' if skip_pvc | bool else 'No PVC data found in backup' }}"
+          when: skip_pvc | bool or (pvc_data_dirs.files | default([])) | length == 0
+
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 7: Cleanup + Summary
+        # ═══════════════════════════════════════════════════════════════
+        - name: "STEP 7: Cleanup"
+          ansible.builtin.debug:
+            msg: "Cleaning up..."
+
+        - name: Remove temp directory
+          ansible.builtin.file:
+            path: "{{ temp_dir.path }}"
+            state: absent
+
+        - name: Final pod status
+          ansible.builtin.shell:
+            cmd: |
+              echo "All pods:"
+              kubectl get pods --all-namespaces --no-headers 2>/dev/null | \
+                awk '{printf "  %-30s %-40s %s\n", $1, $2, $4}'
+            executable: /bin/bash
+          changed_when: false
+          register: final_pods
+
+        - name: "RESTORE COMPLETE"
+          ansible.builtin.debug:
+            msg:
+              - ""
+              - "═══════════════════════════════════════════════════════════════"
+              - "FULL RESTORE COMPLETED"
+              - "═══════════════════════════════════════════════════════════════"
+              - ""
+              - "Backup: {{ target_backup_file }}"
+              - "Namespace filter: {{ target_namespace if target_namespace else 'ALL' }}"
+              - "K3s state: {{ 'skipped' if skip_k3s | bool else ('restored' if k3s_state.stat.exists | default(false) else 'not in backup') }}"
+              - "Secrets/ConfigMaps: {{ 'skipped' if skip_secrets | bool else (namespace_dirs | map(attribute='path') | map('basename') | join(', ')) }}"
+              - "DB dumps: {{ 'skipped' if skip_db | bool else ((db_dump_dirs.files | default([])) | length | string + ' namespace(s)') }}"
+              - "PVC data: {{ 'skipped' if skip_pvc | bool else ((pvc_data_dirs.files | default([])) | length | string + ' namespace(s)') }}"
+              - ""
+              - "Verify: kubectl get pods --all-namespaces"
+              - ""
+
+        - name: Send Telegram notification (success)
+          ansible.builtin.uri:
+            url: "https://api.telegram.org/bot{{ telegram_bot_token }}/sendMessage"
+            method: POST
+            body_format: json
+            body:
+              chat_id: "{{ telegram_chat_id }}"
+              message_thread_id: "{{ telegram_thread_id | int }}"
+              parse_mode: HTML
+              text: >-
+                ✅ <b>Restore completed</b>
+
+                <b>Source:</b> <code>{{ target_backup_file }}</code>
+
+                <b>Scope:</b> {{ target_namespace if target_namespace else 'ALL' }}
+
+                <b>Duration:</b> {{ ((ansible_date_time.epoch | int) - (restore_start_epoch | int)) // 60 }}m {{ ((ansible_date_time.epoch | int) - (restore_start_epoch | int)) % 60 }}s
+
+                <b>K3s state:</b> {{ 'skipped' if skip_k3s | bool else ('restored' if k3s_state.stat.exists | default(false) else 'not in backup') }}
+
+                <b>Secrets/ConfigMaps:</b> {{ 'skipped' if skip_secrets | bool else (namespace_dirs | map(attribute='path') | map('basename') | join(', ')) }}
+
+                <b>DB dumps:</b> {{ 'skipped' if skip_db | bool else ((db_dump_dirs.files | default([])) | length | string + ' namespace(s)') }}
+
+                <b>PVC data:</b> {{ 'skipped' if skip_pvc | bool else ((pvc_data_dirs.files | default([])) | length | string + ' namespace(s)') }}
+          failed_when: false
+          when: telegram_bot_token | length > 0
+
+      rescue:
+        - name: Send Telegram notification (failure)
+          ansible.builtin.uri:
+            url: "https://api.telegram.org/bot{{ telegram_bot_token }}/sendMessage"
+            method: POST
+            body_format: json
+            body:
+              chat_id: "{{ telegram_chat_id }}"
+              message_thread_id: "{{ telegram_thread_id | int }}"
+              parse_mode: HTML
+              text: >-
+                ❌ <b>Restore FAILED</b>
+
+                <b>Source:</b> <code>{{ target_backup_file | default('unknown') }}</code>
+
+                <b>Scope:</b> {{ target_namespace if target_namespace else 'ALL' }}
+
+                <b>Error:</b> {{ ansible_failed_result.msg | default('unknown error') }}
+          failed_when: false
+          when: telegram_bot_token | length > 0
+
+        - name: Re-raise failure
+          ansible.builtin.fail:
+            msg: "Restore failed: {{ ansible_failed_result.msg | default('unknown error') }}"

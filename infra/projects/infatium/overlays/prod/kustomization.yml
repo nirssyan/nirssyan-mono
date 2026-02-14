@@ -121,4 +121,4 @@ patches:
         value: "info"
       - op: replace
         path: /data/DEMO_MODE_ENABLED
-        value: "false"
+        value: "true"
