@@ -23,7 +23,7 @@ spec:
         - name: regcred
       containers:
         - name: app-landing-typescript
-          image: registry.infra.makekod.ru/infatium-landing:dev
+          image: docker-registry.infrastructure:5000/infatium-landing:dev
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

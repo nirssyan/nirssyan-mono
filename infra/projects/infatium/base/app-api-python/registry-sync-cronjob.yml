@@ -30,7 +30,7 @@ spec:
               effect: NoSchedule
           containers:
             - name: sync
-              image: registry.infra.makekod.ru/makefeed:microservices
+              image: docker-registry.infrastructure:5000/makefeed-service:latest
               envFrom:
                 - configMapRef:
                     name: api-config

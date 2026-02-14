@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: worker-processor-go
-          image: registry.infra.makekod.ru/go-processor:dev
+          image: docker-registry.infrastructure:5000/go-processor:dev
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
