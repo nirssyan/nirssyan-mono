@@ -2,7 +2,7 @@ name: Build & Deploy go-api
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, master]
     paths:
       - 'services/go-api/**'
       - '.github/workflows/ci-go-api.yml'
@@ -17,5 +17,6 @@ jobs:
       import-path: ./cmd/api
       image-name: go-api
       deployment-name: app-api-go
-      namespace: infatium-dev
+      namespace: ${{ github.ref == 'refs/heads/master' && 'infatium-prod' || 'infatium-dev' }}
+      image-tag: ${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
     secrets: inherit
