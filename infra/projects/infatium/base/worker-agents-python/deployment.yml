@@ -33,7 +33,7 @@ spec:
         - name: worker-agents-python
           image: docker-registry.infrastructure:5000/makefeed-agents:dev
           imagePullPolicy: Always
-          command: ["makefeed-agents"]
+          command: ["infatium-agents"]
           ports:
             - containerPort: 9464
               name: metrics
