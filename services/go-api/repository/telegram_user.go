@@ -10,15 +10,12 @@ import (
 )
 
 type TelegramUser struct {
-	ID             uuid.UUID
-	UserID         uuid.UUID
-	TelegramID     int64
-	Username       *string
-	FirstName      *string
-	LastName       *string
-	NotifyNewPosts bool
-	NotifyDigests  bool
-	CreatedAt      time.Time
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	TelegramID int64
+	Username   *string
+	FirstName  *string
+	LinkedAt   time.Time
 }
 
 type TelegramUserRepository struct {
@@ -31,15 +28,13 @@ func NewTelegramUserRepository(pool *pgxpool.Pool) *TelegramUserRepository {
 
 func (r *TelegramUserRepository) GetByUserID(ctx context.Context, userID uuid.UUID) (*TelegramUser, error) {
 	query := `
-		SELECT id, user_id, telegram_id, username, first_name, last_name,
-		       notify_new_posts, notify_digests, created_at
+		SELECT id, user_id, telegram_id, telegram_username, telegram_first_name, linked_at
 		FROM telegram_users
 		WHERE user_id = $1 AND is_active = true`
 
 	var t TelegramUser
 	err := r.pool.QueryRow(ctx, query, userID).Scan(
-		&t.ID, &t.UserID, &t.TelegramID, &t.Username, &t.FirstName, &t.LastName,
-		&t.NotifyNewPosts, &t.NotifyDigests, &t.CreatedAt,
+		&t.ID, &t.UserID, &t.TelegramID, &t.Username, &t.FirstName, &t.LinkedAt,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, nil
