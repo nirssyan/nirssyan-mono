@@ -27,6 +27,11 @@ on:
         required: true
         type: string
         description: 'K8s namespace'
+      image-tag:
+        required: false
+        type: string
+        default: 'dev'
+        description: 'Docker image tag (e.g. dev, prod)'
 
 env:
   REGISTRY: docker-registry.infrastructure:5000
@@ -83,7 +88,7 @@ jobs:
           ko build --bare --insecure-registry \
             --platform=linux/amd64 \
             --sbom=none \
-            --tags=dev \
+            --tags=${{ inputs.image-tag }} \
             ${{ inputs.import-path }}
 
       - name: Record build end time
@@ -146,5 +151,5 @@ jobs:
               \"chat_id\": \"-1002622491758\",
               \"message_thread_id\": 504,
               \"parse_mode\": \"HTML\",
-              \"text\": \"${STATUS} <b>${{ inputs.service-name }} DEV</b>\n\n📦 Image: ${{ inputs.image-name }}:dev (ko)\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\n\n⏱️ <b>Время:</b>\n   Setup Go: ${SETUP_TIME}\n   Install ko: ${KO_TIME}\n   Build+Push: ${BUILD_TIME}\n   Deploy: ${DEPLOY_TIME}\n   <b>Всего: ${TOTAL_TIME}</b>\"
+              \"text\": \"${STATUS} <b>${{ inputs.service-name }} ${{ inputs.image-tag == 'prod' && 'PROD' || 'DEV' }}</b>\n\n📦 Image: ${{ inputs.image-name }}:${{ inputs.image-tag }} (ko)\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\n\n⏱️ <b>Время:</b>\n   Setup Go: ${SETUP_TIME}\n   Install ko: ${KO_TIME}\n   Build+Push: ${BUILD_TIME}\n   Deploy: ${DEPLOY_TIME}\n   <b>Всего: ${TOTAL_TIME}</b>\"
             }"
