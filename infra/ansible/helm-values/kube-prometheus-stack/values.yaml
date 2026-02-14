@@ -285,7 +285,7 @@ grafana:
         serviceMap:
           datasourceUid: Prometheus
 
-    - name: PostgreSQL-Infatium
+    - name: PostgreSQL-Infatium-Dev
       type: postgres
       uid: postgres-infatium-dev
       access: proxy
@@ -299,6 +299,24 @@ grafana:
         maxIdleConns: 2
         connMaxLifetime: 14400
         postgresVersion: 1700
+        timescaledb: false
+      secureJsonData:
+        password: "{{ grafana_postgres_password }}"
+
+    - name: PostgreSQL-Infatium-Prod
+      type: postgres
+      uid: postgres-infatium-prod
+      access: proxy
+      url: supabase-postgres.infatium-prod.svc.cluster.local:5432
+      user: grafana_reader
+      editable: false
+      jsonData:
+        database: postgres
+        sslmode: disable
+        maxOpenConns: 5
+        maxIdleConns: 2
+        connMaxLifetime: 14400
+        postgresVersion: 1500
         timescaledb: false
       secureJsonData:
         password: "{{ grafana_postgres_password }}"
