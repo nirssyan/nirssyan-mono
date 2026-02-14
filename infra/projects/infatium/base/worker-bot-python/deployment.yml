@@ -4,7 +4,6 @@ metadata:
   name: worker-bot-python
   labels:
     app: worker-bot-python
-    service-template: worker-python
     service-type: app
     proxy-sidecar: enabled
 spec:

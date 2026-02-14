@@ -17,8 +17,9 @@ patches:
           httpGet:
             path: /metrics
             port: 9464
-          initialDelaySeconds: 30
-          periodSeconds: 10
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          failureThreshold: 5
       - op: add
         path: /spec/template/spec/containers/0/lifecycle
         value:
