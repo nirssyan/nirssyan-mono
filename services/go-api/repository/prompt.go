@@ -83,8 +83,8 @@ func (r *PromptRepository) GetByFeedID(ctx context.Context, feedID uuid.UUID) (*
 
 type UpdatePromptParams struct {
 	RawPrompt           *string
-	ViewsRaw            []string
-	FiltersRaw          []string
+	ViewsConfig         json.RawMessage
+	FiltersConfig       json.RawMessage
 	DigestIntervalHours *int
 }
 
@@ -93,6 +93,30 @@ func (r *PromptRepository) Update(ctx context.Context, promptID uuid.UUID, param
 		_, err := r.pool.Exec(ctx,
 			`UPDATE prompts SET digest_interval_hours = $2 WHERE id = $1`,
 			promptID, *params.DigestIntervalHours)
+		if err != nil {
+			return err
+		}
+	}
+	if len(params.ViewsConfig) > 0 {
+		_, err := r.pool.Exec(ctx,
+			`UPDATE prompts SET views_config = $2 WHERE id = $1`,
+			promptID, params.ViewsConfig)
+		if err != nil {
+			return err
+		}
+	}
+	if len(params.FiltersConfig) > 0 {
+		_, err := r.pool.Exec(ctx,
+			`UPDATE prompts SET filters_config = $2 WHERE id = $1`,
+			promptID, params.FiltersConfig)
+		if err != nil {
+			return err
+		}
+	}
+	if params.RawPrompt != nil {
+		_, err := r.pool.Exec(ctx,
+			`UPDATE prompts SET prompt = $2 WHERE id = $1`,
+			promptID, *params.RawPrompt)
 		if err != nil {
 			return err
 		}

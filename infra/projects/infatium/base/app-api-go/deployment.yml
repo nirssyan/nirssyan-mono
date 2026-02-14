@@ -23,8 +23,6 @@ spec:
           ports:
             - containerPort: 8080
               name: http
-            - containerPort: 9464
-              name: metrics
           envFrom:
             - configMapRef:
                 name: app-api-go-config

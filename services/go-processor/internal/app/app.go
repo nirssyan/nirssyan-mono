@@ -166,6 +166,13 @@ func (a *App) Run(ctx context.Context) error {
 		}); err != nil {
 			return fmt.Errorf("setup feed created consumer: %w", err)
 		}
+
+		// Feed updated consumer (async views/filters transform)
+		if err := a.consumer.SetupFeedUpdatedConsumer(ctx, func(ctx context.Context, event domain.FeedUpdatedEvent) error {
+			return processingService.ProcessFeedUpdatedEvent(ctx, event)
+		}); err != nil {
+			return fmt.Errorf("setup feed updated consumer: %w", err)
+		}
 	}
 
 	a.waitForShutdown(ctx)

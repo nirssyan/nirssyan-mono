@@ -1,0 +1,36 @@
+{
+    "name": "infatium - Personalized News Feeds",
+    "short_name": "infatium",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#6366F1",
+    "description": "infatium - Create personalized news feeds and chat with AI to discover content that matters to you.",
+    "orientation": "any",
+    "prefer_related_applications": false,
+    "categories": ["news", "productivity", "social"],
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

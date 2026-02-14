@@ -191,6 +191,7 @@ func (a *App) Run(ctx context.Context) error {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	router.Use(observability.HTTPMetrics)
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logging)
 
@@ -222,7 +223,6 @@ func (a *App) Run(ctx context.Context) error {
 	router.Mount("/tags", tagsHandler.Routes())
 	router.Mount("/media", mediaHandler.Routes())
 	router.Mount("/sources", sourceValidationHandler.Routes())
-	router.Mount("/telegram", telegramLinkHandler.Routes())
 	router.Get("/share/posts/{post_id}", postHandler.GetPostPublic)
 
 	adminMiddleware := middleware.NewAdminMiddleware(userRepo)
@@ -240,7 +240,7 @@ func (a *App) Run(ctx context.Context) error {
 		r.Mount("/users_feeds", usersFeedHandler.Routes())
 		r.Mount("/feedback", feedbackHandler.Routes())
 		r.Mount("/users/tags", tagsHandler.AuthenticatedRoutes())
-		r.Mount("/telegram/auth", telegramLinkHandler.AuthenticatedRoutes())
+		r.Mount("/telegram", telegramLinkHandler.AuthenticatedRoutes())
 		r.Mount("/sync", telegramSyncHandler.Routes())
 
 		r.Route("/admin", func(r chi.Router) {

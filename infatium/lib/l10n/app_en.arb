@@ -1,0 +1,1673 @@
+{
+  "@@locale": "en",
+  "appTitle": "AI Chat",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+
+  "signIn": "Sign In",
+  "@signIn": {
+    "description": "Sign in button text"
+  },
+
+  "signUp": "Sign Up",
+  "@signUp": {
+    "description": "Sign up button text"
+  },
+
+  "registration": "Registration",
+  "@registration": {
+    "description": "Registration page title"
+  },
+
+  "signInToAccount": "Sign in to your account",
+  "@signInToAccount": {
+    "description": "Sign in page subtitle"
+  },
+
+  "createNewAccount": "Create a new account",
+  "@createNewAccount": {
+    "description": "Sign up page subtitle"
+  },
+
+  "signInWithGoogle": "Sign in with Google",
+  "@signInWithGoogle": {
+    "description": "Google sign in button text"
+  },
+
+  "signInWithApple": "Sign in with Apple",
+  "@signInWithApple": {
+    "description": "Apple sign in button text"
+  },
+
+  "signInWithMagicLink": "Sign in with email",
+  "@signInWithMagicLink": {
+    "description": "Email sign in button text"
+  },
+
+  "checkYourEmail": "Check your email",
+  "@checkYourEmail": {
+    "description": "Title for magic link sent dialog"
+  },
+
+  "magicLinkSent": "We sent you a sign-in link",
+  "@magicLinkSent": {
+    "description": "Magic link sent confirmation message"
+  },
+
+  "magicLinkDescription": "Click the link in your email to sign in",
+  "@magicLinkDescription": {
+    "description": "Instructions for using magic link"
+  },
+
+  "continueWithEmail": "Continue with email",
+  "@continueWithEmail": {
+    "description": "Button text to send magic link"
+  },
+
+  "enterYourEmail": "Enter your email",
+  "@enterYourEmail": {
+    "description": "Placeholder for email input field"
+  },
+
+  "magicLinkSentToEmail": "We've sent a sign-in link to your email",
+  "@magicLinkSentToEmail": {
+    "description": "Confirmation message shown on magic link sent page"
+  },
+
+  "clickLinkToSignIn": "Click the link in the email to sign in to your account",
+  "@clickLinkToSignIn": {
+    "description": "Instructions for completing magic link sign in"
+  },
+
+  "cantFindEmail": "Can't find the email?",
+  "@cantFindEmail": {
+    "description": "Header for spam folder warning"
+  },
+
+  "checkSpamFolder": "Check your spam or junk folder",
+  "@checkSpamFolder": {
+    "description": "Reminder to check spam folder for magic link email"
+  },
+
+  "resendEmail": "Resend email",
+  "@resendEmail": {
+    "description": "Button text to resend magic link email"
+  },
+
+  "resendEmailIn": "Resend in {seconds}s",
+  "@resendEmailIn": {
+    "description": "Countdown text for resend button cooldown",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "60"
+      }
+    }
+  },
+
+  "or": "or",
+  "@or": {
+    "description": "Divider text between options"
+  },
+
+  "email": "Email",
+  "@email": {
+    "description": "Email field placeholder"
+  },
+
+  "password": "Password",
+  "@password": {
+    "description": "Password field placeholder"
+  },
+
+  "confirmPassword": "Confirm password",
+  "@confirmPassword": {
+    "description": "Confirm password field placeholder"
+  },
+
+  "fillAllFields": "Fill all fields",
+  "@fillAllFields": {
+    "description": "Error message for empty fields"
+  },
+
+  "enterValidEmail": "Enter a valid email",
+  "@enterValidEmail": {
+    "description": "Error message for invalid email"
+  },
+
+  "passwordsDoNotMatch": "Passwords do not match",
+  "@passwordsDoNotMatch": {
+    "description": "Error message for mismatched passwords"
+  },
+
+  "noAccount": "Don't have an account? ",
+  "@noAccount": {
+    "description": "Text for switching to sign up"
+  },
+
+  "haveAccount": "Already have an account? ",
+  "@haveAccount": {
+    "description": "Text for switching to sign in"
+  },
+
+  "home": "Home",
+  "@home": {
+    "description": "Home tab title"
+  },
+
+  "search": "Search",
+  "@search": {
+    "description": "Search tab title"
+  },
+
+  "chats": "Create",
+  "@chats": {
+    "description": "Create tab title"
+  },
+
+  "profile": "Profile",
+  "@profile": {
+    "description": "Profile tab title"
+  },
+
+  "news": "Feed",
+  "@news": {
+    "description": "News section title"
+  },
+
+  "all": "All",
+  "@all": {
+    "description": "All categories filter"
+  },
+
+  "technology": "Technology",
+  "@technology": {
+    "description": "Technology category"
+  },
+
+  "ai": "AI",
+  "@ai": {
+    "description": "AI category"
+  },
+
+  "science": "Science",
+  "@science": {
+    "description": "Science category"
+  },
+
+  "space": "Space",
+  "@space": {
+    "description": "Space category"
+  },
+
+  "ecology": "Ecology",
+  "@ecology": {
+    "description": "Ecology category"
+  },
+
+  "minutesAgo": "{minutes} min ago",
+  "@minutesAgo": {
+    "description": "Minutes ago format",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+
+  "hoursAgo": "{hours} h ago",
+  "@hoursAgo": {
+    "description": "Hours ago format",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+
+  "daysAgo": "{days} d ago",
+  "@daysAgo": {
+    "description": "Days ago format",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+
+  "products": "Products",
+  "techCrunch": "TechCrunch",
+  "appleNews": "Apple News",
+  "scienceToday": "Science Today",
+  "aiWeekly": "AI Weekly",
+  "ecoNews": "EcoNews",
+  "spaceExplorer": "Space Explorer",
+
+  "searchPage": "Search Page",
+  "chatsPage": "Create",
+  "settings": "Settings",
+  "appIcon": "App Icon",
+  "@appIcon": {
+    "description": "App icon selector title"
+  },
+  "darkIcon": "Dark",
+  "@darkIcon": {
+    "description": "Dark app icon label"
+  },
+  "lightIcon": "Light",
+  "@lightIcon": {
+    "description": "Light app icon label"
+  },
+  "language": "Language",
+  "theme": "Theme",
+  "darkMode": "Dark Mode",
+  "lightMode": "Light Mode",
+  "zenMode": "Zen Mode",
+  "zenModeDescription": "Hide unread counters",
+  "zenModeEnabled": "Enabled",
+  "zenModeDisabled": "Disabled",
+  "zenModeEnabledDescription": "Unread counters are hidden",
+  "zenModeDisabledDescription": "Unread counters are visible",
+  "zenModeInfo": "When zen mode is enabled, all unread counters and badges will be hidden throughout the app. This helps you focus on content without distractions from notifications.",
+  "viewSettings": "View Settings",
+  "imagePreviews": "Image Previews",
+  "imagePreviewsDescription": "Show image previews in news feed",
+  "imagePreviewsEnabled": "Enabled",
+  "imagePreviewsDisabled": "Disabled",
+  "imagePreviewsEnabledDescription": "Image previews are visible",
+  "imagePreviewsDisabledDescription": "Image previews are hidden",
+  "imagePreviewsInfo": "When disabled, news cards will not show image/video previews, making the feed more compact and text-focused.",
+  "defaultContent": "Default Content",
+  "defaultContentDescription": "Choose what to show first",
+  "summaryFirstDescription": "Brief summary shown first",
+  "fullTextFirstDescription": "Full text shown first",
+  "defaultContentInfo": "This setting swaps the order of content tabs. Choose whether you want to see the brief summary or full text first when opening a news article.",
+  "logout": "Logout",
+  "logoutConfirm": "Are you sure you want to logout?",
+  "cancel": "Cancel",
+  "account": "Account",
+
+  "deepseekChat": "DeepSeek AI",
+  "@deepseekChat": {
+    "description": "DeepSeek AI chat title"
+  },
+
+  "aiAssistant": "AI Assistant",
+  "@aiAssistant": {
+    "description": "AI Assistant subtitle"
+  },
+
+  "startConversation": "Start a conversation with AI",
+  "@startConversation": {
+    "description": "Placeholder for starting AI conversation"
+  },
+
+  "typeMessage": "Type a message...",
+  "@typeMessage": {
+    "description": "Message input placeholder"
+  },
+
+  "aiIsTyping": "Feed is coming...",
+  "@aiIsTyping": {
+    "description": "Feed is coming"
+  },
+
+  "feedTyping1": "Building your feed",
+  "@feedTyping1": {
+    "description": "Typing indicator variation 1"
+  },
+
+  "feedTyping2": "Feed incoming",
+  "@feedTyping2": {
+    "description": "Typing indicator variation 2"
+  },
+
+  "feedTyping3": "Curating content",
+  "@feedTyping3": {
+    "description": "Typing indicator variation 3"
+  },
+
+  "feedTyping4": "Almost there",
+  "@feedTyping4": {
+    "description": "Typing indicator variation 4"
+  },
+
+  "feedTyping5": "Creating magic",
+  "@feedTyping5": {
+    "description": "Typing indicator variation 5"
+  },
+
+  "feedTyping6": "Just a sec",
+  "@feedTyping6": {
+    "description": "Typing indicator variation 6"
+  },
+
+  "feedTyping7": "Getting ready",
+  "@feedTyping7": {
+    "description": "Typing indicator variation 7"
+  },
+
+  "feedTyping8": "On it",
+  "@feedTyping8": {
+    "description": "Typing indicator variation 8"
+  },
+
+  "feedTyping9": "Brewing your feed",
+  "@feedTyping9": {
+    "description": "Typing indicator variation 9"
+  },
+
+  "feedTyping10": "Loading up",
+  "@feedTyping10": {
+    "description": "Typing indicator variation 10"
+  },
+
+  "feedSubtext1": "Hang tight",
+  "@feedSubtext1": {
+    "description": "Typing indicator subtext variation 1"
+  },
+
+  "feedSubtext2": "Finding gems",
+  "@feedSubtext2": {
+    "description": "Typing indicator subtext variation 2"
+  },
+
+  "feedSubtext3": "One moment",
+  "@feedSubtext3": {
+    "description": "Typing indicator subtext variation 3"
+  },
+
+  "feedSubtext4": "Personalizing",
+  "@feedSubtext4": {
+    "description": "Typing indicator subtext variation 4"
+  },
+
+  "feedSubtext5": "Almost ready",
+  "@feedSubtext5": {
+    "description": "Typing indicator subtext variation 5"
+  },
+
+  "feedSubtext6": "Sorting content",
+  "@feedSubtext6": {
+    "description": "Typing indicator subtext variation 6"
+  },
+
+  "feedSubtext7": "Just for you",
+  "@feedSubtext7": {
+    "description": "Typing indicator subtext variation 7"
+  },
+
+  "feedSubtext8": "Working on it",
+  "@feedSubtext8": {
+    "description": "Typing indicator subtext variation 8"
+  },
+
+  "feedSubtext9": "Stay with us",
+  "@feedSubtext9": {
+    "description": "Typing indicator subtext variation 9"
+  },
+
+  "feedSubtext10": "Nearly done",
+  "@feedSubtext10": {
+    "description": "Typing indicator subtext variation 10"
+  },
+
+  "sendMessage": "Send message",
+  "@sendMessage": {
+    "description": "Send message button accessibility label"
+  },
+
+  "viewComment": "AI Comment",
+  "@viewComment": {
+    "description": "Label for AI comment view in dynamic views selector"
+  },
+
+  "viewOverview": "Overview",
+  "@viewOverview": {
+    "description": "Header for content views section with sparkle icon"
+  },
+
+  "contactUs": "Contact us",
+  "@contactUs": {
+    "description": "Contact us section title in profile"
+  },
+
+  "emailCopied": "Copied!",
+  "@emailCopied": {
+    "description": "Email copied notification title"
+  },
+
+  "emailCopiedMessage": "Email address copied to clipboard",
+  "@emailCopiedMessage": {
+    "description": "Email copied notification message"
+  },
+
+  "feedManagement": "Feed Management",
+  "@feedManagement": {
+    "description": "Title for feed management action sheet"
+  },
+
+  "renameFeed": "Rename Feed",
+  "@renameFeed": {
+    "description": "Action to rename a feed"
+  },
+
+  "deleteFeed": "Delete",
+  "@deleteFeed": {
+    "description": "Action to unsubscribe from a feed"
+  },
+
+  "confirmDeleteFeed": "Are you sure you want to unsubscribe from this feed?",
+  "@confirmDeleteFeed": {
+    "description": "Confirmation dialog title for feed deletion"
+  },
+
+  "confirmDeleteFeedMessage": "This action cannot be undone. All posts from this feed will be removed from your timeline.",
+  "@confirmDeleteFeedMessage": {
+    "description": "Confirmation dialog message for feed deletion"
+  },
+
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete action button"
+  },
+
+  "rename": "Rename",
+  "@rename": {
+    "description": "Rename action button"
+  },
+
+  "enterNewName": "Enter new feed name",
+  "@enterNewName": {
+    "description": "Placeholder for new feed name input"
+  },
+
+  "feedNameRequired": "Feed name is required",
+  "@feedNameRequired": {
+    "description": "Error message when feed name is empty"
+  },
+
+  "feedRenamed": "Feed renamed successfully",
+  "@feedRenamed": {
+    "description": "Success message for feed rename"
+  },
+
+  "feedDeleted": "Unsubscribed from feed",
+  "@feedDeleted": {
+    "description": "Success message for feed deletion"
+  },
+
+  "errorRenamingFeed": "Error renaming feed",
+  "@errorRenamingFeed": {
+    "description": "Error message for feed rename failure"
+  },
+
+  "errorDeletingFeed": "Error unsubscribing from feed",
+  "@errorDeletingFeed": {
+    "description": "Error message for feed deletion failure"
+  },
+
+  "save": "Save",
+  "@save": {
+    "description": "Save button text"
+  },
+
+  "readAllPosts": "Read All",
+  "@readAllPosts": {
+    "description": "Action to mark all posts in feed as read"
+  },
+
+  "postsMarkedAsRead": "Marked {count} posts as read",
+  "@postsMarkedAsRead": {
+    "description": "Success message showing number of posts marked as read",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "The number of posts marked as read."
+      }
+    }
+  },
+
+  "errorMarkingPostsAsRead": "Error marking posts as read",
+  "@errorMarkingPostsAsRead": {
+    "description": "Error message when marking posts as read fails"
+  },
+
+  "sourceCount": "{count,plural, =0{No sources} =1{{count} source} other{{count} sources}}",
+  "@sourceCount": {
+    "description": "A label that shows the number of sources for a news item.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "The number of sources."
+      }
+    }
+  },
+
+  "noFeedsTitle": "No feeds yet",
+  "@noFeedsTitle": {
+    "description": "Title for empty state when no feeds are available"
+  },
+
+  "noFeedsSubtitle": "Tap + to create your first feed",
+  "@noFeedsSubtitle": {
+    "description": "Subtitle for empty state when no feeds are available"
+  },
+
+  "noFeedsDescription": "Add your favorite sources and get personalized content powered by AI.",
+  "@noFeedsDescription": {
+    "description": "Description for empty state when no feeds are available"
+  },
+
+  "goToChat": "Go to Create",
+  "@goToChat": {
+    "description": "Button text to navigate to create tab from empty feeds state"
+  },
+
+  "feedOnTheWay": "Your feed is on the way",
+  "@feedOnTheWay": {
+    "description": "Title shown when feed is being generated"
+  },
+
+  "feedLoadingDescription": "We're gathering the best news for you",
+  "@feedLoadingDescription": {
+    "description": "Description shown when feed is loading"
+  },
+
+  "feedGenerating": "Generating your feed just for you",
+  "@feedGenerating": {
+    "description": "Alternative text shown when feed is being generated"
+  },
+
+  "chat": "Session",
+  "@chat": {
+    "description": "Session label for individual session titles"
+  },
+
+  "startAConversation": "Start creating",
+  "@startAConversation": {
+    "description": "Placeholder text when no sessions exist"
+  },
+
+  "newChat": "New Session",
+  "@newChat": {
+    "description": "Accessibility label for new session button"
+  },
+
+  "deleteChat": "Delete",
+  "@deleteChat": {
+    "description": "Delete action title for swipe action"
+  },
+
+  "deleteSession": "Delete",
+  "@deleteSession": {
+    "description": "Delete session action in overlay"
+  },
+
+  "confirmDeleteChat": "Delete Session?",
+  "@confirmDeleteChat": {
+    "description": "Confirmation dialog title for session deletion"
+  },
+
+  "confirmDeleteChatMessage": "This session and all its messages will be permanently deleted.",
+  "@confirmDeleteChatMessage": {
+    "description": "Confirmation dialog message for session deletion"
+  },
+
+  "chatDeleted": "Session deleted",
+  "@chatDeleted": {
+    "description": "Success message when session is deleted (legacy)"
+  },
+
+  "sessionDeleted": "Session deleted",
+  "@sessionDeleted": {
+    "description": "Success message when session is deleted"
+  },
+
+  "errorLoadingChats": "Error loading sessions",
+  "@errorLoadingChats": {
+    "description": "Error message when session list fails to load"
+  },
+
+  "errorLoadingSessions": "Error loading sessions",
+  "@errorLoadingSessions": {
+    "description": "Error message when session list fails to load"
+  },
+
+  "tryAgain": "Try Again",
+  "@tryAgain": {
+    "description": "Retry button text"
+  },
+
+  "errorCreatingChat": "Error creating session",
+  "@errorCreatingChat": {
+    "description": "Error message when session creation fails (legacy)"
+  },
+
+  "errorCreatingSession": "Error creating session",
+  "@errorCreatingSession": {
+    "description": "Error message when session creation fails"
+  },
+
+  "errorDeletingChat": "Error deleting session",
+  "@errorDeletingChat": {
+    "description": "Error message when session deletion fails (legacy)"
+  },
+
+  "errorDeletingSession": "Error deleting session",
+  "@errorDeletingSession": {
+    "description": "Error message when session deletion fails"
+  },
+
+  "yesterday": "Yesterday",
+  "@yesterday": {
+    "description": "Yesterday label for relative time"
+  },
+
+  "forgotPassword": "Forgot password?",
+  "@forgotPassword": {
+    "description": "Forgot password link text"
+  },
+
+  "resetPassword": "Reset Password",
+  "@resetPassword": {
+    "description": "Reset password dialog title"
+  },
+
+  "enterEmailToReset": "Enter your email address and we'll send you instructions to reset your password.",
+  "@enterEmailToReset": {
+    "description": "Reset password dialog message"
+  },
+
+  "send": "Send",
+  "@send": {
+    "description": "Send button text"
+  },
+
+  "resetPasswordSuccess": "Password reset instructions sent",
+  "@resetPasswordSuccess": {
+    "description": "Success message after password reset email sent"
+  },
+
+  "resetPasswordSuccessMessage": "Check your email for instructions to reset your password.",
+  "@resetPasswordSuccessMessage": {
+    "description": "Success message details after password reset email sent"
+  },
+
+  "success": "Success",
+  "@success": {
+    "description": "Generic success title"
+  },
+
+  "passwordChangedSuccessfully": "Your password has been changed successfully!",
+  "@passwordChangedSuccessfully": {
+    "description": "Success message after password change"
+  },
+
+  "createNewPassword": "Create New Password",
+  "@createNewPassword": {
+    "description": "Title for reset password page"
+  },
+
+  "enterNewPasswordBelow": "Enter your new password below",
+  "@enterNewPasswordBelow": {
+    "description": "Subtitle for reset password page"
+  },
+
+  "newPassword": "New password",
+  "@newPassword": {
+    "description": "New password field placeholder"
+  },
+
+  "passwordRequirements": "Min. 8 characters, including uppercase, lowercase, numbers, and special characters",
+  "@passwordRequirements": {
+    "description": "Password requirements hint text"
+  },
+
+  "backToSignIn": "Back to Sign In",
+  "@backToSignIn": {
+    "description": "Link to return from reset password to sign in"
+  },
+
+  "continueButton": "Continue",
+  "@continueButton": {
+    "description": "Continue button text"
+  },
+
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button text"
+  },
+
+  "error": "Error",
+  "@error": {
+    "description": "Generic error title"
+  },
+
+  "sourcesModalTitle": "Sources",
+  "@sourcesModalTitle": {
+    "description": "Title for the sources modal in news detail page"
+  },
+
+  "feedback": "Feedback",
+  "@feedback": {
+    "description": "Feedback title"
+  },
+
+  "sendFeedback": "Send Feedback",
+  "@sendFeedback": {
+    "description": "Send feedback button text"
+  },
+
+  "shareYourFeedback": "Share Your Feedback",
+  "@shareYourFeedback": {
+    "description": "Feedback modal title"
+  },
+
+  "shareYourThoughts": "Share your thoughts with us",
+  "@shareYourThoughts": {
+    "description": "Feedback button subtitle in profile"
+  },
+
+  "feedbackSubtitle": "We'd love to hear your thoughts, suggestions, or any issues you've encountered",
+  "@feedbackSubtitle": {
+    "description": "Feedback modal subtitle"
+  },
+
+  "feedbackPlaceholder": "Ideas, bugs, feedback...",
+  "@feedbackPlaceholder": {
+    "description": "Feedback text field placeholder"
+  },
+
+  "sendingFeedback": "Sending feedback...",
+  "@sendingFeedback": {
+    "description": "Loading text when sending feedback"
+  },
+
+  "feedbackSent": "Thank You!",
+  "@feedbackSent": {
+    "description": "Feedback sent success title"
+  },
+
+  "feedbackSentMessage": "Your feedback has been received. We appreciate you taking the time to help us improve!",
+  "@feedbackSentMessage": {
+    "description": "Feedback sent success message"
+  },
+
+  "feedbackError": "Error Sending Feedback",
+  "@feedbackError": {
+    "description": "Error title when feedback fails to send"
+  },
+
+  "feedbackEmpty": "Please enter your feedback",
+  "@feedbackEmpty": {
+    "description": "Error message when feedback is empty"
+  },
+
+  "characterLimit": "{count} / {max} characters",
+  "@characterLimit": {
+    "description": "Character counter format",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "Current character count"
+      },
+      "max": {
+        "type": "int",
+        "description": "Maximum character limit"
+      }
+    }
+  },
+
+  "closingAutomatically": "Closing automatically",
+  "@closingAutomatically": {
+    "description": "Auto-dismiss indicator text"
+  },
+
+  "appTakingBreak": "The app is taking a break",
+  "@appTakingBreak": {
+    "description": "Title shown when app services are temporarily unavailable"
+  },
+
+  "appTakingBreakDescription": "We'll be back soon. Please try again later.",
+  "@appTakingBreakDescription": {
+    "description": "Description shown when app services are temporarily unavailable"
+  },
+
+  "viewSettingsSubtitle": "Customize your news feed",
+  "@viewSettingsSubtitle": {
+    "description": "Subtitle for View Settings menu item in profile"
+  },
+
+  "viewSettingsPageSubtitle": "Customize your news feed appearance",
+  "@viewSettingsPageSubtitle": {
+    "description": "Subtitle on View Settings page"
+  },
+
+  "profileDetails": "Profile Details",
+  "@profileDetails": {
+    "description": "Title for profile details page"
+  },
+
+  "deleteAccount": "Delete Account",
+  "@deleteAccount": {
+    "description": "Button text for deleting account"
+  },
+
+  "deleteAccountConfirmTitle": "Delete Account?",
+  "@deleteAccountConfirmTitle": {
+    "description": "Title for account deletion confirmation dialog"
+  },
+
+  "deleteAccountConfirmMessage": "This will permanently delete your account and all associated data. This cannot be undone.",
+  "@deleteAccountConfirmMessage": {
+    "description": "Warning message for account deletion"
+  },
+
+  "yes": "Yes",
+  "@yes": {
+    "description": "Confirmation button text"
+  },
+
+  "deleteAccountProcessing": "Deleting account...",
+  "@deleteAccountProcessing": {
+    "description": "Loading message during account deletion"
+  },
+
+  "accountDeleted": "Account deleted",
+  "@accountDeleted": {
+    "description": "Success message after account deletion"
+  },
+
+  "deleteAccountError": "Error deleting account",
+  "@deleteAccountError": {
+    "description": "Error message for account deletion failure"
+  },
+
+  "pleaseWaitSeconds": "Please wait {seconds}s...",
+  "@pleaseWaitSeconds": {
+    "description": "Wait timer message",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "description": "Seconds remaining"
+      }
+    }
+  },
+
+  "dangerZone": "Danger Zone",
+  "@dangerZone": {
+    "description": "Section title for dangerous actions like account deletion"
+  },
+
+  "accountInfo": "Account Information",
+  "@accountInfo": {
+    "description": "Section title for account information"
+  },
+
+  "agreeToTerms": "By continuing, you agree to our {terms} and {privacy}",
+  "@agreeToTerms": {
+    "description": "Terms and privacy agreement text",
+    "placeholders": {
+      "terms": {
+        "type": "String",
+        "description": "Terms of Service link text"
+      },
+      "privacy": {
+        "type": "String",
+        "description": "Privacy Policy link text"
+      }
+    }
+  },
+
+  "termsOfService": "Terms of Service",
+  "@termsOfService": {
+    "description": "Terms of Service link text"
+  },
+
+  "privacyPolicy": "Privacy Policy",
+  "@privacyPolicy": {
+    "description": "Privacy Policy link text"
+  },
+
+  "mustAgreeToTerms": "Please agree to the Terms and Privacy Policy to continue",
+  "@mustAgreeToTerms": {
+    "description": "Error message when user hasn't agreed to terms"
+  },
+
+  "agreeToTermsPrefix": "By continuing, you agree to our ",
+  "@agreeToTermsPrefix": {
+    "description": "Prefix text for terms agreement"
+  },
+
+  "andText": " and ",
+  "@andText": {
+    "description": "Conjunction text between terms and privacy"
+  },
+
+  "feedCreatorTitle": "Create Feed",
+  "@feedCreatorTitle": {
+    "description": "Title for feed creator form"
+  },
+
+  "promptLabel": "Display format",
+  "@promptLabel": {
+    "description": "Label for prompt input field"
+  },
+
+  "promptHint": "What kind of content do you want?",
+  "@promptHint": {
+    "description": "Hint for prompt input field"
+  },
+
+  "sourcesLabel": "Sources",
+  "@sourcesLabel": {
+    "description": "Label for sources input field"
+  },
+
+  "sourcesHint": "@channel1, @channel2, https://...",
+  "@sourcesHint": {
+    "description": "Hint for sources input field"
+  },
+
+  "feedTypeLabel": "Feed Type",
+  "@feedTypeLabel": {
+    "description": "Label for feed type selection"
+  },
+
+  "singlePostType": "Individual Posts",
+  "@singlePostType": {
+    "description": "Single post feed type option"
+  },
+
+  "singlePostTypeDescription": "Each post is shown separately",
+  "@singlePostTypeDescription": {
+    "description": "Description for single post type"
+  },
+
+  "digestType": "Digest",
+  "@digestType": {
+    "description": "Digest feed type option"
+  },
+
+  "digestTypeDescription": "Posts are combined into a digest",
+  "@digestTypeDescription": {
+    "description": "Description for digest type"
+  },
+
+  "createFeedButton": "Create",
+  "@createFeedButton": {
+    "description": "Create feed button text"
+  },
+
+  "creatingFeed": "Creating your feed...",
+  "@creatingFeed": {
+    "description": "Loading text when creating feed"
+  },
+  "creatingDigest": "Creating your digest...",
+  "@creatingDigest": {
+    "description": "Loading text when creating digest"
+  },
+  "feedItemCreating": "Creating...",
+  "@feedItemCreating": {
+    "description": "Short status text for feed item being created"
+  },
+  "waitingForFirstPost": "Waiting for first post",
+  "@waitingForFirstPost": {
+    "description": "Loading text when waiting for first post via WebSocket"
+  },
+  "timeout": "Timeout",
+  "@timeout": {
+    "description": "Timeout error title"
+  },
+
+  "promptRequired": "Please enter a prompt",
+  "@promptRequired": {
+    "description": "Error when prompt is empty"
+  },
+
+  "sourcesRequired": "Please enter at least one source",
+  "@sourcesRequired": {
+    "description": "Error when sources are empty"
+  },
+
+  "digestDuration": "Duration",
+  "@digestDuration": {
+    "description": "Title for digest duration selector"
+  },
+
+  "digestMinutes": "{count} min",
+  "@digestMinutes": {
+    "description": "Minutes format for digest duration",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "digestHours": "{count} h",
+  "@digestHours": {
+    "description": "Hours format for digest duration",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "presets": "Presets",
+  "@presets": {
+    "description": "Label for preset durations section"
+  },
+
+  "reset": "Reset",
+  "@reset": {
+    "description": "Reset button text"
+  },
+
+  "feedTitle": "Title",
+  "@feedTitle": {
+    "description": "Label for feed title field"
+  },
+
+  "feedTitlePlaceholder": "Give your feed a name",
+  "@feedTitlePlaceholder": {
+    "description": "Placeholder for feed title field"
+  },
+
+  "feedDescription": "Description",
+  "@feedDescription": {
+    "description": "Label for feed description field"
+  },
+
+  "feedDescriptionPlaceholder": "Describe what this feed is about",
+  "@feedDescriptionPlaceholder": {
+    "description": "Placeholder for feed description field"
+  },
+
+  "feedFilters": "Content Filters",
+  "@feedFilters": {
+    "description": "Label for filters section in feed edit"
+  },
+
+  "filterDuplicates": "Remove duplicates",
+  "@filterDuplicates": {
+    "description": "Filter option: remove duplicate posts"
+  },
+
+  "filterAds": "Filter ads",
+  "@filterAds": {
+    "description": "Filter option: filter advertising content"
+  },
+
+  "filterSpam": "Remove spam",
+  "@filterSpam": {
+    "description": "Filter option: remove spam content"
+  },
+
+  "filterClickbait": "No clickbait",
+  "@filterClickbait": {
+    "description": "Filter option: filter clickbait content"
+  },
+
+  "feedTags": "Tags",
+  "@feedTags": {
+    "description": "Label for feed tags field"
+  },
+
+  "feedTagsPlaceholder": "Add tags (up to 4)",
+  "@feedTagsPlaceholder": {
+    "description": "Placeholder for feed tags field"
+  },
+
+  "feedTagsLimitError": "Maximum 4 tags allowed",
+  "@feedTagsLimitError": {
+    "description": "Error message when more than 4 tags are added"
+  },
+
+  "feedNotReady": "Feed is not ready to create",
+  "@feedNotReady": {
+    "description": "Error message when feed cannot be created yet"
+  },
+
+  "feedCreatedSuccess": "Feed created successfully!",
+  "@feedCreatedSuccess": {
+    "description": "Success message after feed creation"
+  },
+
+  "digestsTab": "Digests",
+  "@digestsTab": {
+    "description": "Digests tab title in home page"
+  },
+
+  "feedsTab": "Feeds",
+  "@feedsTab": {
+    "description": "Feeds tab title in home page"
+  },
+
+  "noDigestsTitle": "No digests yet",
+  "@noDigestsTitle": {
+    "description": "Empty state title when no digest feeds exist"
+  },
+
+  "noDigestsHint": "Create a digest feed to combine multiple sources into a single summary",
+  "@noDigestsHint": {
+    "description": "Empty state hint text for digests tab"
+  },
+
+  "noRegularFeedsHint": "Create a feed to receive individual posts from your favorite sources",
+  "@noRegularFeedsHint": {
+    "description": "Empty state hint text for feeds tab"
+  },
+
+  "linkTelegram": "Link Telegram",
+  "@linkTelegram": {
+    "description": "Button to link Telegram account"
+  },
+
+  "telegramLinked": "Telegram linked",
+  "@telegramLinked": {
+    "description": "Title when Telegram is already linked"
+  },
+
+  "linkTelegramSubtitle": "Receive notifications in Telegram",
+  "@linkTelegramSubtitle": {
+    "description": "Subtitle for link telegram button"
+  },
+
+  "linkTelegramLoading": "Connecting...",
+  "@linkTelegramLoading": {
+    "description": "Loading text when linking telegram"
+  },
+
+  "linkTelegramError": "Failed to get link. Please try again.",
+  "@linkTelegramError": {
+    "description": "Error message when telegram link fails"
+  },
+
+  "summarizeUnseenTitle": "Summarize Unseen Posts?",
+  "@summarizeUnseenTitle": {
+    "description": "Title for summarize confirmation modal"
+  },
+
+  "summarizeUnseenMessage": "Create an AI digest from {count} unseen posts in \"{feedName}\". This will mark them as seen.",
+  "@summarizeUnseenMessage": {
+    "description": "Message for summarize confirmation modal",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "Number of unseen posts"
+      },
+      "feedName": {
+        "type": "String",
+        "description": "Name of the feed"
+      }
+    }
+  },
+
+  "summarizeUnseenConfirm": "Create Digest",
+  "@summarizeUnseenConfirm": {
+    "description": "Confirm button for summarize modal"
+  },
+
+  "summarizeUnseenCancel": "Cancel",
+  "@summarizeUnseenCancel": {
+    "description": "Cancel button for summarize modal"
+  },
+
+  "summarizeUnseenOverLimit": "Too many unread posts ({count}). Maximum for digest is {limit}. Read some posts to create a digest.",
+  "@summarizeUnseenOverLimit": {
+    "description": "Message when unread posts exceed limit for digest",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "description": "Current number of unread posts"
+      },
+      "limit": {
+        "type": "int",
+        "description": "Maximum allowed unread posts for digest"
+      }
+    }
+  },
+
+  "summarizeStatusPreparing": "Preparing digest...",
+  "@summarizeStatusPreparing": {
+    "description": "Status text while preparing summarization"
+  },
+
+  "summarizeStatusCollecting": "Collecting posts...",
+  "@summarizeStatusCollecting": {
+    "description": "Status text while collecting posts for summarization"
+  },
+
+  "summarizeStatusGenerating": "Generating digest...",
+  "@summarizeStatusGenerating": {
+    "description": "Status text while AI generates the digest"
+  },
+
+  "summarizeStatusReady": "Digest ready!",
+  "@summarizeStatusReady": {
+    "description": "Status text when digest is ready"
+  },
+
+  "summarizeStatusFailed": "Failed to create digest",
+  "@summarizeStatusFailed": {
+    "description": "Status text when digest creation fails"
+  },
+
+  "noMorePosts": "No more posts",
+  "@noMorePosts": {
+    "description": "Text shown when all posts have been loaded"
+  },
+
+  "offlineMode": "Offline - showing cached data",
+  "@offlineMode": {
+    "description": "Banner text shown when app is offline and using cached data"
+  },
+
+  "noPostsYet": "No posts yet",
+  "@noPostsYet": {
+    "description": "Title shown when a feed has been created but has no posts"
+  },
+
+  "noPostsYetDescription": "Posts will appear here once they are generated for this feed.",
+  "@noPostsYetDescription": {
+    "description": "Description shown when a feed has been created but has no posts"
+  },
+
+  "onboardingStep1Title": "Feeds",
+  "@onboardingStep1Title": {
+    "description": "Title for onboarding step 1 - Home tab"
+  },
+  "onboardingStep1Description": "Your feeds live here, separate tabs for regular feeds and digests.",
+  "@onboardingStep1Description": {
+    "description": "Description for onboarding step 1"
+  },
+  "onboardingStep2Title": "Create Feed",
+  "@onboardingStep2Title": {
+    "description": "Title for onboarding step 2 - Create tab"
+  },
+  "onboardingStep2Description": "Build your personalized feed. Your content — your rules.",
+  "@onboardingStep2Description": {
+    "description": "Description for onboarding step 2"
+  },
+  "onboardingStep3Title": "Edit Feeds",
+  "@onboardingStep3Title": {
+    "description": "Title for onboarding step 3 - Feeds tab"
+  },
+  "onboardingStep3Description": "Customize and adjust your feeds anytime.",
+  "@onboardingStep3Description": {
+    "description": "Description for onboarding step 3"
+  },
+  "onboardingStep4Title": "Settings",
+  "@onboardingStep4Title": {
+    "description": "Title for onboarding step 4 - Profile tab"
+  },
+  "onboardingStep4Description": "Profile, theme, app settings and everything else — here.",
+  "@onboardingStep4Description": {
+    "description": "Description for onboarding step 4"
+  },
+  "onboardingSkip": "Skip",
+  "@onboardingSkip": {
+    "description": "Skip button text in onboarding"
+  },
+  "onboardingNext": "Next",
+  "@onboardingNext": {
+    "description": "Next button text in onboarding"
+  },
+  "onboardingFinish": "Got it!",
+  "@onboardingFinish": {
+    "description": "Finish button text in onboarding"
+  },
+
+  "authErrorInvalidCredentials": "Invalid email or password",
+  "authErrorEmailNotConfirmed": "Please confirm your email before signing in",
+  "authErrorInvalidLoginData": "Invalid login data",
+  "authErrorInvalidEmailFormat": "Invalid email format",
+  "authErrorTooManyAttempts": "Too many attempts. Please try again later",
+  "authErrorSignInFailed": "Sign in failed",
+  "authErrorSignInError": "Sign in error",
+  "authErrorEmailAlreadyRegistered": "Email already registered",
+  "authErrorTooManySignUpAttempts": "Too many sign up attempts. Please try again later",
+  "authErrorSignUpFailed": "Sign up failed",
+  "authErrorSignUpError": "Sign up error",
+  "authErrorPasswordTooShort": "Password must be at least 8 characters",
+  "authErrorPasswordNeedsUppercase": "Password must contain uppercase letters",
+  "authErrorPasswordNeedsLowercase": "Password must contain lowercase letters",
+  "authErrorPasswordNeedsNumbers": "Password must contain numbers",
+  "authErrorPasswordNeedsSpecialChars": "Password must contain special characters",
+  "authErrorGoogleCancelled": "Google sign in cancelled",
+  "authErrorGoogleFailed": "Could not sign in with Google",
+  "authErrorGoogleNoIdToken": "Could not get ID token from Google",
+  "authErrorGoogleError": "Google sign in error",
+  "authErrorAppleCancelled": "Apple sign in cancelled",
+  "authErrorAppleError": "Apple sign in error",
+  "authErrorOAuthCancelled": "Sign in cancelled",
+  "authErrorOAuthError": "OAuth sign in error",
+  "authErrorOAuthTimeout": "Sign in timed out",
+  "authErrorSessionRefreshFailed": "Could not refresh session",
+  "authErrorSessionRefreshError": "Session refresh error",
+  "authErrorPasswordResetFailed": "Could not send password reset",
+  "authErrorPasswordResetError": "Password reset error",
+  "authErrorPasswordUpdateFailed": "Could not change password",
+  "authErrorPasswordUpdateError": "Password change error",
+  "authErrorNoDataToUpdate": "No data to update",
+  "authErrorProfileUpdateFailed": "Could not update profile",
+  "authErrorProfileUpdateError": "Profile update error",
+  "authErrorNotAuthenticated": "User not authenticated",
+  "authErrorAccountDeleteFailed": "Could not delete account",
+  "authErrorAccountDeleteError": "Account deletion error",
+  "authErrorMagicLinkSendError": "Could not send sign in link",
+  "authErrorMagicLinkError": "Sign in link error",
+  "authErrorDemoLoginMissingToken": "Server error: missing token",
+  "authErrorDemoLoginFailed": "Demo login failed",
+  "authErrorDemoLoginConnectionError": "Server connection error",
+  "authErrorUserNotFound": "User not found",
+  "authErrorEmailConfirmationError": "Could not send confirmation email",
+  "authErrorNetworkError": "Network error. Check your connection",
+  "authErrorUnknownError": "An unexpected error occurred",
+  "authMessageCheckEmailForConfirmation": "Check your email to confirm registration",
+  "authMessagePasswordResetSent": "Password reset instructions sent to your email",
+  "authMessagePasswordChanged": "Password changed successfully",
+  "authMessageAccountDeleted": "Account deleted",
+  "authMessageCheckEmailForLink": "Check your email for the sign in link. It will arrive within a minute.",
+  "authMessageConfirmationEmailSent": "Confirmation email sent",
+
+  "slideFeedTypeTitle": "What feed to create?",
+  "slideFeedTypeSubtitle": "Choose how posts are displayed",
+  "slideFeedTypeIndividualPosts": "Individual\nposts",
+  "slideFeedTypeIndividualPostsDesc": "Each post separately",
+  "slideFeedTypeDigest": "Digest",
+  "slideFeedTypeDigestDesc": "Combined into a summary",
+  "slideContentTitle": "Where to get content?",
+  "slideContentSubtitle": "Blogs, Telegram channels and RSS",
+  "slideContentSourceHint": "@channel or https://...",
+  "slideContentPopular": "Popular:",
+  "slideConfigTitle": "Content settings",
+  "slideConfigSubtitle": "How to process and what to filter",
+  "slideConfigProcessingStyle": "Processing style",
+  "slideConfigProcessingHint": "How AI will process the news",
+  "slideConfigCustomStyle": "Custom style...",
+  "slideConfigFilters": "Filters",
+  "slideConfigFiltersHint": "What to remove from the feed",
+  "slideConfigCustomFilter": "Custom filter...",
+  "slideConfigAddCustom": "Add custom",
+  "slideFinalizeTitle": "Almost done!",
+  "slideFinalizeSubtitle": "Review feed settings",
+  "slideFinalizeName": "Name",
+  "slideFinalizeSummary": "Summary",
+  "slideFinalizeSave": "Save",
+  "slideFinalizeCreateFeed": "Create feed",
+  "slideFinalizeNameHint": "Give it a name",
+  "slideFinalizeType": "Type",
+  "slideFinalizeIndividualPosts": "Individual posts",
+  "slideFinalizeDigest": "Digest",
+  "slideFinalizeFrequency": "Frequency",
+  "slideFinalizeSources": "Sources",
+  "slideFinalizeStyle": "Style",
+  "slideFinalizeFilters": "Filters",
+  "slideNext": "Next",
+  "slideDone": "Done",
+  "slideDigestFrequency": "Digest frequency",
+  "slideDigestFrequencyHint": "How often to collect news",
+  "slideDigestEveryHour": "Every hour",
+  "slideDigestEvery3Hours": "Every 3h",
+  "slideDigestEvery6Hours": "Every 6h",
+  "slideDigestEvery12Hours": "Every 12h",
+  "slideDigestDaily": "Daily",
+  "slideDigestEvery2Days": "Every 2 days",
+  "slideDigestCustom": "Custom",
+  "slideDigestCancel": "Cancel",
+  "slidePostsPreview": "This is how posts will look",
+  "slideDailyDigest": "Daily Digest",
+  "slidePostsCombined": "3 posts combined",
+
+  "aiStyleBrief": "Brief",
+  "aiStyleEssence": "Essence",
+  "aiStyleFull": "Full",
+  "aiStyleCustom": "Custom",
+  "aiStyleBriefDesc": "2-3 lines, just the main point",
+  "aiStyleEssenceDesc": "Key facts and context",
+  "aiStyleFullDesc": "Full text with details",
+  "aiStyleCustomDesc": "Describe in your own words",
+  "aiStyleHowToDisplay": "How to display?",
+  "aiStyleSwipeHint": "Swipe to choose style",
+  "aiStyleCustomStyle": "Custom style",
+  "aiStyleCustomProcessingStyle": "Custom processing style",
+  "aiStyleSwipeRight": "Swipe right",
+  "aiStyleCustomPlaceholder": "E.g.: plain, facts only",
+  "aiStyleChipNoAds": "no ads",
+  "aiStyleChipNumbersOnly": "numbers only",
+  "aiStyleChipCasual": "casual tone",
+  "aiStyleHowToProcess": "How to process?",
+  "aiStyleAiAdaptsHint": "AI will adapt text to your style",
+  "aiStylePreview": "Preview",
+  "aiStyleEnterAbove": "Enter your style above...",
+  "aiStylePreviewTitle": "Apple unveiled M4",
+  "aiStylePreviewBrief": "New chip is 50% faster. Launching in November.",
+  "aiStylePreviewEssence": "The new M4 chip is 50% faster than its predecessor. Available in November in the MacBook Pro and iMac lineup.",
+  "aiStylePreviewFull": "Apple announced the new M4 processor at a special event. The chip is 50% faster than the M3, features improved neural engine and support for 32 GB RAM. Launch is planned for November in the MacBook Pro, iMac, and Mac mini lineup.",
+
+  "feedEditTitle": "Edit Feed",
+  "feedEditName": "Name",
+  "feedEditNameHint": "Feed name",
+  "feedEditSources": "Sources",
+  "feedEditSchedule": "Schedule",
+  "feedEditFilters": "Filters",
+  "feedEditFilterHint": "Filter...",
+  "feedEditSave": "Save",
+  "feedEditFailedToLoad": "Failed to load data",
+  "feedEditSourceAlreadyAdded": "Source already added",
+  "feedEditNetworkError": "Network error",
+  "feedEditNotFound": "Not found",
+  "feedEditError": "Error",
+  "feedEditFilterAlreadyExists": "Filter already exists",
+  "feedEditEnterName": "Enter a name",
+  "feedEditWaitForValidation": "Wait for sources to be validated",
+  "feedEditAddSource": "Add at least one source",
+  "feedEditFailedToSave": "Failed to save",
+  "feedEditDeleteFeedTitle": "Delete feed?",
+  "feedEditDeleteFeedMessage": "Feed \"{name}\" will be permanently deleted.",
+  "@feedEditDeleteFeedMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "feedEditFailedToDelete": "Failed to delete",
+  "feedEditEveryHour": "Every hour",
+  "feedEditEvery3Hours": "Every 3 hours",
+  "feedEditEvery6Hours": "Every 6 hours",
+  "feedEditEvery12Hours": "Every 12 hours",
+  "feedEditOnceADay": "Once a day",
+
+  "formSelectFeedType": "Select feed type",
+  "formAddSource": "Add at least one source",
+  "formWaitForValidation": "Wait for sources to be validated",
+  "formAddValidSource": "Add at least one valid source",
+  "formCreateFailed": "Could not create feed. Check data and try again.",
+  "formAuthError": "Authorization error. Please sign in again.",
+  "formLimitReached": "Limit reached. Limited availability for now.",
+  "formSomethingWentWrong": "Something went wrong. Try again later.",
+  "formServerError": "Server error. Try again later.",
+  "formCreateError": "Could not create feed. Try again later.",
+  "formNetworkError": "Network error. Check your internet connection.",
+  "formUnexpectedError": "Something went wrong. Try again later.",
+
+  "previewFilterMode": "Filter",
+  "previewDigestMode": "Summary",
+  "previewCommentsMode": "Comments",
+  "previewReadMode": "Read",
+  "previewDescription": "DESCRIPTION",
+  "previewPrompt": "PROMPT",
+  "previewUnknown": "Unknown",
+  "previewSourcesCount": "SOURCES ({count})",
+  "@previewSourcesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previewFiltersCount": "FILTERS ({count})",
+  "@previewFiltersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previewSubscribing": "Subscribing...",
+  "previewCreating": "Creating...",
+  "previewSubscribe": "Subscribe",
+  "previewCreateFeed": "Create Feed",
+
+  "limitMoreFeaturesSoon": "More features coming soon",
+  "limitGotIt": "Got it",
+  "limitSourcesTitle": "Sources limit",
+  "limitFiltersTitle": "Filters limit",
+  "limitStylesTitle": "Styles limit",
+  "limitFeedsTitle": "Feeds limit",
+  "limitSourcesMessage": "Only {limit} sources per feed are available for now.",
+  "@limitSourcesMessage": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "limitFiltersMessage": "Only {limit} filters per feed are available for now.",
+  "@limitFiltersMessage": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "limitStylesMessage": "Only {limit} styles per feed are available for now.",
+  "@limitStylesMessage": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "limitFeedsMessage": "Only {limit} feeds are available for now.",
+  "@limitFeedsMessage": {
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+
+  "feedSavedSuccess": "Feed saved successfully!",
+  "addAtLeastOneSource": "Add at least one source",
+  "myFeeds": "My Feeds",
+  "loadingError": "Failed to load",
+  "retryButton": "Retry",
+  "noFeedsYet": "No feeds yet",
+  "createFirstFeedHint": "Create your first feed to get personalized news powered by AI.",
+  "createFeed": "Create Feed",
+  "shareImage": "Share image",
+  "shareImageFailed": "Could not share image",
+  "saving": "Saving...",
+  "imageSavedToGallery": "Image saved to gallery",
+  "noPermissionToSave": "No permission to save images",
+  "imageSaveError": "Error saving image",
+  "cannotShare": "Cannot share",
+  "noShareIdAvailable": "This article has no identifier for sharing.",
+  "couldNotOpenLink": "Could not open link: {href}",
+  "@couldNotOpenLink": {
+    "placeholders": {
+      "href": {
+        "type": "String"
+      }
+    }
+  },
+  "connectionError": "Could not connect to server. Check your internet connection.",
+  "feedCreationSlow": "Feed creation is taking longer than usual. Try refreshing later.",
+  "couldNotLoadNews": "Could not load news",
+  "checkInternetConnection": "Check your internet connection",
+  "tryAgainButton": "Try again",
+
+  "unsafeUrl": "Unsafe URL",
+  "unsafeUrlBlocked": "An attempt to navigate to a dangerous URL was blocked",
+  "contentLoadFailed": "Could not load content",
+  "videoBlockedForSafety": "This video is blocked for your safety",
+  "closeButton": "Close",
+  "loadingText": "Loading...",
+  "videoUnsafeUrl": "Unsafe URL",
+  "videoUnsafeMessage": "This video cannot be opened for your safety",
+  "videoTitle": "Video",
+
+  "urlEmpty": "URL is empty",
+  "urlInvalidFormat": "Invalid URL format",
+  "urlDangerousProtocol": "Dangerous protocol: {scheme}://",
+  "@urlDangerousProtocol": {
+    "placeholders": {
+      "scheme": {
+        "type": "String"
+      }
+    }
+  },
+  "urlOnlyHttpAllowed": "Only https:// and http:// protocols are allowed",
+  "urlUnsafeVideoUnknownSource": "This video is from an unknown source and uses an insecure connection (http://)",
+  "urlUnsafeVideoUnknown": "This video is from an unknown source",
+
+  "feedBuilderStartCreating": "Start creating",
+  "feedBuilderSession": "Session",
+  "feedTypeIndividualPosts": "Individual Posts",
+  "feedTypeDigestLabel": "Digest",
+  "feedTypeIndividualPostsDesc": "Each post is shown separately",
+  "feedTypeDigestLabelDesc": "Posts are combined into a digest",
+  "configBriefSummary": "Brief summary",
+  "configWithAnalysis": "With analysis",
+  "configOriginal": "Original",
+  "configKeyPointsOnly": "Key points only",
+  "configRemoveDuplicates": "Remove duplicates",
+  "configFilterAds": "Filter ads",
+  "configRemoveSpam": "Remove spam",
+  "configNoClickbait": "No clickbait",
+
+  "feedNotFound": "Feed not found",
+  "@feedNotFound": {
+    "description": "Error message when feed from deep link is not found"
+  },
+
+  "alreadySubscribed": "Already subscribed",
+  "@alreadySubscribed": {
+    "description": "Message when user is already subscribed to the feed"
+  },
+
+  "feedLoadError": "Could not load feed",
+  "@feedLoadError": {
+    "description": "Error message when feed preview fails to load from deep link"
+  },
+
+  "feedSubscribeError": "Could not subscribe to feed",
+  "@feedSubscribeError": {
+    "description": "Error message when feed subscription fails"
+  },
+
+  "analyticsConsent": "Analytics Tracking",
+  "@analyticsConsent": {
+    "description": "Toggle label for analytics consent in settings"
+  },
+  "analyticsConsentDescription": "Help improve the app by sharing anonymous usage data",
+  "@analyticsConsentDescription": {
+    "description": "Description for analytics consent toggle"
+  },
+
+  "errorLoadingPosts": "Failed to load posts",
+  "@errorLoadingPosts": {
+    "description": "Error message when posts fail to load"
+  },
+  "tapToRetry": "Tap to retry",
+  "@tapToRetry": {
+    "description": "Button text to retry loading"
+  }
+}

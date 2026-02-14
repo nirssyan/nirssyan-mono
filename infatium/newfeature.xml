@@ -1,0 +1,174 @@
+<spec version="1.0" owner="feature:chat-list-tab-2" priority="high">
+  <goal>
+    Implement a Telegram-like chat list on Tab #2 (iOS look & feel). 
+    If there are no chats, render the previous (legacy) chat page exactly as before. 
+    If chats exist, render a scrollable chat list (no avatars). 
+    Support: fetch list, pull-to-refresh, create new chat (+), delete chat (×), open chat.
+  </goal>
+
+  <api>
+    <base-url>USE EXISTING APP BASE URL</base-url>
+
+    <endpoint id="list_chats" method="GET" path="/chats" timeout_sec="20">
+      <description>Fetch user chats ordered by latest activity server-side; if not, order client-side.</description>
+      <response format="json" array="true">
+        <![CDATA[
+        [
+          {
+            "chat_id": "3c3a476d-f35b-4ec7-b778-eb73d4a6e7d6",
+            "created_at": "2025-08-26T22:53:22.030Z",
+            "messages": [
+              {
+                "id": "4e34abf5-1b86-4210-8715-eaf1fb0f1a92",
+                "type": "ai",
+                "chat_id": "3c3a476d-f35b-4ec7-b778-eb73d4a6e7d6",
+                "message": "Отлично! Я добавил канал @mikskarting ...",
+                "created_at": "2025-08-27T21:19:59.470374+00:00"
+              },
+              {
+                "id": "8d1b3db7-1d13-4946-8f4c-ef15941bec6c",
+                "type": "human",
+                "chat_id": "3c3a476d-f35b-4ec7-b778-eb73d4a6e7d6",
+                "message": "а еще хочу @mikskarting",
+                "created_at": "2025-08-27T21:19:48.599774+00:00"
+              }
+            ]
+          }
+        ]
+        ]]>
+      </response>
+    </endpoint>
+
+    <endpoint id="create_chat" method="POST" path="/chats" timeout_sec="20">
+      <description>Create a new empty chat and navigate to it.</description>
+      <response format="json">
+        <![CDATA[
+        { "chat_id": "1f6d305e-1c41-4693-9113-b8392439a043" }
+        ]]>
+      </response>
+    </endpoint>
+
+    <endpoint id="delete_chat" method="DELETE" path="/chats" timeout_sec="20">
+      <description>Delete a chat by id.</description>
+      <request-body format="json">
+        <![CDATA[
+        { "chat_id": "<UUID>" }
+        ]]>
+      </request-body>
+      <response format="json-void">{} or 204</response>
+    </endpoint>
+  </api>
+
+  <ui ios_style="true">
+    <screens>
+      <screen id="tab2_root" title="Chats">
+        <states>
+          <state id="loading">Show large iOS activity indicator centered; disable actions.</state>
+          <state id="error">Inline error with retry button; keep layout stable.</state>
+          <state id="empty">
+            Render the previous (legacy) chat page EXACTLY as before this feature (no regressions).
+          </state>
+          <state id="list">
+            <list style="inset-grouped" separators="automatic" no_avatars="true">
+              <cell>
+                <primary>Chat title = 'Chat' + short chat_id (or localized 'Chat')</primary>
+                <secondary>Last message preview (single line, ellipsis). If no messages, show 'Start a conversation'.</secondary>
+                <meta>Relative time (e.g., 21:19, Yesterday, Aug 27), aligned trailing.</meta>
+                <interactions>
+                  <tap>Open chat detail screen (reuse existing chat view)</tap>
+                  <swipe trailing="true">
+                    <action style="destructive" title="Delete" icon="xmark">
+                      Calls DELETE /chats with confirmation sheet first.
+                    </action>
+                  </swipe>
+                </interactions>
+              </cell>
+            </list>
+            <navbar>
+              <right-item icon="plus" accessibilityLabel="New Chat" action="POST /chats → navigate to new chat detail"/>
+            </navbar>
+            <refresh-control>Pull-to-refresh triggers GET /chats.</refresh-control>
+          </state>
+        </states>
+      </screen>
+    </screens>
+    <hig>
+      Use Safe Area, Dynamic Type, native bounce physics, large titles on iOS, proper hit targets (≥44pt), 
+      VoiceOver labels, and system SF Symbols. Respect light/dark themes.
+    </hig>
+  </ui>
+
+  <logic>
+    <ordering>
+      Sort chats by the newest timestamp among: latest message.created_at; if no messages, use chat.created_at. Descending.
+    </ordering>
+    <preview>
+      For preview text choose the latest message; trim to one line with ellipsis; support Unicode/RTL.
+    </preview>
+    <navigation>
+      Tapping a chat opens the existing chat view bound to that chat_id.
+      Creating a chat: on 200 OK, immediately push the chat detail for returned chat_id.
+    </navigation>
+    <empty-fallback>
+      If GET /chats returns an empty array or null → render legacy page (unchanged).
+    </empty-fallback>
+    <errors>
+      Show inline error with “Try Again”; do not leave user on blank screen. 
+      Network timeouts → show toast/snackbar and keep last successful list cached in-memory for this session.
+    </errors>
+  </logic>
+
+  <constraints>
+    <item>No avatars anywhere in the list.</item>
+    <item>Do not change existing chat detail behavior; only route into it.</item>
+    <item>Zero breaking changes to legacy empty state.</item>
+    <item>All strings must be localizable (RU/EN).</item>
+    <item>No analytics/tracking gates; UI must work without ATT prompts.</item>
+  </constraints>
+
+  <a11y>
+    <item>Each cell has accessible label: "Chat, last message: &lt;text&gt;, &lt;relative time&gt;".</item>
+    <item>Dynamic Type support up to Accessibility 2XL; cell height adapts.</item>
+    <item>Delete action accessible via rotor (Actions) and visible swipe.</item>
+  </a11y>
+
+  <edge-cases>
+    <case>Chats with zero messages → show placeholder subtitle.</case>
+    <case>Very long messages → ellipsize; no layout jumps.</case>
+    <case>Out-of-order server data → client-side sort guarantees stable order.</case>
+    <case>Time zones/UTC → parse ISO8601; display local time; relative labels.</case>
+    <case>Delete currently opened chat → pop to list and remove item.</case>
+    <case>Duplicate create-tap → debounce create (1 in-flight at a time).</case>
+  </edge-cases>
+
+  <telemetry optional="true">
+    <event name="chat_list_opened"/>
+    <event name="chat_created"/>
+    <event name="chat_deleted"/>
+    <event name="chat_opened"/>
+  </telemetry>
+
+  <tests type="manual+automated">
+    <step>On slow network, list shows skeleton/loader then renders.</step>
+    <step>Empty array → legacy page is rendered unchanged.</step>
+    <step>Non-empty → shows list; newest message at top; times correct.</step>
+    <step>Pull-to-refresh refetches and reorders if needed.</step>
+    <step>Tap "+" → POST /chats → navigates to new chat; list reflects after back.</step>
+    <step>Swipe-delete → confirm sheet → DELETE /chats → item removed; errors restore item.</step>
+    <step>RU/EN localization switches all visible strings.</step>
+    <step>VoiceOver reads cells and actions properly; large text doesn’t truncate meta time.</step>
+  </tests>
+
+  <definition_of_done>
+    <item>Feature behaves per all states (loading/error/empty/list).</item>
+    <item>Network errors handled gracefully; no crashes or dead ends.</item>
+    <item>Legacy empty page preserved pixel-by-pixel (where applicable).</item>
+    <item>Meets iOS HIG basics (safe areas, touch targets, dynamic type, a11y).</item>
+    <item>Code compiles, lint passes, and smoke test on iPhone 6.7"/6.1" simulators.</item>
+  </definition_of_done>
+
+  <non_goals>
+    <item>No avatars, no unread counters, no pin/archive, no search in this iteration.</item>
+    <item>No persistence beyond session cache (unless already provided by the app).</item>
+  </non_goals>
+</spec>

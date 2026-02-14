@@ -9,13 +9,13 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: makefeed-api
+      app: app-api-go
   namespaceSelector:
     matchNames:
       - infatium-dev
       - infatium-prod
   endpoints:
-    - port: metrics
+    - port: http
       path: /metrics
       interval: 30s
       scrapeTimeout: 10s

@@ -32,11 +32,6 @@ func NewTelegramLinkHandler(
 	}
 }
 
-func (h *TelegramLinkHandler) Routes() chi.Router {
-	r := chi.NewRouter()
-	return r
-}
-
 func (h *TelegramLinkHandler) AuthenticatedRoutes() chi.Router {
 	r := chi.NewRouter()
 
@@ -77,15 +72,8 @@ func (h *TelegramLinkHandler) GetLinkURL(w http.ResponseWriter, r *http.Request)
 }
 
 type TelegramStatusResponse struct {
-	IsLinked bool                 `json:"is_linked"`
-	Account  *TelegramAccountInfo `json:"account,omitempty"`
-}
-
-type TelegramAccountInfo struct {
-	TelegramID        int64   `json:"telegram_id"`
-	TelegramUsername  *string `json:"telegram_username,omitempty"`
-	TelegramFirstName *string `json:"telegram_first_name,omitempty"`
-	LinkedAt          string  `json:"linked_at"`
+	Linked           bool    `json:"linked"`
+	TelegramUsername *string `json:"telegram_username,omitempty"`
 }
 
 func (h *TelegramLinkHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
@@ -104,20 +92,14 @@ func (h *TelegramLinkHandler) GetStatus(w http.ResponseWriter, r *http.Request) 
 
 	if telegramUser == nil {
 		writeJSON(w, http.StatusOK, TelegramStatusResponse{
-			IsLinked: false,
-			Account:  nil,
+			Linked: false,
 		})
 		return
 	}
 
 	writeJSON(w, http.StatusOK, TelegramStatusResponse{
-		IsLinked: true,
-		Account: &TelegramAccountInfo{
-			TelegramID:        telegramUser.TelegramID,
-			TelegramUsername:  telegramUser.Username,
-			TelegramFirstName: telegramUser.FirstName,
-			LinkedAt:          telegramUser.CreatedAt.Format(time.RFC3339),
-		},
+		Linked:           true,
+		TelegramUsername: telegramUser.Username,
 	})
 }
 

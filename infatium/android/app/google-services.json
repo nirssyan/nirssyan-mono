@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "109019321112",
+    "project_id": "infatium-5d582",
+    "storage_bucket": "infatium-5d582.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:109019321112:android:41b6f82585e7c01088446d",
+        "android_client_info": {
+          "package_name": "com.nirssyan.makefeed"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvviUtieOL2W77_wtaa6bzleO-Xaa_BLE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

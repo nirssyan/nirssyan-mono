@@ -340,6 +340,52 @@ spec:
         - protocol: TCP
           port: 9464
 ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape-go-api
+  namespace: infatium-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: app-api-go
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: infrastructure
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape-auth-go
+  namespace: infatium-dev
+spec:
+  podSelector:
+    matchLabels:
+      app: app-auth-go
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: infrastructure
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8080
+---
 # Allow all pods to send traces to Tempo (OTLP gRPC/HTTP)
 # Required for OpenTelemetry tracing to work
 apiVersion: networking.k8s.io/v1

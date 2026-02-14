@@ -1,0 +1,11 @@
+{
+  "API_KEY": "Kp3GxqvzvzzqRUIQaNTpTanRJ8V2bA95qhIoYMUcvsWdQNt1ov",
+  "APPMETRICA_API_KEY": "82843226-df58-4be7-a1b0-ad0e74c9d7b2",
+  "API_BASE_URL": "https://dev.api.infatium.ru",
+  "CUSTOM_AUTH_BASE_URL": "https://dev.api.infatium.ru/auth",
+  "SHARE_BASE_URL": "https://dev.infatium.ru",
+  "SPLASH_TEXT": "infatium",
+  "ENABLE_NOTIFICATIONS": "true",
+  "GLITCHTIP_DSN": "https://f3a86334caf4467da51f2f4d60ae7186@glitchtip.infra.makekod.ru/1",
+  "ENABLE_DEBUG_LOGGING": "true"
+}

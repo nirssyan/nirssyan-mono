@@ -1,0 +1,104 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    env:
+      GRADLE_OPTS: "-Xmx4G -XX:MaxMetaspaceSize=2G"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/my-release-key.jks
+
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=my-release-key.jks
+          EOF
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Create production config
+        run: |
+          mkdir -p config
+          cat > config/prod.local.json <<EOF
+          {
+            "API_KEY": "${{ secrets.API_KEY }}",
+            "APPMETRICA_API_KEY": "${{ secrets.APPMETRICA_API_KEY }}",
+            "API_BASE_URL": "https://api.infatium.ru",
+            "CUSTOM_AUTH_BASE_URL": "https://api.infatium.ru/auth",
+            "SPLASH_TEXT": "infatium",
+            "ENABLE_NOTIFICATIONS": "true"
+          }
+          EOF
+
+      - name: Build APK
+        run: |
+          flutter build apk --release \
+            --dart-define-from-file=config/prod.local.json
+
+      - name: Get version from pubspec.yaml
+        id: version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d '\n')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Rename APK with version
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/makefeed-${{ steps.version.outputs.version }}-android.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
+          name: Release v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})
+          body: |
+            ## Android APK Release
+
+            **Version:** ${{ steps.version.outputs.version }}
+            **Build:** ${{ github.run_number }}
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.actor }}
+            **Branch:** ${{ github.ref_name }}
+
+            ### Changes
+            ${{ github.event.head_commit.message }}
+
+            ### Installation
+            Download the APK file below and install on your Android device.
+          files: build/app/outputs/flutter-apk/makefeed-${{ steps.version.outputs.version }}-android.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -80,6 +80,7 @@ func main() {
 
 	r := chi.NewRouter()
 
+	r.Use(middleware.HTTPMetrics)
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.Recoverer)
@@ -89,6 +90,7 @@ func main() {
 
 	r.Get("/healthz", healthHandler.Healthz)
 	r.Get("/readyz", healthHandler.Readyz)
+	r.Handle("/metrics", middleware.MetricsHandler())
 
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/login", authHandler.Login)
