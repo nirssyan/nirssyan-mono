@@ -2,7 +2,7 @@ name: Build & Deploy auth-service
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, master]
     paths:
       - 'services/auth-service/**'
       - '.github/workflows/ci-auth-service.yml'
@@ -10,7 +10,6 @@ on:
 env:
   REGISTRY: docker-registry.infrastructure:5000
   IMAGE_NAME: auth-service
-  IMAGE_TAG: dev
 
 jobs:
   build-and-deploy:
@@ -53,7 +52,7 @@ jobs:
           context: ./services/auth-service
           push: true
           platforms: linux/amd64
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
 
@@ -76,9 +75,11 @@ jobs:
         run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
       - name: Deploy to Kubernetes
+        env:
+          NAMESPACE: ${{ github.ref == 'refs/heads/master' && 'infatium-prod' || 'infatium-dev' }}
         run: |
-          kubectl rollout restart deployment/app-auth-go -n infatium-dev
-          kubectl rollout status deployment/app-auth-go -n infatium-dev --timeout=5m
+          kubectl rollout restart deployment/app-auth-go -n $NAMESPACE
+          kubectl rollout status deployment/app-auth-go -n $NAMESPACE --timeout=5m
 
       - name: Record deploy end time
         id: deploy_end
@@ -129,5 +130,5 @@ jobs:
               \"chat_id\": \"-1002622491758\",
               \"message_thread_id\": 504,
               \"parse_mode\": \"HTML\",
-              \"text\": \"${STATUS} <b>auth-service DEV</b>\n\n📦 Image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\n\n⏱️ <b>Время:</b>\n   Build: ${BUILD_TIME}\n   Deploy: ${DEPLOY_TIME}\n   <b>Всего: ${TOTAL_TIME}</b>\"
+              \"text\": \"${STATUS} <b>auth-service ${{ github.ref == 'refs/heads/master' && 'PROD' || 'DEV' }}</b>\n\n📦 Image: ${{ env.IMAGE_NAME }}:${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}\n📝 Commit: ${COMMIT_MSG}\n👤 Author: ${{ github.event.head_commit.author.name }}\n\n⏱️ <b>Время:</b>\n   Build: ${BUILD_TIME}\n   Deploy: ${DEPLOY_TIME}\n   <b>Всего: ${TOTAL_TIME}</b>\"
             }"
