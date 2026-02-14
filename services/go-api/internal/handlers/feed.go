@@ -227,27 +227,29 @@ func (h *FeedHandler) UpdateFeed(w http.ResponseWriter, r *http.Request) {
 				DigestIntervalHours: req.DigestIntervalHours,
 			}
 
-			if len(req.ViewsRaw) > 0 || len(req.FiltersRaw) > 0 {
-				transformed, transformErr := h.agents.TransformViewsAndFilters(r.Context(), req.ViewsRaw, req.FiltersRaw)
-				if transformErr != nil {
-					log.Warn().Err(transformErr).Msg("Failed to transform views/filters, saving raw")
-					if len(req.ViewsRaw) > 0 {
-						updateParams.ViewsConfig, _ = json.Marshal(req.ViewsRaw)
-					}
-					if len(req.FiltersRaw) > 0 {
-						updateParams.FiltersConfig, _ = json.Marshal(req.FiltersRaw)
-					}
-				} else {
-					if len(transformed.Views) > 0 {
-						updateParams.ViewsConfig, _ = json.Marshal(transformed.Views)
-					}
-					if len(transformed.Filters) > 0 {
-						updateParams.FiltersConfig, _ = json.Marshal(transformed.Filters)
-					}
-				}
+			if len(req.ViewsRaw) > 0 {
+				updateParams.ViewsConfig, _ = json.Marshal(req.ViewsRaw)
+			}
+			if len(req.FiltersRaw) > 0 {
+				updateParams.FiltersConfig, _ = json.Marshal(req.FiltersRaw)
 			}
 
 			h.promptRepo.Update(r.Context(), prompt.ID, updateParams)
+
+			if h.nc != nil && (len(req.ViewsRaw) > 0 || len(req.FiltersRaw) > 0) {
+				feedUpdatedEvent := map[string]interface{}{
+					"event_type":  "feed.updated",
+					"feed_id":     feedID.String(),
+					"prompt_id":   prompt.ID.String(),
+					"user_id":     userID.String(),
+					"views_raw":   convertToMaps(req.ViewsRaw),
+					"filters_raw": convertToMaps(req.FiltersRaw),
+				}
+				data, _ := json.Marshal(feedUpdatedEvent)
+				if err := h.nc.Publish("feed.updated", data); err != nil {
+					log.Warn().Err(err).Msg("Failed to publish feed.updated event")
+				}
+			}
 		}
 	}
 
