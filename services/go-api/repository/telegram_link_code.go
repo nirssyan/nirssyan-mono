@@ -11,7 +11,6 @@ import (
 )
 
 type TelegramLinkCode struct {
-	ID        uuid.UUID
 	Code      string
 	UserID    uuid.UUID
 	ExpiresAt time.Time
@@ -35,11 +34,11 @@ func (r *TelegramLinkCodeRepository) Create(ctx context.Context, userID uuid.UUI
 	query := `
 		INSERT INTO telegram_link_codes (code, user_id, expires_at)
 		VALUES ($1, $2, $3)
-		RETURNING id, code, user_id, expires_at, created_at`
+		RETURNING code, user_id, expires_at, created_at`
 
 	var tlc TelegramLinkCode
 	err = r.pool.QueryRow(ctx, query, code, userID, expiresAt).Scan(
-		&tlc.ID, &tlc.Code, &tlc.UserID, &tlc.ExpiresAt, &tlc.CreatedAt,
+		&tlc.Code, &tlc.UserID, &tlc.ExpiresAt, &tlc.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
