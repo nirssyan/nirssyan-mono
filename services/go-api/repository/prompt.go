@@ -97,5 +97,31 @@ func (r *PromptRepository) Update(ctx context.Context, promptID uuid.UUID, param
 			return err
 		}
 	}
+	if len(params.ViewsRaw) > 0 {
+		viewsJSON, _ := json.Marshal(params.ViewsRaw)
+		_, err := r.pool.Exec(ctx,
+			`UPDATE prompts SET views_config = $2 WHERE id = $1`,
+			promptID, viewsJSON)
+		if err != nil {
+			return err
+		}
+	}
+	if len(params.FiltersRaw) > 0 {
+		filtersJSON, _ := json.Marshal(params.FiltersRaw)
+		_, err := r.pool.Exec(ctx,
+			`UPDATE prompts SET filters_config = $2 WHERE id = $1`,
+			promptID, filtersJSON)
+		if err != nil {
+			return err
+		}
+	}
+	if params.RawPrompt != nil {
+		_, err := r.pool.Exec(ctx,
+			`UPDATE prompts SET prompt = $2 WHERE id = $1`,
+			promptID, *params.RawPrompt)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
