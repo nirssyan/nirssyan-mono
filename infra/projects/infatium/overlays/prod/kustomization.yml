@@ -5,54 +5,63 @@ namespace: infatium-prod
 
 components:
   - ../../../../global/proxy-sidecar
+  - ../../../../global/app-python
+  - ../../../../global/worker-python
+  - ../../../../global/app-go
+  - ../../../../global/worker-go
+  - ../../../../global/app-typescript
+  - ../../../../global/worker-typescript
 
 resources:
   - namespace.yml
   # network-policies.yml applied separately to avoid commonLabels in selectors
   - resourcequota.yml
   - limitrange.yml
-  - supabase-ingress.yml
   - api/ingress.yml
   - landing/ingress.yml
-  # Supabase (includes PostgreSQL)
-  - ../../base/supabase
-  # Infrastructure services from base
-  - ../../base/nats
-  - ../../base/redis
-  # Python backend services
-  - ../../base/app-api-python
-  - ../../base/app-integrations-python
-  - ../../base/worker-agents-python
-  - ../../base/worker-processor-python
-  - ../../base/worker-telegram-python
-  - ../../base/worker-rss-python
-  - ../../base/worker-web-python
+  - ../../base
   - ../../base/worker-bot-python
-  # TypeScript services
-  - ../../base/app-landing-typescript
-  # SealedSecrets (encrypted, safe to commit)
+  # SealedSecrets
   - service-secrets-sealed.yml
+  - auth-secrets-sealed.yml
   - bot-secrets-sealed.yml
   - redis-secrets-sealed.yml
-  - supabase-secrets-sealed.yml
+  - postgres-secrets-sealed.yml
   - dockerhub-registry-sealed.yml
   - integrations-secrets-sealed.yml
+  - minio-secrets-sealed.yml
 
 commonLabels:
   product: infatium
   environment: prod
 
 images:
-  - name: registry.infra.makekod.ru/infatium-landing
+  # Go services
+  - name: docker-registry.infrastructure:5000/go-api
     newTag: prod
-  - name: registry.infra.makekod.ru/infatium-bot
+  - name: docker-registry.infrastructure:5000/go-processor
     newTag: prod
-  # Python microservices - use makefeed-service:latest built by CI
-  - name: registry.infra.makekod.ru/makefeed
-    newName: registry.infra.makekod.ru/makefeed-service
-    newTag: latest
+  - name: docker-registry.infrastructure:5000/go-poller
+    newTag: prod
+  - name: docker-registry.infrastructure:5000/go-registry
+    newTag: prod
+  - name: docker-registry.infrastructure:5000/integrations-go
+    newTag: prod
+  - name: docker-registry.infrastructure:5000/auth-service
+    newTag: prod
+  # Python/TypeScript services
+  - name: docker-registry.infrastructure:5000/makefeed-agents
+    newTag: prod
+  - name: docker-registry.infrastructure:5000/infatium-landing
+    newTag: prod
+  - name: docker-registry.infrastructure:5000/infatium-bot
+    newTag: prod
 
 patches:
+  - path: worker-processor-go-patch.yml
+  - path: worker-poller-go-patch.yml
+  - path: app-registry-go-patch.yml
+  - path: app-api-go-patch.yml
   - target:
       kind: Deployment
     patch: |
@@ -72,23 +81,6 @@ patches:
         value:
           - name: regcred
           - name: dockerhub-registry
-  - target:
-      kind: Deployment
-      name: supabase-studio
-    patch: |
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/value
-        value: "https://supabase.infatium.ru"
-      - op: replace
-        path: /spec/template/spec/containers/0/env/5/value
-        value: "https://supabase.infatium.ru"
-  - target:
-      kind: Deployment
-      name: supabase-auth
-    patch: |
-      - op: replace
-        path: /spec/template/spec/containers/0/env/1/value
-        value: "https://supabase.infatium.ru"
   - target:
       kind: StatefulSet
     patch: |
@@ -116,26 +108,17 @@ patches:
         value:
           - name: regcred
           - name: dockerhub-registry
+  # auth-service config for production
   - target:
       kind: ConfigMap
-      name: worker-telegram-python-config
+      name: app-auth-go-config
     patch: |
       - op: replace
-        path: /data/MEDIA_BASE_URL
+        path: /data/APP_BASE_URL
         value: "https://api.infatium.ru"
-      - op: add
-        path: /data/TELEGRAM_SESSION_NAME
-        value: "prod_session"
-      - op: add
-        path: /data/TELEGRAM_WORKDIR
-        value: "/app/sessions"
-  # Fix REDIS_PORT conflict with K8s auto-injected service env var
-  - target:
-      kind: Deployment
-      name: worker-telegram-python
-    patch: |
-      - op: add
-        path: /spec/template/spec/containers/0/env
-        value:
-          - name: REDIS_PORT
-            value: "6379"
+      - op: replace
+        path: /data/LOG_LEVEL
+        value: "info"
+      - op: replace
+        path: /data/DEMO_MODE_ENABLED
+        value: "false"
