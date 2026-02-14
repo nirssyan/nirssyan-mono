@@ -6,6 +6,7 @@ import { Smartphone, Tablet, LucideIcon } from 'lucide-react'
 import { useIntersectionTracking } from '@/hooks/use-intersection-tracking'
 import { useMatomo } from '@/hooks/use-matomo'
 import { useLanguage } from '@/lib/language-context'
+import { reachGoal } from '@/lib/yandex-metrika'
 import { throttle } from '@/lib/throttle'
 import { useIsSafari } from '@/hooks/use-safari-detect'
 import Image from 'next/image'
@@ -18,7 +19,7 @@ const platformStyles = [
     gradient: 'from-blue-500/20 via-cyan-500/20 to-blue-600/20',
     glowColor: 'rgba(59, 130, 246, 0.3)',
     iconColor: 'text-blue-400',
-    href: 'https://apps.apple.com/us/app/infatium/id6749490917'
+    href: process.env.NEXT_PUBLIC_APPMETRICA_IOS_TRACKER_URL || 'https://apps.apple.com/us/app/infatium/id6749490917'
   },
   {
     id: 'android',
@@ -27,7 +28,7 @@ const platformStyles = [
     gradient: 'from-green-500/20 via-emerald-500/20 to-green-600/20',
     glowColor: 'rgba(34, 197, 94, 0.3)',
     iconColor: 'text-green-400',
-    href: 'https://www.rustore.ru/catalog/app/com.nirssyan.makefeed'
+    href: process.env.NEXT_PUBLIC_APPMETRICA_ANDROID_TRACKER_URL || 'https://www.rustore.ru/catalog/app/com.nirssyan.makefeed'
   },
 ]
 
@@ -362,6 +363,7 @@ export function About() {
       destination: href,
       section: 'about-platforms'
     })
+    reachGoal('download_app', { platform: platformName.toLowerCase() })
   }, [trackExternalLink])
 
   const platforms: PlatformData[] = useMemo(() =>

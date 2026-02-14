@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
+import { reachGoal } from '@/lib/yandex-metrika';
 
 interface AppRedirectButtonProps {
   postId: string;
@@ -12,6 +13,7 @@ export function AppRedirectButton({ postId }: AppRedirectButtonProps) {
 
   const handleOpenInApp = () => {
     setIsRedirecting(true);
+    reachGoal('open_in_app', { post_id: postId });
 
     // Deep link URL
     const deepLink = `infatium://news/${postId}`;
@@ -27,16 +29,25 @@ export function AppRedirectButton({ postId }: AppRedirectButtonProps) {
     // Если приложение не открылось, редиректим на сторы
     setTimeout(() => {
       if (isIOS) {
-        const appStoreId = process.env.NEXT_PUBLIC_APP_STORE_ID;
-        if (appStoreId && appStoreId !== 'your_app_store_id_here') {
-          window.location.href = `https://apps.apple.com/app/id${appStoreId}`;
+        const appStoreUrl = process.env.NEXT_PUBLIC_APPMETRICA_IOS_TRACKER_URL;
+        if (appStoreUrl) {
+          window.location.href = appStoreUrl;
         } else {
-          // Fallback на App Store search
-          window.location.href = 'https://apps.apple.com/search?term=infatium';
+          const appStoreId = process.env.NEXT_PUBLIC_APP_STORE_ID;
+          if (appStoreId && appStoreId !== 'your_app_store_id_here') {
+            window.location.href = `https://apps.apple.com/app/id${appStoreId}`;
+          } else {
+            window.location.href = 'https://apps.apple.com/search?term=infatium';
+          }
         }
       } else if (isAndroid) {
-        const playStoreId = process.env.NEXT_PUBLIC_PLAY_STORE_ID || 'com.infatium';
-        window.location.href = `https://play.google.com/store/apps/details?id=${playStoreId}`;
+        const androidUrl = process.env.NEXT_PUBLIC_APPMETRICA_ANDROID_TRACKER_URL;
+        if (androidUrl) {
+          window.location.href = androidUrl;
+        } else {
+          const playStoreId = process.env.NEXT_PUBLIC_PLAY_STORE_ID || 'com.infatium';
+          window.location.href = `https://play.google.com/store/apps/details?id=${playStoreId}`;
+        }
       } else {
         // Desktop - показываем ссылки
         setIsRedirecting(false);
@@ -46,15 +57,16 @@ export function AppRedirectButton({ postId }: AppRedirectButtonProps) {
   };
 
   const showDesktopLinks = () => {
-    // Для desktop показываем alert с ссылками
     const appStoreId = process.env.NEXT_PUBLIC_APP_STORE_ID;
     const playStoreId = process.env.NEXT_PUBLIC_PLAY_STORE_ID || 'com.infatium';
 
-    const appStoreUrl = appStoreId && appStoreId !== 'your_app_store_id_here'
-      ? `https://apps.apple.com/app/id${appStoreId}`
-      : 'https://apps.apple.com/search?term=infatium';
+    const appStoreUrl = process.env.NEXT_PUBLIC_APPMETRICA_IOS_TRACKER_URL
+      || (appStoreId && appStoreId !== 'your_app_store_id_here'
+        ? `https://apps.apple.com/app/id${appStoreId}`
+        : 'https://apps.apple.com/search?term=infatium');
 
-    const playStoreUrl = `https://play.google.com/store/apps/details?id=${playStoreId}`;
+    const playStoreUrl = process.env.NEXT_PUBLIC_APPMETRICA_ANDROID_TRACKER_URL
+      || `https://play.google.com/store/apps/details?id=${playStoreId}`;
 
     alert(
       `Скачайте infatium:\n\n` +

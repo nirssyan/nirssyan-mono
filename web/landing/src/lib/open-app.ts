@@ -3,11 +3,12 @@ export function openInAppWithStoreFallback(feedId: string, desktopDownloadLabel:
   const appStoreId = process.env.NEXT_PUBLIC_APP_STORE_ID
   const playStoreId = process.env.NEXT_PUBLIC_PLAY_STORE_ID || 'com.infatium'
 
-  const appStoreUrl =
-    appStoreId && appStoreId !== 'your_app_store_id_here'
+  const appStoreUrl = process.env.NEXT_PUBLIC_APPMETRICA_IOS_TRACKER_URL
+    || (appStoreId && appStoreId !== 'your_app_store_id_here'
       ? `https://apps.apple.com/app/id${appStoreId}`
-      : 'https://apps.apple.com/search?term=infatium'
-  const playStoreUrl = `https://play.google.com/store/apps/details?id=${playStoreId}`
+      : 'https://apps.apple.com/search?term=infatium')
+  const playStoreUrl = process.env.NEXT_PUBLIC_APPMETRICA_ANDROID_TRACKER_URL
+    || `https://play.google.com/store/apps/details?id=${playStoreId}`
 
   const userAgent = navigator.userAgent
   const isIOS = /iPhone|iPad|iPod/.test(userAgent)
