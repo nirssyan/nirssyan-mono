@@ -2,7 +2,7 @@ name: Build & Deploy go-processor
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, master]
     paths:
       - 'services/go-processor/**'
       - '.github/workflows/ci-go-processor.yml'
@@ -17,5 +17,6 @@ jobs:
       import-path: ./cmd/processor
       image-name: go-processor
       deployment-name: worker-processor-go
-      namespace: infatium-dev
+      namespace: ${{ github.ref == 'refs/heads/master' && 'infatium-prod' || 'infatium-dev' }}
+      image-tag: ${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
     secrets: inherit

@@ -2,7 +2,7 @@ name: Build & Deploy go-poller
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, master]
     paths:
       - 'services/go-poller/**'
       - '.github/workflows/ci-go-poller.yml'
@@ -17,5 +17,6 @@ jobs:
       import-path: ./cmd/poller
       image-name: go-poller
       deployment-name: worker-poller-go
-      namespace: infatium-dev
+      namespace: ${{ github.ref == 'refs/heads/master' && 'infatium-prod' || 'infatium-dev' }}
+      image-tag: ${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
     secrets: inherit

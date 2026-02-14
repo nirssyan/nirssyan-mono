@@ -2,7 +2,7 @@ name: Build & Deploy go-integrations
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, master]
     paths:
       - 'services/go-integrations/**'
       - '.github/workflows/ci-go-integrations.yml'
@@ -17,5 +17,6 @@ jobs:
       import-path: ./cmd/integrations
       image-name: integrations-go
       deployment-name: app-integrations-go
-      namespace: infatium-dev
+      namespace: ${{ github.ref == 'refs/heads/master' && 'infatium-prod' || 'infatium-dev' }}
+      image-tag: ${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
     secrets: inherit

@@ -2,7 +2,7 @@ name: Build & Deploy go-registry
 
 on:
   push:
-    branches: [develop]
+    branches: [develop, master]
     paths:
       - 'services/go-registry/**'
       - '.github/workflows/ci-go-registry.yml'
@@ -17,5 +17,6 @@ jobs:
       import-path: ./cmd/registry
       image-name: go-registry
       deployment-name: app-registry-go
-      namespace: infatium-dev
+      namespace: ${{ github.ref == 'refs/heads/master' && 'infatium-prod' || 'infatium-dev' }}
+      image-tag: ${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
     secrets: inherit
