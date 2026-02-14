@@ -4,18 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/google/uuid"
 )
-
-func TestTelegramLinkHandler_Routes(t *testing.T) {
-	handler := NewTelegramLinkHandler(nil, nil, "testbot", 10)
-	router := handler.Routes()
-
-	if router == nil {
-		t.Fatal("Routes() returned nil")
-	}
-}
 
 func TestTelegramLinkHandler_AuthenticatedRoutes(t *testing.T) {
 	handler := NewTelegramLinkHandler(nil, nil, "testbot", 10)
@@ -29,7 +18,7 @@ func TestTelegramLinkHandler_AuthenticatedRoutes(t *testing.T) {
 func TestTelegramLinkHandler_GetLinkURL_Unauthorized(t *testing.T) {
 	handler := NewTelegramLinkHandler(nil, nil, "testbot", 10)
 
-	req := newTestRequest(t, http.MethodGet, "/telegram/auth/link-url", nil)
+	req := newTestRequest(t, http.MethodGet, "/telegram/link-url", nil)
 	rr := httptest.NewRecorder()
 
 	handler.GetLinkURL(rr, req)
@@ -40,7 +29,7 @@ func TestTelegramLinkHandler_GetLinkURL_Unauthorized(t *testing.T) {
 func TestTelegramLinkHandler_GetStatus_Unauthorized(t *testing.T) {
 	handler := NewTelegramLinkHandler(nil, nil, "testbot", 10)
 
-	req := newTestRequest(t, http.MethodGet, "/telegram/auth/status", nil)
+	req := newTestRequest(t, http.MethodGet, "/telegram/status", nil)
 	rr := httptest.NewRecorder()
 
 	handler.GetStatus(rr, req)
@@ -51,7 +40,7 @@ func TestTelegramLinkHandler_GetStatus_Unauthorized(t *testing.T) {
 func TestTelegramLinkHandler_Unlink_Unauthorized(t *testing.T) {
 	handler := NewTelegramLinkHandler(nil, nil, "testbot", 10)
 
-	req := newTestRequest(t, http.MethodDelete, "/telegram/auth/unlink", nil)
+	req := newTestRequest(t, http.MethodDelete, "/telegram/unlink", nil)
 	rr := httptest.NewRecorder()
 
 	handler.Unlink(rr, req)
@@ -59,17 +48,16 @@ func TestTelegramLinkHandler_Unlink_Unauthorized(t *testing.T) {
 	assertStatusCode(t, rr.Code, http.StatusUnauthorized)
 }
 
-func TestTelegramStatusResponse_EmptyAccount(t *testing.T) {
+func TestTelegramStatusResponse_NotLinked(t *testing.T) {
 	resp := TelegramStatusResponse{
-		IsLinked: false,
-		Account:  nil,
+		Linked: false,
 	}
 
-	if resp.IsLinked {
-		t.Error("expected IsLinked=false")
+	if resp.Linked {
+		t.Error("expected Linked=false")
 	}
-	if resp.Account != nil {
-		t.Error("expected Account=nil")
+	if resp.TelegramUsername != nil {
+		t.Error("expected TelegramUsername=nil")
 	}
 }
 
@@ -111,50 +99,21 @@ func TestLinkURLResponse_Fields(t *testing.T) {
 	}
 }
 
-func TestTelegramAccountInfo_Fields(t *testing.T) {
-	username := "testuser"
-	firstName := "Test"
-
-	info := TelegramAccountInfo{
-		TelegramID:        12345,
-		TelegramUsername:  &username,
-		TelegramFirstName: &firstName,
-		LinkedAt:          "2024-01-01T00:00:00Z",
-	}
-
-	if info.TelegramID != 12345 {
-		t.Errorf("TelegramID = %d, want 12345", info.TelegramID)
-	}
-	if *info.TelegramUsername != "testuser" {
-		t.Errorf("TelegramUsername = %s, want testuser", *info.TelegramUsername)
-	}
-	if *info.TelegramFirstName != "Test" {
-		t.Errorf("TelegramFirstName = %s, want Test", *info.TelegramFirstName)
-	}
-}
-
-func TestTelegramStatusResponse_WithAccount(t *testing.T) {
-	userID := uuid.New()
+func TestTelegramStatusResponse_WithUsername(t *testing.T) {
 	username := "testuser"
 
 	resp := TelegramStatusResponse{
-		IsLinked: true,
-		Account: &TelegramAccountInfo{
-			TelegramID:       12345,
-			TelegramUsername: &username,
-			LinkedAt:         "2024-01-01T00:00:00Z",
-		},
+		Linked:           true,
+		TelegramUsername: &username,
 	}
 
-	if !resp.IsLinked {
-		t.Error("expected IsLinked=true")
+	if !resp.Linked {
+		t.Error("expected Linked=true")
 	}
-	if resp.Account == nil {
-		t.Fatal("expected Account to not be nil")
+	if resp.TelegramUsername == nil {
+		t.Fatal("expected TelegramUsername to not be nil")
 	}
-	if resp.Account.TelegramID != 12345 {
-		t.Errorf("TelegramID = %d, want 12345", resp.Account.TelegramID)
+	if *resp.TelegramUsername != "testuser" {
+		t.Errorf("TelegramUsername = %s, want testuser", *resp.TelegramUsername)
 	}
-
-	_ = userID
 }
