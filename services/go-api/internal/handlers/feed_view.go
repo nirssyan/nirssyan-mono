@@ -120,14 +120,6 @@ func (h *FeedViewHandler) GetFeedModal(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	var viewsJSON, filtersJSON json.RawMessage
-	if feed.ViewsConfig != nil {
-		viewsJSON, _ = json.Marshal(feed.ViewsConfig)
-	}
-	if feed.FiltersConfig != nil {
-		filtersJSON, _ = json.Marshal(feed.FiltersConfig)
-	}
-
 	writeJSON(w, http.StatusOK, FeedModalResponse{
 		ID:          feed.ID,
 		Name:        feed.Name,
@@ -135,8 +127,8 @@ func (h *FeedViewHandler) GetFeedModal(w http.ResponseWriter, r *http.Request) {
 		Description: feed.Description,
 		PostsCount:  postsCount,
 		Sources:     sources,
-		Views:       viewsJSON,
-		Filters:     filtersJSON,
+		Views:       feed.ViewsConfig,
+		Filters:     feed.FiltersConfig,
 	})
 }
 
