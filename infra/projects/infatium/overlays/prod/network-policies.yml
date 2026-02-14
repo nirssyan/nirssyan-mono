@@ -279,3 +279,26 @@ spec:
       ports:
         - port: 9464
           protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape-go-api
+  namespace: infatium-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: app-api-go
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: infrastructure
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8080
