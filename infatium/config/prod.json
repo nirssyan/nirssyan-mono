@@ -1,0 +1,8 @@
+{
+  "API_BASE_URL": "https://api.infatium.ru",
+  "CUSTOM_AUTH_BASE_URL": "https://api.infatium.ru/auth",
+  "SHARE_BASE_URL": "https://infatium.ru",
+  "SPLASH_TEXT": "infatium",
+  "ENABLE_NOTIFICATIONS": "true",
+  "ENABLE_DEBUG_LOGGING": "false"
+}

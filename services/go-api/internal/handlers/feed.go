@@ -222,12 +222,34 @@ func (h *FeedHandler) UpdateFeed(w http.ResponseWriter, r *http.Request) {
 	if req.RawPrompt != nil || len(req.ViewsRaw) > 0 || len(req.FiltersRaw) > 0 || req.DigestIntervalHours != nil {
 		prompt, _ := h.promptRepo.GetByFeedID(r.Context(), feedID)
 		if prompt != nil {
-			h.promptRepo.Update(r.Context(), prompt.ID, repository.UpdatePromptParams{
+			updateParams := repository.UpdatePromptParams{
 				RawPrompt:           req.RawPrompt,
-				ViewsRaw:            req.ViewsRaw,
-				FiltersRaw:          req.FiltersRaw,
 				DigestIntervalHours: req.DigestIntervalHours,
-			})
+			}
+
+			if len(req.ViewsRaw) > 0 {
+				updateParams.ViewsConfig, _ = json.Marshal(req.ViewsRaw)
+			}
+			if len(req.FiltersRaw) > 0 {
+				updateParams.FiltersConfig, _ = json.Marshal(req.FiltersRaw)
+			}
+
+			h.promptRepo.Update(r.Context(), prompt.ID, updateParams)
+
+			if h.nc != nil && (len(req.ViewsRaw) > 0 || len(req.FiltersRaw) > 0) {
+				feedUpdatedEvent := map[string]interface{}{
+					"event_type":  "feed.updated",
+					"feed_id":     feedID.String(),
+					"prompt_id":   prompt.ID.String(),
+					"user_id":     userID.String(),
+					"views_raw":   convertToMaps(req.ViewsRaw),
+					"filters_raw": convertToMaps(req.FiltersRaw),
+				}
+				data, _ := json.Marshal(feedUpdatedEvent)
+				if err := h.nc.Publish("feed.updated", data); err != nil {
+					log.Warn().Err(err).Msg("Failed to publish feed.updated event")
+				}
+			}
 		}
 	}
 
@@ -423,9 +445,17 @@ func (h *FeedHandler) SummarizeUnseen(w http.ResponseWriter, r *http.Request) {
 	postsData := make([]clients.PostSummary, 0, len(unseenPosts))
 	sourcesInfo := make([]SummarizeSourceInfo, 0)
 	postIDs := make([]uuid.UUID, 0, len(unseenPosts))
+	var allMedia []json.RawMessage
 
 	for _, p := range unseenPosts {
 		postIDs = append(postIDs, p.ID)
+
+		if len(p.MediaObjects) > 2 {
+			var items []json.RawMessage
+			if json.Unmarshal(p.MediaObjects, &items) == nil {
+				allMedia = append(allMedia, items...)
+			}
+		}
 
 		title := ""
 		if p.Title != nil {
@@ -469,11 +499,29 @@ func (h *FeedHandler) SummarizeUnseen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mergedMedia, _ := json.Marshal(allMedia)
+	if mergedMedia == nil {
+		mergedMedia = json.RawMessage("[]")
+	}
+	var imageURL *string
+	for _, item := range allMedia {
+		var mo struct {
+			Type string `json:"type"`
+			URL  string `json:"url"`
+		}
+		if json.Unmarshal(item, &mo) == nil && (mo.Type == "photo" || mo.Type == "image") {
+			imageURL = &mo.URL
+			break
+		}
+	}
+
 	summaryTitle := "Summary of " + feed.Name
 	newPost, err := h.postRepo.Create(r.Context(), repository.CreatePostParams{
-		ID:     uuid.New(),
-		FeedID: feedID,
-		Title:  &summaryTitle,
+		ID:           uuid.New(),
+		FeedID:       feedID,
+		Title:        &summaryTitle,
+		ImageURL:     imageURL,
+		MediaObjects: mergedMedia,
 		Views: map[string]string{
 			"full_text": summary,
 		},

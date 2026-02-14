@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  makefeed-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SUPABASE_URL: ${SUPABASE_URL}
+        SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+        ENABLE_MONETIZATION: ${ENABLE_MONETIZATION:-false}
+        ENABLE_SUBSCRIPTION: ${ENABLE_SUBSCRIPTION:-false}
+    container_name: makefeed-web
+    ports:
+      - "${PORT:-8080}:80"
+    restart: unless-stopped
+    labels:
+      # Portainer labels
+      - "com.centurylinklabs.watchtower.enable=true"
+      # Optional Traefik labels (uncomment if using Traefik)
+      # - "traefik.enable=true"
+      # - "traefik.http.routers.makefeed.rule=Host(`${DOMAIN}`)"
+      # - "traefik.http.routers.makefeed.entrypoints=websecure"
+      # - "traefik.http.routers.makefeed.tls=true"
+      # - "traefik.http.routers.makefeed.tls.certresolver=letsencrypt"
+      # - "traefik.http.services.makefeed.loadbalancer.server.port=80"
+      # Application metadata
+      - "app.name=makefeed"
+      - "app.version=1.0.0"
+      - "app.description=Makefeed Web Application"
+    networks:
+      - makefeed-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  makefeed-network:
+    name: makefeed-network
+    driver: bridge

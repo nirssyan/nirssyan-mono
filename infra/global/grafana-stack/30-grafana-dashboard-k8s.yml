@@ -4,7 +4,6 @@ metadata:
   name: grafana-dashboard-kubernetes
   namespace: infrastructure
   labels:
-    custom_dashboard: "enabled"
     app: grafana
 data:
   kubernetes.json: |

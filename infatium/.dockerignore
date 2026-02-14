@@ -1,0 +1,90 @@
+# ============================================
+# Docker Ignore File for Flutter Web Project
+# ============================================
+
+# Git
+.git
+.github
+.gitignore
+.gitattributes
+
+# Build outputs (we'll build fresh in Docker)
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+
+# Platform-specific directories (not needed for web)
+android/
+ios/
+linux/
+macos/
+windows/
+test/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+!README.Docker.md
+docs/
+
+# Environment files (will be passed via build args)
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Node modules (if any)
+node_modules/
+
+# Coverage and test reports
+coverage/
+.nyc_output/
+*.coverage
+htmlcov/
+
+# OS files
+Thumbs.db
+.DS_Store
+._*
+
+# Docker files (no need to copy these into the image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.travis.yml
+.gitlab-ci.yml
+.circleci/
+.azure-pipelines.yml
+
+# Certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.keystore
+credentials.json

@@ -113,57 +113,6 @@ func (c *AgentsClient) generateSimpleTitle(sources []SourceInfo) string {
 	return "My Feed"
 }
 
-type TransformViewsRequest struct {
-	RawViews string `json:"raw_views"`
-}
-
-type ViewConfig struct {
-	Title      string `json:"title"`
-	Style      string `json:"style"`
-	Conditions string `json:"conditions"`
-}
-
-type TransformViewsResponse struct {
-	Views []ViewConfig `json:"views"`
-}
-
-func (c *AgentsClient) TransformViewsToConfig(ctx context.Context, rawViews string) ([]ViewConfig, error) {
-	req := TransformViewsRequest{RawViews: rawViews}
-
-	var resp TransformViewsResponse
-	// NOTE: This subject does not exist in Python agents yet
-	if err := c.request(ctx, "agents.feed.view_prompt_transformer", req, &resp); err != nil {
-		return nil, fmt.Errorf("transform views: %w", err)
-	}
-
-	return resp.Views, nil
-}
-
-type TransformFiltersRequest struct {
-	RawFilters string `json:"raw_filters"`
-}
-
-type FilterConfig struct {
-	Type       string `json:"type"`
-	Conditions string `json:"conditions"`
-}
-
-type TransformFiltersResponse struct {
-	Filters []FilterConfig `json:"filters"`
-}
-
-func (c *AgentsClient) TransformFiltersToConfig(ctx context.Context, rawFilters string) ([]FilterConfig, error) {
-	req := TransformFiltersRequest{RawFilters: rawFilters}
-
-	var resp TransformFiltersResponse
-	// NOTE: Uses build_filter_prompt agent which returns prompt string, not filter config
-	if err := c.request(ctx, "agents.util.build_filter_prompt", req, &resp); err != nil {
-		return nil, fmt.Errorf("transform filters: %w", err)
-	}
-
-	return resp.Filters, nil
-}
-
 type SummarizeUnseenRequest struct {
 	FeedID     string         `json:"feed_id"`
 	PostsData  []PostSummary  `json:"posts_data"`

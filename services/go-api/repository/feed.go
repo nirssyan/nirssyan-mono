@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -26,8 +27,8 @@ type Feed struct {
 type FeedWithPrompt struct {
 	Feed
 	PromptID       uuid.UUID
-	FiltersConfig  map[string]interface{}
-	ViewsConfig    map[string]interface{}
+	FiltersConfig  json.RawMessage
+	ViewsConfig    json.RawMessage
 	Interval       *time.Duration
 	LastExecution  *time.Time
 	PrePromptID    *uuid.UUID
