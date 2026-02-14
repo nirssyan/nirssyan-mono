@@ -16,10 +16,17 @@ spec:
     - host: api.infatium.ru
       http:
         paths:
+          - path: /auth
+            pathType: Prefix
+            backend:
+              service:
+                name: app-auth-go
+                port:
+                  number: 8080
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: app-api-python
+                name: app-api-go
                 port:
-                  number: 8000
+                  number: 8080
