@@ -222,12 +222,32 @@ func (h *FeedHandler) UpdateFeed(w http.ResponseWriter, r *http.Request) {
 	if req.RawPrompt != nil || len(req.ViewsRaw) > 0 || len(req.FiltersRaw) > 0 || req.DigestIntervalHours != nil {
 		prompt, _ := h.promptRepo.GetByFeedID(r.Context(), feedID)
 		if prompt != nil {
-			h.promptRepo.Update(r.Context(), prompt.ID, repository.UpdatePromptParams{
+			updateParams := repository.UpdatePromptParams{
 				RawPrompt:           req.RawPrompt,
-				ViewsRaw:            req.ViewsRaw,
-				FiltersRaw:          req.FiltersRaw,
 				DigestIntervalHours: req.DigestIntervalHours,
-			})
+			}
+
+			if len(req.ViewsRaw) > 0 || len(req.FiltersRaw) > 0 {
+				transformed, transformErr := h.agents.TransformViewsAndFilters(r.Context(), req.ViewsRaw, req.FiltersRaw)
+				if transformErr != nil {
+					log.Warn().Err(transformErr).Msg("Failed to transform views/filters, saving raw")
+					if len(req.ViewsRaw) > 0 {
+						updateParams.ViewsConfig, _ = json.Marshal(req.ViewsRaw)
+					}
+					if len(req.FiltersRaw) > 0 {
+						updateParams.FiltersConfig, _ = json.Marshal(req.FiltersRaw)
+					}
+				} else {
+					if len(transformed.Views) > 0 {
+						updateParams.ViewsConfig, _ = json.Marshal(transformed.Views)
+					}
+					if len(transformed.Filters) > 0 {
+						updateParams.FiltersConfig, _ = json.Marshal(transformed.Filters)
+					}
+				}
+			}
+
+			h.promptRepo.Update(r.Context(), prompt.ID, updateParams)
 		}
 	}
 
