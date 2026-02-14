@@ -2,43 +2,12 @@
 
 import Image from 'next/image'
 import { useLanguage } from '@/lib/language-context'
+import { openInAppWithStoreFallback } from '@/lib/open-app'
 import { useMatomo } from '@/hooks/use-matomo'
 import { MarketplaceFeed } from '@/types/marketplace'
 
 interface FeedDetailClientProps {
   feed: MarketplaceFeed
-}
-
-function openInAppWithStoreFallback(feedId: string, desktopDownloadLabel: string) {
-  const deepLink = `makefeed://feed/${feedId}`
-  const appStoreId = process.env.NEXT_PUBLIC_APP_STORE_ID
-  const playStoreId = process.env.NEXT_PUBLIC_PLAY_STORE_ID || 'com.infatium'
-
-  const appStoreUrl =
-    appStoreId && appStoreId !== 'your_app_store_id_here'
-      ? `https://apps.apple.com/app/id${appStoreId}`
-      : 'https://apps.apple.com/search?term=infatium'
-  const playStoreUrl = `https://play.google.com/store/apps/details?id=${playStoreId}`
-
-  const userAgent = navigator.userAgent
-  const isIOS = /iPhone|iPad|iPod/.test(userAgent)
-  const isAndroid = /Android/.test(userAgent)
-
-  window.location.href = deepLink
-
-  window.setTimeout(() => {
-    if (isIOS) {
-      window.location.href = appStoreUrl
-      return
-    }
-
-    if (isAndroid) {
-      window.location.href = playStoreUrl
-      return
-    }
-
-    alert(`${desktopDownloadLabel}\n\niOS: ${appStoreUrl}\n\nAndroid: ${playStoreUrl}`)
-  }, 500)
 }
 
 export function FeedDetailClient({ feed }: FeedDetailClientProps) {
