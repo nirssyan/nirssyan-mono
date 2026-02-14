@@ -175,6 +175,36 @@ spec:
         - protocol: TCP
           port: 4318
 ---
+# Allow Grafana to PostgreSQL (for dashboards)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-grafana-to-postgres
+  namespace: infatium-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: supabase-postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: infrastructure
+          podSelector:
+            matchLabels:
+              app: grafana
+        - namespaceSelector:
+            matchLabels:
+              name: infrastructure
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grafana
+      ports:
+        - protocol: TCP
+          port: 5432
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

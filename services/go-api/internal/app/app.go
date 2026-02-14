@@ -191,6 +191,7 @@ func (a *App) Run(ctx context.Context) error {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	router.Use(observability.HTTPMetrics)
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logging)
 
