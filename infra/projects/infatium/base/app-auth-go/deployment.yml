@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: app-auth-go
-          image: registry.infra.makekod.ru/auth-service:dev
+          image: docker-registry.infrastructure:5000/auth-service:dev
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

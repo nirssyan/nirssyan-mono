@@ -36,8 +36,23 @@ commonLabels:
   environment: dev
 
 images:
-  # auth-go-app uses auth-service image in registry
-  - name: registry.infra.makekod.ru/auth-service
+  # Go services
+  - name: docker-registry.infrastructure:5000/go-api
+    newTag: dev
+  - name: docker-registry.infrastructure:5000/go-processor
+    newTag: dev
+  - name: docker-registry.infrastructure:5000/go-poller
+    newTag: dev
+  - name: docker-registry.infrastructure:5000/go-registry
+    newTag: dev
+  - name: docker-registry.infrastructure:5000/integrations-go
+    newTag: dev
+  - name: docker-registry.infrastructure:5000/auth-service
+    newTag: dev
+  # Python/TypeScript services
+  - name: docker-registry.infrastructure:5000/makefeed-agents
+    newTag: dev
+  - name: docker-registry.infrastructure:5000/infatium-landing
     newTag: dev
 
 patches:

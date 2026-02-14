@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-poller-go
+spec:
+  template:
+    spec:
+      containers:
+        - name: worker-poller-go
+          env:
+            - name: GLITCHTIP_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: SENTRY_DSN
+            - name: ENVIRONMENT
+              value: "production"
+            - name: TELEGRAM_MEDIA_BASE_URL
+              value: "https://api.infatium.ru"
+            - name: TELEGRAM_SESSION_NAME
+              value: "prod_session"

@@ -7,7 +7,7 @@ spec:
     spec:
       containers:
         - name: app-api-go
-          image: registry.infra.makekod.ru/go-api:dev
+          image: docker-registry.infrastructure:5000/go-api:dev
           envFrom:
             - configMapRef:
                 name: app-api-go-config

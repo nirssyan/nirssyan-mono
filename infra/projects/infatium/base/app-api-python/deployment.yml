@@ -31,7 +31,7 @@ spec:
         - name: regcred
       containers:
         - name: app-api-python
-          image: registry.infra.makekod.ru/makefeed:microservices
+          image: docker-registry.infrastructure:5000/makefeed-service:latest
           imagePullPolicy: Always
           command: ["makefeed-api"]
           ports:
