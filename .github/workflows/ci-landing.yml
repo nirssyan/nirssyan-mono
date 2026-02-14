@@ -105,7 +105,7 @@ jobs:
             STATUS="❌"
           fi
 
-          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 100 | sed 's/"/\\"/g')
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 100 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\\"/g')
 
           BUILD_START="${{ steps.build_start.outputs.time }}"
           BUILD_END="${{ steps.build_end.outputs.time }}"
