@@ -141,7 +141,7 @@ func (h *PostHandler) GetPost(w http.ResponseWriter, r *http.Request) {
 		Title:                     title,
 		ImageURL:                  post.ImageURL,
 		MediaObjects:              post.MediaObjects,
-		Views:                     views,
+		Views:                     normalizeViewKeys(views),
 		ModerationAction:          post.ModerationAction,
 		ModerationLabels:          emptyIfNil(post.ModerationLabels),
 		ModerationMatchedEntities: emptyIfNil(post.ModerationMatchedEntities),
@@ -164,6 +164,17 @@ func containsLabel(labels []string, label string) bool {
 		}
 	}
 	return false
+}
+
+func normalizeViewKeys(views map[string]string) map[string]string {
+	if len(views) == 0 {
+		return views
+	}
+	result := make(map[string]string, len(views))
+	for k, v := range views {
+		result[strings.ReplaceAll(k, "_", " ")] = v
+	}
+	return result
 }
 
 func applyEntityMarkers(views map[string]string, entities []string) map[string]string {
@@ -250,6 +261,7 @@ func (h *PostHandler) GetPostPublic(w http.ResponseWriter, r *http.Request) {
 	if len(post.ModerationMatchedEntities) > 0 {
 		views = applyEntityMarkers(views, post.ModerationMatchedEntities)
 	}
+	views = normalizeViewKeys(views)
 
 	fullText := views["default"]
 	var summary *string
@@ -372,7 +384,7 @@ func (h *PostHandler) GetFeedPosts(w http.ResponseWriter, r *http.Request) {
 			Title:                     title,
 			ImageURL:                  p.ImageURL,
 			MediaObjects:              p.MediaObjects,
-			Views:                     views,
+			Views:                     normalizeViewKeys(views),
 			ModerationAction:          p.ModerationAction,
 			ModerationLabels:          emptyIfNil(p.ModerationLabels),
 			ModerationMatchedEntities: emptyIfNil(p.ModerationMatchedEntities),
