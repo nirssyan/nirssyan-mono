@@ -36,24 +36,33 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
   <title>Вход по ссылке</title>
   <style>
     :root { color-scheme: dark only; supported-color-schemes: dark only; }
-    /* Reset */
     body, table, td, a { -webkit-text-size-adjust: 100%%; -ms-text-size-adjust: 100%%; }
     table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
     img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%%; outline: none; text-decoration: none; }
 
-    [data-ogsc] body, [data-ogsb] body { background-color: #0a0a0a !important; }
-    [data-ogsc] .container, [data-ogsb] .container { background-color: #1a1a1a !important; }
+    [data-ogsc] body, [data-ogsb] body { background: #0a0a0a !important; background-color: #0a0a0a !important; }
+    [data-ogsc] .container, [data-ogsb] .container { background: #1a1a1a !important; background-color: #1a1a1a !important; }
     [data-ogsc] h1, [data-ogsb] h1 { color: #ffffff !important; }
     [data-ogsc] p, [data-ogsb] p { color: inherit !important; }
 
+    u + .body { background: #0a0a0a !important; background-color: #0a0a0a !important; }
+    u + .body .body-bg { background: #0a0a0a !important; background-color: #0a0a0a !important; }
+    u + .body .container { background: #1a1a1a !important; background-color: #1a1a1a !important; border-color: #333333 !important; }
+    u + .body .footer-bg { background: #1e1e1e !important; background-color: #1e1e1e !important; }
+    u + .body h1 { color: #ffffff !important; }
+    u + .body p { color: inherit !important; }
+    u + .body a.button { background: #ffffff !important; background-color: #ffffff !important; color: #000000 !important; border-color: #ffffff !important; }
+    div[style*="margin: 16px 0"] { background: #0a0a0a !important; background-color: #0a0a0a !important; }
+
     @media (prefers-color-scheme: light) {
-      body, .body-bg { background-color: #0a0a0a !important; }
-      .container { background-color: #1a1a1a !important; }
-      .footer-bg { background-color: #1e1e1e !important; }
+      body, .body-bg { background: #0a0a0a !important; background-color: #0a0a0a !important; color: #ffffff !important; }
+      .container { background: #1a1a1a !important; background-color: #1a1a1a !important; border-color: #333333 !important; }
+      .footer-bg { background: #1e1e1e !important; background-color: #1e1e1e !important; }
       h1 { color: #ffffff !important; }
+      p { color: inherit !important; }
+      a.button { background: #ffffff !important; background-color: #ffffff !important; color: #000000 !important; border-color: #ffffff !important; }
     }
 
-    /* Responsive */
     @media only screen and (max-width: 600px) {
       .container { width: 100%% !important; }
       .header-logo { width: 80px !important; height: 80px !important; }
@@ -63,15 +72,15 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
     }
   </style>
 </head>
-<body class="body-bg" style="margin: 0; padding: 0; background-color: #0a0a0a; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+<body class="body-bg" style="margin: 0; padding: 0; background: #0a0a0a; background-color: #0a0a0a !important; color: #ffffff !important; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
 
   <!-- Wrapper -->
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%%" style="background-color: #0a0a0a;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%%" style="background: #0a0a0a; background-color: #0a0a0a !important;">
     <tr>
       <td style="padding: 40px 20px;">
 
         <!-- Container -->
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" class="container" style="max-width: 600px; width: 100%%; margin: 0 auto; background-color: #1a1a1a; border: 1px solid #333333; border-radius: 16px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" class="container" style="max-width: 600px; width: 100%%; margin: 0 auto; background: #1a1a1a; background-color: #1a1a1a !important; border: 1px solid #333333; border-radius: 16px;">
 
           <!-- Logo Header -->
           <tr>
@@ -80,7 +89,7 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
                    alt="infatium"
                    class="header-logo"
                    style="width: 120px; height: 120px; display: inline-block; margin: 0 0 24px 0;" />
-              <h1 class="header-title" style="margin: 0; font-size: 32px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
+              <h1 class="header-title" style="margin: 0; font-size: 32px; font-weight: 700; color: #ffffff !important; letter-spacing: -0.5px;">
                 infatium
               </h1>
               <p style="margin: 12px 0 0; font-size: 16px; color: #b0b0b0; line-height: 1.5;">
@@ -118,7 +127,7 @@ func (s *EmailService) SendMagicLink(ctx context.Context, email, token string) e
 
           <!-- Footer -->
           <tr>
-            <td class="footer-bg" style="padding: 32px 40px; background-color: #1e1e1e; border-top: 1px solid #333333; border-radius: 0 0 16px 16px;">
+            <td class="footer-bg" style="padding: 32px 40px; background: #1e1e1e; background-color: #1e1e1e !important; border-top: 1px solid #333333; border-radius: 0 0 16px 16px;">
               <p style="margin: 0; font-size: 13px; color: #808080; line-height: 1.5; text-align: center;">
                 Если вы не запрашивали вход, просто проигнорируйте это письмо.
               </p>
