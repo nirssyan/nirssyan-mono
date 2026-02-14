@@ -186,7 +186,7 @@ func (a *App) Run(ctx context.Context) error {
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   a.cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Dry-Run-Notify"},
 		ExposedHeaders:   []string{"X-Request-ID"},
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -194,6 +194,7 @@ func (a *App) Run(ctx context.Context) error {
 	router.Use(observability.HTTPMetrics)
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logging)
+	router.Use(middleware.DryRunNotify)
 
 	router.Get("/healthz", healthHandler.Healthz)
 	router.Get("/readyz", healthHandler.Readyz)
