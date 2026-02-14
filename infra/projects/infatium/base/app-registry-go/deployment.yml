@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: app-registry-go
-          image: registry.infra.makekod.ru/go-registry:dev
+          image: docker-registry.infrastructure:5000/go-registry:dev
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

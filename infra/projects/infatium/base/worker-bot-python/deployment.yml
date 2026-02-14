@@ -23,7 +23,7 @@ spec:
         - name: regcred
       containers:
         - name: worker-bot-python
-          image: registry.infra.makekod.ru/infatium-bot:dev
+          image: docker-registry.infrastructure:5000/infatium-bot:dev
           imagePullPolicy: Always
           envFrom:
             - configMapRef:

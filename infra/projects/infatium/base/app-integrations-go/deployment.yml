@@ -32,7 +32,7 @@ spec:
         - name: regcred
       containers:
         - name: app-integrations-go
-          image: registry.infra.makekod.ru/integrations-go:dev
+          image: docker-registry.infrastructure:5000/integrations-go:dev
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

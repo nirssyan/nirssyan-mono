@@ -31,7 +31,7 @@ spec:
         - name: regcred
       containers:
         - name: worker-poller-go
-          image: registry.infra.makekod.ru/go-poller:dev
+          image: docker-registry.infrastructure:5000/go-poller:dev
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
