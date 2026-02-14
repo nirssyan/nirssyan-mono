@@ -18,7 +18,7 @@ data:
   FEED_FILTER_BASE_URL: "https://openrouter.ai/api/v1"
   FEED_SUMMARY_MODEL: "meta-llama/llama-4-maverick"
   FEED_SUMMARY_BASE_URL: "https://openrouter.ai/api/v1"
-  VIEW_GENERATOR_MODEL: "meta-llama/llama-4-maverick"
+  VIEW_GENERATOR_MODEL: "meta-llama/llama-4-scout"
   VIEW_GENERATOR_BASE_URL: "https://openrouter.ai/api/v1"
   UNSEEN_SUMMARY_MODEL: "meta-llama/llama-4-maverick"
   UNSEEN_SUMMARY_BASE_URL: "https://openrouter.ai/api/v1"
