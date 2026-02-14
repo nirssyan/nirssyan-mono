@@ -10,7 +10,7 @@ data:
   ACCESS_TOKEN_TTL: "15m"
   REFRESH_TOKEN_TTL: "336h"
   MAGIC_LINK_TTL: "15m"
-  EMAIL_FROM: "no-reply@infatium.ru"
+  EMAIL_FROM: "infatium <no-reply@infatium.ru>"
   APP_BASE_URL: "https://dev.api.infatium.ru"
   DEMO_MODE_ENABLED: "true"
   DEMO_ACCOUNT_EMAIL: "demo@infatium.ru"
