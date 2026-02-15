@@ -17,3 +17,5 @@ spec:
               value: "production"
             - name: TELEGRAM_MEDIA_BASE_URL
               value: "https://api.infatium.ru"
+            - name: TELEGRAM_SESSION_NAME
+              value: "prod_session"
