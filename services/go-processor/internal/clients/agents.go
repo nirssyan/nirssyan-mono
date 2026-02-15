@@ -206,6 +206,11 @@ type ViewGeneratorResponse struct {
 	Content string `json:"content"`
 }
 
+func titleCacheKey(content string) string {
+	h := sha256.Sum256([]byte(content))
+	return "post_title:" + hex.EncodeToString(h[:16])
+}
+
 func viewCacheKey(content, viewPrompt string) string {
 	h := sha256.Sum256([]byte(content + "\x00" + viewPrompt))
 	return "view_gen:" + hex.EncodeToString(h[:16])
@@ -282,6 +287,16 @@ func (c *AgentsClient) GeneratePostTitle(ctx context.Context, postContent string
 		observability.ObserveAgentRequestDuration("post_title", time.Since(start).Seconds())
 	}()
 
+	if c.cache != nil {
+		key := titleCacheKey(postContent)
+		if cached, err := c.cache.Get(ctx, key).Result(); err == nil {
+			log.Debug().Str("key", key).Msg("Post title cache hit")
+			observability.IncCacheHit("post_title")
+			return &PostTitleResponse{Title: cached}, nil
+		}
+		observability.IncCacheMiss("post_title")
+	}
+
 	req := PostTitleRequest{
 		PostContent: postContent,
 		UserID:      userID,
@@ -301,6 +316,13 @@ func (c *AgentsClient) GeneratePostTitle(ctx context.Context, postContent string
 	var result PostTitleResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return nil, fmt.Errorf("unmarshal title response: %w", err)
+	}
+
+	if c.cache != nil && result.Title != "" {
+		key := titleCacheKey(postContent)
+		if err := c.cache.SetEx(ctx, key, result.Title, c.viewCacheTTL).Err(); err != nil {
+			log.Warn().Err(err).Msg("Failed to cache post title")
+		}
 	}
 
 	return &result, nil
