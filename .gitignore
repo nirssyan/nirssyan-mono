@@ -60,6 +60,10 @@ kubeconfig
 *.kubeconfig
 telegram-auth
 
+# Telegram sessions
+*.session
+tdata/
+
 # iOS
 ios/OpenInterface/
 .todos/
