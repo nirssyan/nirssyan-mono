@@ -223,7 +223,15 @@ class LocalizedItem {
       // Old format: plain string - use same value for both languages
       return LocalizedItem(en: json, ru: json);
     } else if (json is Map<String, dynamic>) {
-      // New format: localized object with optional url and type
+      // Nested format from go-processor: {"name": {"en": "...", "ru": "..."}, "prompt": "..."}
+      if (json['name'] is Map<String, dynamic>) {
+        final name = json['name'] as Map<String, dynamic>;
+        return LocalizedItem(
+          en: name['en'] as String? ?? '',
+          ru: name['ru'] as String? ?? name['en'] as String? ?? '',
+        );
+      }
+      // Flat format: {"en": "...", "ru": "...", "url": "...", "type": "..."}
       return LocalizedItem(
         en: json['en'] as String? ?? '',
         ru: json['ru'] as String? ?? json['en'] as String? ?? '',

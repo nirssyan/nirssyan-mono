@@ -3,8 +3,6 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    // Firebase services (must be after Flutter plugin)
-    id("com.google.gms.google-services")
 }
 
 import java.util.Properties
@@ -30,6 +28,20 @@ android {
 
     kotlinOptions {
         jvmTarget = "11"
+    }
+
+    flavorDimensions += "environment"
+
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "порнахаб")
+        }
+        create("prod") {
+            dimension = "environment"
+            resValue("string", "app_name", "infatium")
+        }
     }
 
     defaultConfig {

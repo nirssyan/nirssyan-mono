@@ -38,6 +38,7 @@ class ProgressiveFeedForm extends StatefulWidget {
   final List<String>? initialSources;
   final FeedType? initialType;
   final List<String>? initialFilters;
+  final List<String>? initialViews;
   final int? initialDigestIntervalMinutes;
 
   // Edit mode - when true, button shows "Save" instead of "Create"
@@ -55,6 +56,7 @@ class ProgressiveFeedForm extends StatefulWidget {
     this.initialSources,
     this.initialType,
     this.initialFilters,
+    this.initialViews,
     this.initialDigestIntervalMinutes,
     this.isEditMode = false,
     this.onGenerateTitle,
@@ -140,6 +142,9 @@ class ProgressiveFeedFormState extends State<ProgressiveFeedForm>
     _customPrompt = widget.initialPrompt;
     _selectedFilters = widget.initialFilters != null
         ? List.from(widget.initialFilters!)
+        : [];
+    _selectedViews = widget.initialViews != null
+        ? List.from(widget.initialViews!)
         : [];
     // Convert initial minutes to hours for edit mode compatibility
     _digestIntervalHours = widget.initialDigestIntervalMinutes != null

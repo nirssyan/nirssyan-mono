@@ -17,7 +17,7 @@ The automated portion of the parallel dev/prod iOS installation setup is **compl
 
 1. **`ios/Flutter/Dev.xcconfig`**
    - Bundle ID: `com.nirssyan.makefeed.dev`
-   - Display Name: `infatium DEV`
+   - Display Name: `порнахаб`
    - Linked to CocoaPods and Flutter generated config
 
 2. **`ios/Flutter/Prod.xcconfig`**
@@ -103,7 +103,7 @@ Dev Build:
     └─> ios/ExportOptionsDev.plist (export settings)
     └─> ios/Flutter/Dev.xcconfig (Bundle ID, Display Name)
         └─> Bundle ID: com.nirssyan.makefeed.dev
-        └─> Display Name: infatium DEV
+        └─> Display Name: порнахаб
 
 Prod Build:
   scripts/build-ios-prod.sh
@@ -194,7 +194,7 @@ Follow the **[XCODE_SETUP_GUIDE.md](./XCODE_SETUP_GUIDE.md)** to complete:
 
 3. **Verify both apps**:
    - Both visible on Home Screen
-   - Different names: `infatium` vs `infatium DEV`
+   - Different names: `infatium` vs `порнахаб`
    - Can run simultaneously
    - Separate data (different users, feeds, auth state)
 
@@ -205,7 +205,7 @@ Follow the **[XCODE_SETUP_GUIDE.md](./XCODE_SETUP_GUIDE.md)** to complete:
 - [ ] Dev IPA has Bundle ID `com.nirssyan.makefeed.dev`
 - [ ] Prod IPA has Bundle ID `com.nirssyan.makefeed`
 - [ ] Both apps install on iPhone simultaneously
-- [ ] Dev app shows "infatium DEV" name
+- [ ] Dev app shows "порнахаб" name
 - [ ] Prod app shows "infatium" name
 - [ ] Dev connects to `https://dev.api.infatium.ru`
 - [ ] Prod connects to `https://api.infatium.ru` (or dev if not configured)

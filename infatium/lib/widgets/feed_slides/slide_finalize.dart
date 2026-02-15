@@ -148,6 +148,11 @@ class _SlideFinalizeState extends State<SlideFinalize>
     final surfaceColor = _isDark ? AppColors.surface : AppColors.lightSurface;
     final borderColor = _isDark ? AppColors.accentSecondary : AppColors.lightAccentSecondary;
 
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+    // GlassTabBar: 88px from screen bottom. Target: button at 100px from screen.
+    // SafeArea adds bottomInset, so subtract it from target.
+    final buttonBottom = (100.0 - bottomInset).clamp(12.0, 100.0);
+
     return SafeArea(
       child: Column(
         children: [
@@ -224,17 +229,17 @@ class _SlideFinalizeState extends State<SlideFinalize>
                         const SizedBox(height: 10),
                         _buildPreviewSummary(textColor, secondaryColor, surfaceColor, borderColor, accentColor, l10n),
 
-                        const SizedBox(height: 120), // Space for floating button
+                        const SizedBox(height: 160), // Space for floating button
                       ],
                     ),
                   ),
                 ),
 
-                // Floating create button at bottom - ALWAYS at bottom: 64 (tab bar height)
+                // Floating create button - dynamic offset for old Android (hardware buttons)
                 Positioned(
                   left: 16,
                   right: 16,
-                  bottom: 64,
+                  bottom: buttonBottom,
                   child: GestureDetector(
                     onTap: widget.isSubmitting ? null : () {
                       // Check feed limit only when creating (not editing)

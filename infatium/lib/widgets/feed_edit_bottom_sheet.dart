@@ -63,8 +63,11 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
   // State
   List<ValidatedSource> _sources = [];
   List<String> _filters = [];
+  List<String> _views = [];
   final _filterController = TextEditingController();
   final _filterFocusNode = FocusNode();
+  final _viewController = TextEditingController();
+  final _viewFocusNode = FocusNode();
   int _digestIntervalMinutes = 360;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -72,6 +75,7 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
   bool _isGeneratingTitle = false;
   bool _isAddingSource = false;
   bool _isAddingFilter = false;
+  bool _isAddingView = false;
   FeedPreview? _previewData;
 
   // Animation controllers
@@ -86,6 +90,7 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
     super.initState();
     _sourceInputFocusNode.addListener(_onSourceFocusChange);
     _filterFocusNode.addListener(_onFilterFocusChange);
+    _viewFocusNode.addListener(_onViewFocusChange);
     _setupAnimations();
     _loadFeedData();
   }
@@ -101,6 +106,13 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
     if (!_filterFocusNode.hasFocus && _isAddingFilter) {
       _addFilter();
       setState(() => _isAddingFilter = false);
+    }
+  }
+
+  void _onViewFocusChange() {
+    if (!_viewFocusNode.hasFocus && _isAddingView) {
+      _addView();
+      setState(() => _isAddingView = false);
     }
   }
 
@@ -126,12 +138,15 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
   void dispose() {
     _sourceInputFocusNode.removeListener(_onSourceFocusChange);
     _filterFocusNode.removeListener(_onFilterFocusChange);
+    _viewFocusNode.removeListener(_onViewFocusChange);
     _nameController.dispose();
     _sourceController.dispose();
     _descriptionController.dispose();
     _filterController.dispose();
+    _viewController.dispose();
     _sourceInputFocusNode.dispose();
     _filterFocusNode.dispose();
+    _viewFocusNode.dispose();
     _shimmerController.dispose();
     _contentFadeController.dispose();
     super.dispose();
@@ -167,6 +182,7 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
             status: SourceValidationStatus.valid,
           )).toList();
           _filters = (preview.filters ?? []).map((f) => f.getLabel(_isRu)).toList();
+          _views = (preview.views ?? []).map((v) => v.getLabel(_isRu)).toList();
           if (preview.digestIntervalHours != null) {
             _digestIntervalMinutes = preview.digestIntervalHours! * 60;
           }
@@ -344,6 +360,31 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
     HapticFeedback.lightImpact();
   }
 
+  void _addView() {
+    final view = _viewController.text.trim();
+    if (view.isEmpty) {
+      return;
+    }
+
+    if (_views.contains(view)) {
+      _showError(AppLocalizations.of(context)!.feedEditViewAlreadyExists);
+      return;
+    }
+
+    setState(() {
+      _views.add(view);
+      _viewController.clear();
+    });
+    HapticFeedback.lightImpact();
+  }
+
+  void _removeView(int index) {
+    setState(() {
+      _views.removeAt(index);
+    });
+    HapticFeedback.lightImpact();
+  }
+
   Future<void> _save() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
@@ -397,6 +438,7 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
         digestIntervalHours: digestIntervalHours,
         type: widget.feed.type.apiValue,
         filters: _filters.isEmpty ? null : _filters,
+        views: _views.isEmpty ? null : _views,
       );
 
       if (success && mounted) {
@@ -629,6 +671,10 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
 
                   // Filters section
                   _buildFiltersSection(textColor, secondaryColor, accentColor, isDark),
+                  const SizedBox(height: 24),
+
+                  // Views section
+                  _buildViewsSection(textColor, secondaryColor, accentColor, isDark),
 
                   // Schedule picker (digest only)
                   if (_isDigest) ...[
@@ -1182,6 +1228,130 @@ class _FeedEditBottomSheetState extends State<FeedEditBottomSheet>
                 setState(() => _isAddingFilter = true);
                 Future.delayed(const Duration(milliseconds: 100), () {
                   _filterFocusNode.requestFocus();
+                });
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildViewsSection(
+    Color textColor,
+    Color secondaryColor,
+    Color accentColor,
+    bool isDark,
+  ) {
+    final cardColor = isDark
+        ? const Color(0xFF1C1C1E)
+        : const Color(0xFFF5F5F5);
+    final borderColor = isDark
+        ? const Color(0xFF3A3A3C)
+        : const Color(0xFFE0E0E0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(AppLocalizations.of(context)!.feedEditViews, textColor),
+        const SizedBox(height: 8),
+
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  if (!_isAddingView) {
+                    setState(() => _isAddingView = true);
+                    Future.delayed(const Duration(milliseconds: 100), () {
+                      _viewFocusNode.requestFocus();
+                    });
+                  }
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  constraints: const BoxConstraints(minHeight: 48),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _isAddingView ? accentColor : borderColor,
+                      width: 1,
+                    ),
+                  ),
+                  child: _views.isEmpty && !_isAddingView
+                      ? Text(
+                          AppLocalizations.of(context)!.feedEditViewHint,
+                          style: TextStyle(
+                            color: secondaryColor,
+                            fontSize: 14,
+                          ),
+                        )
+                      : Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            ..._views.asMap().entries.map((entry) => _FilterChip(
+                                  filter: entry.value,
+                                  onRemove: () => _removeView(entry.key),
+                                  isDark: isDark,
+                                  textColor: textColor,
+                                )),
+
+                            if (_isAddingView)
+                              SizedBox(
+                                width: 120,
+                                child: CupertinoTextField(
+                                  controller: _viewController,
+                                  focusNode: _viewFocusNode,
+                                  placeholder: AppLocalizations.of(context)!.feedEditViewHint,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? AppColors.background
+                                        : AppColors.lightBackground,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  cursorColor: accentColor,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontSize: 14,
+                                  ),
+                                  placeholderStyle: TextStyle(
+                                    color: secondaryColor,
+                                    fontSize: 14,
+                                  ),
+                                  textInputAction: TextInputAction.done,
+                                  onSubmitted: (_) {
+                                    _addView();
+                                    _viewFocusNode.requestFocus();
+                                  },
+                                  onTapOutside: (_) {
+                                    _addView();
+                                    _viewFocusNode.unfocus();
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            _AddButton(
+              isDark: isDark,
+              isCircular: true,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _isAddingView = true);
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  _viewFocusNode.requestFocus();
                 });
               },
             ),

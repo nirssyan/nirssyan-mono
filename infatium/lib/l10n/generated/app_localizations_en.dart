@@ -1316,6 +1316,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get feedEditFilterHint => 'Filter...';
 
   @override
+  String get feedEditViews => 'Views';
+
+  @override
+  String get feedEditViewHint => 'View...';
+
+  @override
+  String get feedEditViewAlreadyExists => 'View already exists';
+
+  @override
   String get feedEditSave => 'Save';
 
   @override
@@ -1441,6 +1450,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String previewFiltersCount(int count) {
     return 'FILTERS ($count)';
+  }
+
+  @override
+  String previewViewsCount(int count) {
+    return 'VIEWS ($count)';
   }
 
   @override

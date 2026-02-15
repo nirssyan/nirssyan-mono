@@ -2570,6 +2570,24 @@ abstract class AppLocalizations {
   /// **'Filter...'**
   String get feedEditFilterHint;
 
+  /// No description provided for @feedEditViews.
+  ///
+  /// In en, this message translates to:
+  /// **'Views'**
+  String get feedEditViews;
+
+  /// No description provided for @feedEditViewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'View...'**
+  String get feedEditViewHint;
+
+  /// No description provided for @feedEditViewAlreadyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'View already exists'**
+  String get feedEditViewAlreadyExists;
+
   /// No description provided for @feedEditSave.
   ///
   /// In en, this message translates to:
@@ -2809,6 +2827,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'FILTERS ({count})'**
   String previewFiltersCount(int count);
+
+  /// No description provided for @previewViewsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'VIEWS ({count})'**
+  String previewViewsCount(int count);
 
   /// No description provided for @previewSubscribing.
   ///

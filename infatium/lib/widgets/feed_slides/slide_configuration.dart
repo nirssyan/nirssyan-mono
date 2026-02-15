@@ -229,6 +229,11 @@ class _SlideConfigurationState extends State<SlideConfiguration>
         ? CupertinoColors.white.withOpacity(0.1)
         : CupertinoColors.black.withOpacity(0.1);
 
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+    // GlassTabBar: 88px from screen bottom. Target: button at 100px from screen.
+    // SafeArea adds bottomInset, so subtract it from target.
+    final buttonBottom = (100.0 - bottomInset).clamp(12.0, 100.0);
+
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -355,7 +360,7 @@ class _SlideConfigurationState extends State<SlideConfiguration>
                         secondaryColor: secondaryColor,
                       ),
 
-                      const SizedBox(height: 100), // Space for floating button
+                      const SizedBox(height: 160), // Space for floating button
                     ],
                   ),
                 ),
@@ -365,7 +370,7 @@ class _SlideConfigurationState extends State<SlideConfiguration>
                   Positioned(
                     left: 16,
                     right: 16,
-                    bottom: 64,
+                    bottom: buttonBottom,
                     child: CupertinoButton(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       borderRadius: BorderRadius.circular(12),

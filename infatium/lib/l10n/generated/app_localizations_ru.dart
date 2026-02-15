@@ -1325,6 +1325,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get feedEditFilterHint => 'Фильтр...';
 
   @override
+  String get feedEditViews => 'Представления';
+
+  @override
+  String get feedEditViewHint => 'Представление...';
+
+  @override
+  String get feedEditViewAlreadyExists => 'Такое представление уже добавлено';
+
+  @override
   String get feedEditSave => 'Сохранить';
 
   @override
@@ -1451,6 +1460,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String previewFiltersCount(int count) {
     return 'ФИЛЬТРЫ ($count)';
+  }
+
+  @override
+  String previewViewsCount(int count) {
+    return 'СТИЛИ ($count)';
   }
 
   @override

@@ -139,7 +139,7 @@ class _AnimatedButtonState extends State<_AnimatedButton> {
   }
 }
 
-class _AuthPageState extends State<AuthPage> {
+class _AuthPageState extends State<AuthPage> with WidgetsBindingObserver {
   AuthMode _currentMode = AuthMode.signIn;
   late PageController _pageController;
   bool _isLoading = false;
@@ -162,16 +162,19 @@ class _AuthPageState extends State<AuthPage> {
   // Для magic link resend cooldown
   int? _resendCooldownSeconds;
   Timer? _resendTimer;
+  DateTime? _resendCooldownEnd;
   String _sentEmailAddress = '';
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: 0);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -180,6 +183,24 @@ class _AuthPageState extends State<AuthPage> {
     _confirmNewPasswordController.dispose();
     _resendTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _resendCooldownEnd != null) {
+      final remaining = _resendCooldownEnd!.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
+        _resendTimer?.cancel();
+        setState(() {
+          _resendCooldownSeconds = null;
+          _resendCooldownEnd = null;
+        });
+      } else {
+        setState(() {
+          _resendCooldownSeconds = remaining;
+        });
+      }
+    }
   }
 
   /// Translates an AuthResult error code to a localized string for display.
@@ -474,6 +495,7 @@ class _AuthPageState extends State<AuthPage> {
 
   /// Запускает таймер обратного отсчета для повторной отправки magic link
   void _startResendCooldown() {
+    _resendCooldownEnd = DateTime.now().add(const Duration(seconds: 60));
     setState(() {
       _resendCooldownSeconds = 60;
     });
@@ -485,14 +507,18 @@ class _AuthPageState extends State<AuthPage> {
         return;
       }
 
-      setState(() {
-        if (_resendCooldownSeconds! > 0) {
-          _resendCooldownSeconds = _resendCooldownSeconds! - 1;
-        } else {
-          _resendTimer?.cancel();
+      final remaining = _resendCooldownEnd!.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
+        timer.cancel();
+        setState(() {
           _resendCooldownSeconds = null;
-        }
-      });
+          _resendCooldownEnd = null;
+        });
+      } else {
+        setState(() {
+          _resendCooldownSeconds = remaining;
+        });
+      }
     });
   }
 

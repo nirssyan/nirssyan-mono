@@ -9,7 +9,7 @@
 
 After completing these steps, you'll be able to:
 - ✅ Install both **App Store (prod)** and **TestFlight (dev)** versions simultaneously on your iPhone
-- ✅ See two separate apps on Home Screen: `infatium` and `infatium DEV`
+- ✅ See two separate apps on Home Screen: `infatium` and `порнахаб`
 - ✅ Run different environments side-by-side with separate data sandboxes
 - ✅ Test production and development builds without constant reinstallation
 
@@ -104,7 +104,7 @@ open ios/Runner.xcworkspace
    - In the search box, type: **`display name`**
    - Find **"APP_DISPLAY_NAME"** (User-Defined setting from xcconfig)
    - Verify values:
-     - **Dev**: `infatium DEV`
+     - **Dev**: `порнахаб`
      - **Prod**: `infatium`
 
 ## Step 5: Create Build Schemes for Dev and Prod
@@ -159,7 +159,7 @@ open ios/Runner.xcworkspace
    - Xcode menu bar: **`Product`** → **`Archive`**
    - Wait for build to complete
    - In Organizer window, verify:
-     - App name: **`infatium DEV`**
+     - App name: **`порнахаб`**
      - Bundle ID: **`com.nirssyan.makefeed.dev`** (click "Show in Finder" → Get Info to verify)
 
 3. **Select Runner-Prod scheme**:
@@ -183,7 +183,7 @@ This script will:
 1. Load configuration from `config/dev.local.json`
 2. Use export options from `ios/ExportOptionsDev.plist`
 3. **Automatically use the Dev xcconfig** (Bundle ID: `com.nirssyan.makefeed.dev`)
-4. Create IPA with display name: **`infatium DEV`**
+4. Create IPA with display name: **`порнахаб`**
 
 ### Prod Build Script
 
@@ -234,7 +234,7 @@ After completing the Xcode configuration, you need to:
 1. Go to: https://appstoreconnect.apple.com/apps
 2. Click **`+`** → **"New App"**
 3. **Platform**: iOS
-4. **Name**: `infatium DEV` (or keep same name, Bundle ID is what matters)
+4. **Name**: `порнахаб` (or keep same name, Bundle ID is what matters)
 5. **Bundle ID**: Select `com.nirssyan.makefeed.dev`
 6. **SKU**: `makefeed-dev`
 7. **User Access**: Full Access
@@ -312,7 +312,7 @@ Or manually in Xcode:
    - Upload to App Store Connect
    - Go to TestFlight
    - Install on iPhone
-   - App appears as: **`infatium DEV`**
+   - App appears as: **`порнахаб`**
 
 2. **Install Prod build**:
    - Upload to App Store (or TestFlight for testing)

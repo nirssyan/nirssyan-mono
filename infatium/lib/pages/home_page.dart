@@ -95,6 +95,9 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   // Unread counts cache (feedId -> unread count)
   Map<String, int> _unreadCounts = {};
 
+  // Pending optimistic increments from WebSocket (feedId -> count of posts still being fetched)
+  final Map<String, int> _pendingOptimisticIncrements = {};
+
   // Getters for feeds filtered by type
   List<Feed> get _digestFeeds => _categories.where((f) => f.type == FeedType.DIGEST).toList();
   List<Feed> get _regularFeeds => _categories.where((f) => f.type == FeedType.SINGLE_POST).toList();
@@ -265,11 +268,26 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       _isHandlingRealtimePost = true;  // Prevent _onFeedCreationComplete from doing setState
     }
 
+    // Immediately increment counter (optimistic — WebSocket guarantees post exists)
+    if (mounted) {
+      setState(() {
+        _unreadCounts[feedId] = (_unreadCounts[feedId] ?? 0) + 1;
+      });
+    }
+    _pendingOptimisticIncrements[feedId] = (_pendingOptimisticIncrements[feedId] ?? 0) + 1;
+
     // Invalidate cache to ensure fresh data on next load
     FeedCacheService().invalidateFeedPosts(feedId);
 
     // Fetch full post data
     var post = await NewsService.fetchPostById(postId);
+
+    // Retry if post is null (backend may not have propagated yet)
+    if (post == null) {
+      print('[HomePage] Post $postId not found, retrying in 2s...');
+      await Future.delayed(const Duration(seconds: 2));
+      post = await NewsService.fetchPostById(postId);
+    }
 
     // Retry once if views are empty (backend may still be generating them)
     if (post != null && post.views.isEmpty) {
@@ -306,7 +324,11 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
             _postAppearTimes[newsItem.id!] = DateTime.now();
           }
         }
-        _unreadCounts[feedId] = (_unreadCounts[feedId] ?? 0) + 1;
+        // Decrement pending optimistic count (post is now confirmed)
+        final pending = _pendingOptimisticIncrements[feedId] ?? 0;
+        if (pending > 0) {
+          _pendingOptimisticIncrements[feedId] = pending - 1;
+        }
 
         // Reset creation flags if this was the pending feed (check both before AND current)
         // Also reset if _isWaitingForFeedCreation is active - safety fallback
@@ -329,6 +351,12 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
       print('[HomePage] Post appended to UI: ${post.title}');
     } else {
+      // Decrement pending optimistic count (post fetch failed, but counter was already incremented)
+      final pending = _pendingOptimisticIncrements[feedId] ?? 0;
+      if (pending > 0) {
+        _pendingOptimisticIncrements[feedId] = pending - 1;
+      }
+
       // Fetch failed - reset flag so _onFeedCreationComplete can handle cleanup
       if (isPendingFeedBefore) {
         print('[HomePage] Fetch failed for pending feed, letting _onFeedCreationComplete handle cleanup');
@@ -379,7 +407,8 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
 
           // Only update if we have loaded posts for this feed
           if (_allNewsItems.any((news) => news.feedId == feedId)) {
-            _unreadCounts[feedId] = loadedCount;
+            final pendingCount = _pendingOptimisticIncrements[feedId] ?? 0;
+            _unreadCounts[feedId] = loadedCount + pendingCount;
           }
         }
       });
@@ -1243,6 +1272,12 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           }
           _categories = categories;
           _unreadCounts = unreadCounts;
+          // Preserve pending optimistic increments from in-flight WebSocket fetches
+          for (final entry in _pendingOptimisticIncrements.entries) {
+            if (entry.value > 0) {
+              _unreadCounts[entry.key] = (_unreadCounts[entry.key] ?? 0) + entry.value;
+            }
+          }
           // Автоматически выбираем первую категорию из текущего таба
           final currentFeeds = _currentTabFeeds;
           if (currentFeeds.isNotEmpty) {
@@ -2157,6 +2192,12 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
           }
           _categories = categories;
           _unreadCounts = unreadCounts;
+          // Preserve pending optimistic increments from in-flight WebSocket fetches
+          for (final entry in _pendingOptimisticIncrements.entries) {
+            if (entry.value > 0) {
+              _unreadCounts[entry.key] = (_unreadCounts[entry.key] ?? 0) + entry.value;
+            }
+          }
           _hasError = false;
 
           // Cache already updated in NewsService.fetchUserFeedsHTTP()

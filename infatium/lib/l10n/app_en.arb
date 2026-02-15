@@ -1457,6 +1457,9 @@
   "feedEditSchedule": "Schedule",
   "feedEditFilters": "Filters",
   "feedEditFilterHint": "Filter...",
+  "feedEditViews": "Views",
+  "feedEditViewHint": "View...",
+  "feedEditViewAlreadyExists": "View already exists",
   "feedEditSave": "Save",
   "feedEditFailedToLoad": "Failed to load data",
   "feedEditSourceAlreadyAdded": "Source already added",
@@ -1514,6 +1517,14 @@
   },
   "previewFiltersCount": "FILTERS ({count})",
   "@previewFiltersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previewViewsCount": "VIEWS ({count})",
+  "@previewViewsCount": {
     "placeholders": {
       "count": {
         "type": "int"

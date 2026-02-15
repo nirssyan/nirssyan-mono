@@ -2,6 +2,19 @@
 set -e
 
 CONFIG_FILE="config/dev.local.json"
+EXTRA_DEFINES=""
+PASSTHROUGH_ARGS=()
+
+for arg in "$@"; do
+  case "$arg" in
+    --no-debug-logs)
+      EXTRA_DEFINES="--dart-define=ENABLE_DEBUG_LOGGING=false"
+      ;;
+    *)
+      PASSTHROUGH_ARGS+=("$arg")
+      ;;
+  esac
+done
 
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "❌ Error: $CONFIG_FILE not found!"
@@ -17,6 +30,9 @@ fi
 
 echo "🚀 Running Makefeed in DEVELOPMENT mode..."
 echo "📁 Config: $CONFIG_FILE"
+if [ -n "$EXTRA_DEFINES" ]; then
+  echo "📋 Debug logging: DISABLED"
+fi
 echo ""
 
-flutter run --dart-define-from-file="$CONFIG_FILE" "$@"
+flutter run --flavor dev --dart-define-from-file="$CONFIG_FILE" $EXTRA_DEFINES "${PASSTHROUGH_ARGS[@]}"

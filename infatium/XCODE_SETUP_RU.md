@@ -4,7 +4,7 @@
 
 После настройки на iPhone можно установить одновременно:
 - **infatium** (prod) - Bundle ID: `com.nirssyan.makefeed`
-- **infatium DEV** (dev) - Bundle ID: `com.nirssyan.makefeed.dev`
+- **порнахаб** (dev) - Bundle ID: `com.nirssyan.makefeed.dev`
 
 **Важно**: OAuth (Google и Apple) уже настроен и работает для обоих приложений. Дополнительная настройка OAuth НЕ требуется.
 
@@ -130,7 +130,7 @@ open ios/Runner.xcworkspace
    - Дождаться завершения
 
 3. **Проверить в Organizer**
-   - Должно быть: `infatium DEV`
+   - Должно быть: `порнахаб`
    - Bundle ID: `com.nirssyan.makefeed.dev`
 
 ### Prod билд
@@ -183,7 +183,7 @@ open ios/Runner.xcworkspace
 2. Нажать `+` → `New App`
 3. Заполнить:
    - **Platform**: iOS
-   - **Name**: `infatium DEV` (или оставить то же имя)
+   - **Name**: `порнахаб` (или оставить то же имя)
    - **Bundle ID**: `com.nirssyan.makefeed.dev`
    - **SKU**: `makefeed-dev`
 4. Submit
@@ -230,7 +230,7 @@ open ios/Runner.xcworkspace
 2. Загрузить prod билд в App Store → установить
 3. На экране должны быть ДВА приложения:
    - `infatium` (продакшн)
-   - `infatium DEV` (разработка)
+   - `порнахаб` (разработка)
 
 ✅ Оба работают одновременно
 ✅ Разные данные (пользователи, ленты, авторизация)

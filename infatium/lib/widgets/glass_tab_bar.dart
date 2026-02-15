@@ -231,7 +231,11 @@ class _GlassTabBarState extends State<GlassTabBar>
         : AppColors.lightTextSecondary.withOpacity(0.8);
 
     return Container(
-      margin: const EdgeInsets.only(left: 16, right: 16, bottom: 24),
+      margin: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.of(context).padding.bottom + 8,
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: BackdropFilter(

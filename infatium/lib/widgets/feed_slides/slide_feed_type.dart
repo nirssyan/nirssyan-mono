@@ -70,6 +70,11 @@ class _SlideFeedTypeState extends State<SlideFeedType>
     final accentColor = _isDark ? AppColors.accent : AppColors.lightAccent;
     final backgroundColor = _isDark ? AppColors.background : AppColors.lightBackground;
 
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+    // GlassTabBar: 88px from screen bottom. Target: button at 100px from screen.
+    // SafeArea adds bottomInset, so subtract it from target.
+    final buttonBottom = (100.0 - bottomInset).clamp(12.0, 100.0);
+
     return SafeArea(
       child: Column(
         children: [
@@ -164,17 +169,17 @@ class _SlideFeedTypeState extends State<SlideFeedType>
                         ),
                       ],
 
-                      const SizedBox(height: 100), // Space for floating button
+                      const SizedBox(height: 160), // Space for floating button
                     ],
                   ),
                 ),
 
-                // Floating button - ALWAYS at bottom: 64 (tab bar height)
+                // Floating button - dynamic offset for old Android (hardware buttons)
                 if (widget.onNext != null)
                   Positioned(
                     left: 16,
                     right: 16,
-                    bottom: 64,
+                    bottom: buttonBottom,
                     child: _NextButton(
                       label: l10n.slideNext,
                       onTap: widget.onNext!,

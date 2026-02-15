@@ -801,6 +801,9 @@
   "feedEditSchedule": "Расписание",
   "feedEditFilters": "Фильтры",
   "feedEditFilterHint": "Фильтр...",
+  "feedEditViews": "Представления",
+  "feedEditViewHint": "Представление...",
+  "feedEditViewAlreadyExists": "Такое представление уже добавлено",
   "feedEditSave": "Сохранить",
   "feedEditFailedToLoad": "Не удалось загрузить данные",
   "feedEditSourceAlreadyAdded": "Источник уже добавлен",
@@ -858,6 +861,14 @@
   },
   "previewFiltersCount": "ФИЛЬТРЫ ({count})",
   "@previewFiltersCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "previewViewsCount": "СТИЛИ ({count})",
+  "@previewViewsCount": {
     "placeholders": {
       "count": {
         "type": "int"

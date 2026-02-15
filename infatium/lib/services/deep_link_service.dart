@@ -15,7 +15,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
-import 'package:uni_links/uni_links.dart';
+import 'package:app_links/app_links.dart';
+import 'package:appmetrica_plugin/appmetrica_plugin.dart';
 import '../config/api_config.dart';
 import '../config/auth_config.dart';
 import '../app.dart';
@@ -26,6 +27,7 @@ import 'navigation_service.dart';
 import 'locale_service.dart';
 import 'analytics_service.dart';
 import '../models/analytics_event_schema.dart';
+import '../models/feed_builder_models.dart';
 import '../widgets/feed_preview_modal.dart';
 
 /// Manages deep link detection and handling.
@@ -37,6 +39,7 @@ class DeepLinkService {
   factory DeepLinkService() => _instance;
   DeepLinkService._internal();
 
+  late final AppLinks _appLinks;
   StreamSubscription? _sub;
   bool _isInitialized = false;
 
@@ -57,35 +60,17 @@ class DeepLinkService {
 
     print('DeepLinkService: Initializing');
 
-    // Listen for deep links while app is running
-    _sub = uriLinkStream.listen((Uri? uri) {
-      if (uri != null) {
-        print('DeepLinkService: Received deep link: ${uri.toString()}');
-        _handleDeepLink(uri);
-      }
+    _appLinks = AppLinks();
+
+    // Listen for all deep links (initial link from cold start + subsequent links)
+    _sub = _appLinks.uriLinkStream.listen((Uri uri) {
+      print('DeepLinkService: Received deep link: ${uri.toString()}');
+      _handleDeepLink(uri);
     }, onError: (err) {
       print('DeepLinkService: Error listening to link stream: $err');
     });
 
-    // Check for initial deep link (app opened from link)
-    _checkInitialLink();
-
     _isInitialized = true;
-  }
-
-  /// Check if app was opened from a deep link.
-  Future<void> _checkInitialLink() async {
-    try {
-      final initialUri = await getInitialUri();
-      if (initialUri != null) {
-        print('DeepLinkService: App opened with initial link: ${initialUri.toString()}');
-        _handleDeepLink(initialUri);
-      } else {
-        print('DeepLinkService: No initial link found');
-      }
-    } catch (e) {
-      print('DeepLinkService: Failed to get initial link: $e');
-    }
   }
 
   /// Handle incoming deep link.
@@ -95,6 +80,9 @@ class DeepLinkService {
   void _handleDeepLink(Uri uri) {
     print('DeepLinkService: Handling deep link - scheme: ${uri.scheme}, host: ${uri.host}, path: ${uri.path}');
     print('DeepLinkService: Query parameters: ${uri.queryParameters}');
+
+    // Report to AppMetrica for install attribution tracking
+    AppMetrica.reportAppOpen(uri.toString());
 
     // Handle universal links (https://infatium.ru/... or https://dev.infatium.ru/...)
     if (uri.scheme == 'https' && uri.host.contains('infatium.ru')) {
@@ -248,7 +236,7 @@ class DeepLinkService {
     _resolveMarketplaceSlug(slug);
   }
 
-  /// Resolve marketplace slug to feedId via API, then show feed preview.
+  /// Resolve marketplace slug via API, build preview from response, and show modal.
   Future<void> _resolveMarketplaceSlug(String slug) async {
     try {
       final response = await http.get(
@@ -263,19 +251,135 @@ class DeepLinkService {
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final feedId = data['id'] as String?;
+      print('DeepLinkService: Marketplace response for slug "$slug": ${data.keys}');
 
-      if (feedId == null || feedId.isEmpty) {
-        print('DeepLinkService: No feedId in marketplace response for slug: $slug');
-        _showMarketplaceError();
-        return;
-      }
-
-      print('DeepLinkService: Resolved marketplace slug "$slug" → feedId: $feedId');
-      _processFeedLink(feedId);
+      final preview = _buildMarketplacePreview(data);
+      _processMarketplaceFeedPreview(preview);
     } catch (e) {
       print('DeepLinkService: Error resolving marketplace slug: $e');
       _showMarketplaceError();
+    }
+  }
+
+  /// Build a FeedPreview from marketplace API response data.
+  FeedPreview _buildMarketplacePreview(Map<String, dynamic> data) {
+    // Map marketplace sources to LocalizedItem list
+    final sourcesJson = data['sources'] as List<dynamic>? ?? [];
+    final sources = sourcesJson.map((s) {
+      if (s is Map<String, dynamic>) {
+        final name = (s['name'] as String?) ?? '';
+        return LocalizedItem(
+          en: name,
+          ru: name,
+          url: s['url'] as String?,
+          type: s['type'] as String?,
+        );
+      }
+      return LocalizedItem(en: s.toString(), ru: s.toString());
+    }).toList();
+
+    // Map views if present
+    final viewsJson = data['views'] as List<dynamic>?;
+    final views = viewsJson?.map((v) => LocalizedItem.fromJson(v)).toList();
+
+    // Map filters if present
+    final filtersJson = data['filters'] as List<dynamic>?;
+    final filters = filtersJson?.map((f) => LocalizedItem.fromJson(f)).toList();
+
+    return FeedPreview(
+      name: (data['name'] as String?) ?? '',
+      description: (data['description'] as String?) ?? '',
+      type: (data['type'] as String?) ?? 'SINGLE_POST',
+      owner: FeedOwner(id: '', name: 'Infatium'),
+      prompt: (data['story'] as String?) ?? '',
+      sources: sources,
+      views: views,
+      filters: filters,
+      digestIntervalHours: data['digest_interval_hours'] as int?,
+    );
+  }
+
+  /// Show feed preview modal for a marketplace feed and handle subscription.
+  Future<void> _processMarketplaceFeedPreview(FeedPreview preview) async {
+    final navigatorState = MyApp.navigatorKey.currentState;
+    if (navigatorState == null) {
+      print('DeepLinkService: Navigator not available yet for marketplace preview');
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _processMarketplaceFeedPreview(preview);
+      });
+      return;
+    }
+
+    final context = navigatorState.context;
+
+    try {
+      final result = await showCupertinoModalPopup<bool>(
+        context: context,
+        builder: (modalContext) => FeedPreviewModal(
+          preview: preview,
+          localeService: LocaleService(),
+          isSubscriptionMode: true,
+          onCreateFeed: () async {
+            // Build SourceItem list from preview sources
+            final sourceItems = preview.sources
+                .where((s) => s.url != null && s.url!.isNotEmpty)
+                .map((s) => SourceItem(
+                      url: s.url!,
+                      type: s.type ?? 'RSS',
+                    ))
+                .toList();
+
+            if (sourceItems.isEmpty) {
+              print('DeepLinkService: No valid sources in marketplace preview');
+              return false;
+            }
+
+            // Determine feed type
+            final feedType = preview.type.toUpperCase() == 'DIGEST'
+                ? FeedType.DIGEST
+                : FeedType.SINGLE_POST;
+
+            // Create real feed via POST /feeds/create
+            final response = await FeedBuilderService.createFeedDirect(
+              name: preview.name,
+              sources: sourceItems,
+              feedType: feedType,
+              digestIntervalHours: preview.digestIntervalHours,
+            );
+
+            if (response.success) {
+              AnalyticsService().capture(EventSchema.feedSubscribed, properties: {
+                'feed_id': response.feedId ?? '',
+                'source': 'marketplace',
+              });
+            }
+
+            return response.success;
+          },
+        ),
+      );
+
+      if (result == true) {
+        NavigationService().navigateToHomeWithRefresh();
+      }
+    } catch (e) {
+      print('DeepLinkService: Error processing marketplace feed preview: $e');
+
+      if (MyApp.navigatorKey.currentState != null) {
+        showCupertinoDialog(
+          context: context,
+          builder: (dialogContext) => CupertinoAlertDialog(
+            title: const Text('Error'),
+            content: const Text('Could not load feed preview. Please try again later.'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('OK'),
+                onPressed: () => Navigator.of(dialogContext).pop(),
+              ),
+            ],
+          ),
+        );
+      }
     }
   }
 

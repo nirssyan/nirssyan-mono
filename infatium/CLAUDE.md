@@ -29,7 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Parallel iOS Installation** (Dev + Prod side-by-side):
 The iOS build scripts create apps with different Bundle IDs, enabling simultaneous installation:
-- **Dev** (`infatium DEV`): `com.nirssyan.makefeed.dev` - for TestFlight
+- **Dev** (`порнахаб`): `com.nirssyan.makefeed.dev` - for TestFlight
 - **Prod** (`infatium`): `com.nirssyan.makefeed` - for App Store
 
 **First time iOS setup**: See [`XCODE_SETUP_GUIDE.md`](./XCODE_SETUP_GUIDE.md) for Xcode configuration (required once).
@@ -614,7 +614,7 @@ if (kDebugMode) {
 ### iOS/macOS
 
 - **Dual Bundle ID Configuration** (parallel dev/prod installations):
-  - **Development**: `com.nirssyan.makefeed.dev` - Display name: `infatium DEV`
+  - **Development**: `com.nirssyan.makefeed.dev` - Display name: `порнахаб`
   - **Production**: `com.nirssyan.makefeed` - Display name: `infatium`
   - Configured via `ios/Flutter/Dev.xcconfig` and `ios/Flutter/Prod.xcconfig`
   - Enables simultaneous TestFlight and App Store installations

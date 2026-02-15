@@ -167,8 +167,7 @@ class AuthenticatedHttpClient {
 
   /// Core retry logic: attempts request, retries once on 401 after token refresh.
   ///
-  /// This pattern is copied from TagService (lines 89-100) which has proven
-  /// to work correctly with the backend's JWT contract.
+  /// Attempts request, retries once on 401 after token refresh.
   Future<http.Response> _makeRequest(
     Future<http.Response> Function() makeRequest, {
     Map<String, String>? headers,

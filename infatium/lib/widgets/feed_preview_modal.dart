@@ -276,6 +276,26 @@ class _FeedPreviewModalState extends State<FeedPreviewModal>
                                     ),
                                   ],
 
+                                  // Стили/отображения (между источниками и фильтрами)
+                                  if (widget.preview.views != null && widget.preview.views!.isNotEmpty) ...[
+                                    const SizedBox(height: 20),
+                                    Divider(
+                                      color: isDark
+                                          ? AppColors.glassBorder.withOpacity(0.1)
+                                          : AppColors.lightGlassBorder.withOpacity(0.15),
+                                      height: 1,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    _buildViews(
+                                      l10n: l10n,
+                                      isRu: isRu,
+                                      isDark: isDark,
+                                      textColor: textColor,
+                                      secondaryTextColor: secondaryTextColor,
+                                      surfaceColor: surfaceColor,
+                                    ),
+                                  ],
+
                                   // Фильтры (под источниками)
                                   if (widget.preview.filters != null && widget.preview.filters!.isNotEmpty) ...[
                                     const SizedBox(height: 20),
@@ -565,6 +585,59 @@ class _FeedPreviewModalState extends State<FeedPreviewModal>
               ),
               child: Text(
                 filter.getLabel(isRu),
+                style: AppTextStyles.body.copyWith(
+                  color: textColor.withOpacity(0.9),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildViews({
+    required AppLocalizations l10n,
+    required bool isRu,
+    required bool isDark,
+    required Color textColor,
+    required Color secondaryTextColor,
+    required Color surfaceColor,
+  }) {
+    final views = widget.preview.views;
+    if (views == null || views.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.previewViewsCount(views.length),
+          style: AppTextStyles.body.copyWith(
+            color: secondaryTextColor.withOpacity(0.7),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: views.map((view) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? surfaceColor.withOpacity(0.3)
+                    : AppColors.lightSurface.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                view.getLabel(isRu),
                 style: AppTextStyles.body.copyWith(
                   color: textColor.withOpacity(0.9),
                   fontSize: 13,
