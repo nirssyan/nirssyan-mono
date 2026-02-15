@@ -13,23 +13,26 @@ import (
 )
 
 type FeedViewHandler struct {
-	feedRepo    *repository.FeedRepository
-	postRepo    *repository.PostRepository
-	rawFeedRepo *repository.RawFeedRepository
-	agents      *clients.AgentsClient
+	feedRepo        *repository.FeedRepository
+	postRepo        *repository.PostRepository
+	rawFeedRepo     *repository.RawFeedRepository
+	marketplaceRepo *repository.MarketplaceRepository
+	agents          *clients.AgentsClient
 }
 
 func NewFeedViewHandler(
 	feedRepo *repository.FeedRepository,
 	postRepo *repository.PostRepository,
 	rawFeedRepo *repository.RawFeedRepository,
+	marketplaceRepo *repository.MarketplaceRepository,
 	agents *clients.AgentsClient,
 ) *FeedViewHandler {
 	return &FeedViewHandler{
-		feedRepo:    feedRepo,
-		postRepo:    postRepo,
-		rawFeedRepo: rawFeedRepo,
-		agents:      agents,
+		feedRepo:        feedRepo,
+		postRepo:        postRepo,
+		rawFeedRepo:     rawFeedRepo,
+		marketplaceRepo: marketplaceRepo,
+		agents:          agents,
 	}
 }
 
@@ -81,7 +84,31 @@ func (h *FeedViewHandler) GetFeedModal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !hasAccess {
-		http.Error(w, "feed not found", http.StatusNotFound)
+		mf, mfErr := h.marketplaceRepo.GetByID(r.Context(), feedID)
+		if mfErr != nil || mf == nil {
+			http.Error(w, "feed not found", http.StatusNotFound)
+			return
+		}
+		var mfSources []MarketplaceFeedSource
+		if mf.Sources != nil {
+			json.Unmarshal(mf.Sources, &mfSources)
+		}
+		sources := make([]SourceItem, 0, len(mfSources))
+		for _, s := range mfSources {
+			sources = append(sources, SourceItem{
+				En:   s.Name,
+				Ru:   s.Name,
+				URL:  s.URL,
+				Type: s.Type,
+			})
+		}
+		writeJSON(w, http.StatusOK, FeedModalResponse{
+			ID:          mf.ID,
+			Name:        mf.Name,
+			Type:        mf.Type,
+			Description: mf.Description,
+			Sources:     sources,
+		})
 		return
 	}
 
