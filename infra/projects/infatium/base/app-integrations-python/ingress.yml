@@ -20,6 +20,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: app-integrations-python
+                name: app-integrations-go
                 port:
                   number: 8000
