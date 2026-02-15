@@ -1,10 +1,8 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
-// TEMPORARILY DISABLED: AGP 8.0+ compatibility issues in CI/CD
-// import 'package:flutter_dynamic_icon/flutter_dynamic_icon.dart';
-// import 'package:android_dynamic_icon/android_dynamic_icon.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dynamic_icon/flutter_dynamic_icon.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'analytics_service.dart';
 
 /// Service for managing dynamic app icons on iOS and Android
 ///
@@ -33,6 +31,10 @@ class AppIconService extends ChangeNotifier {
   static const String defaultIconAndroid = 'MainActivityDefault';
   static const String lightIconAndroid = 'MainActivityLight';
 
+  // Android MethodChannel
+  static const MethodChannel _androidChannel =
+      MethodChannel('com.nirssyan.makefeed/app_icon');
+
   String _currentIcon = '';
   bool _isInitialized = false;
   bool _isSupported = false;
@@ -55,15 +57,42 @@ class AppIconService extends ChangeNotifier {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    // TEMPORARILY DISABLED: Dynamic icon packages removed for AGP 8.0+ compatibility
-    // Feature will be re-enabled once compatible packages are available
-    _isSupported = false;
-
-    // Set default icon based on platform
-    if (Platform.isIOS) {
-      _currentIcon = defaultIconIOS;
-    } else if (Platform.isAndroid) {
-      _currentIcon = defaultIconAndroid;
+    try {
+      if (Platform.isIOS) {
+        _isSupported = await FlutterDynamicIcon.supportsAlternateIcons;
+        if (_isSupported) {
+          final iconName = await FlutterDynamicIcon.getAlternateIconName();
+          _currentIcon = iconName ?? defaultIconIOS;
+        } else {
+          _currentIcon = defaultIconIOS;
+        }
+      } else if (Platform.isAndroid) {
+        _isSupported = true;
+        try {
+          final iconName =
+              await _androidChannel.invokeMethod<String>('getCurrentIcon');
+          _currentIcon = iconName ?? defaultIconAndroid;
+        } catch (e) {
+          // Fallback to SharedPreferences if channel fails
+          final prefs = await SharedPreferences.getInstance();
+          _currentIcon =
+              prefs.getString(_iconKey) ?? defaultIconAndroid;
+          if (kDebugMode) {
+            print('AppIconService: Android channel fallback to prefs: $e');
+          }
+        }
+      }
+    } catch (e) {
+      // Graceful degradation — disable feature
+      _isSupported = false;
+      if (Platform.isIOS) {
+        _currentIcon = defaultIconIOS;
+      } else if (Platform.isAndroid) {
+        _currentIcon = defaultIconAndroid;
+      }
+      if (kDebugMode) {
+        print('AppIconService: initialization failed, feature disabled: $e');
+      }
     }
 
     _isInitialized = true;
@@ -72,16 +101,47 @@ class AppIconService extends ChangeNotifier {
 
   /// Change the app icon
   ///
-  /// TEMPORARILY DISABLED: Dynamic icon packages removed for AGP 8.0+ compatibility
   /// iOS: [iconName] should be 'default' or 'AppIconLight'
   /// Android: [iconName] should be 'MainActivityDefault' or 'MainActivityLight'
   /// Returns true if icon was changed successfully
   Future<bool> setIcon(String iconName) async {
-    // Feature disabled - always return false
-    if (kDebugMode) {
-      print('AppIconService: Dynamic icon change disabled (AGP 8.0+ compatibility)');
+    if (!_isSupported) {
+      if (kDebugMode) {
+        print('AppIconService: Dynamic icons not supported on this device');
+      }
+      return false;
     }
-    return false;
+
+    try {
+      if (Platform.isIOS) {
+        if (iconName == defaultIconIOS) {
+          await FlutterDynamicIcon.setAlternateIconName(null);
+        } else {
+          await FlutterDynamicIcon.setAlternateIconName(iconName);
+        }
+      } else if (Platform.isAndroid) {
+        await _androidChannel
+            .invokeMethod('setIcon', {'iconName': iconName});
+      }
+
+      _currentIcon = iconName;
+
+      // Persist selection
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_iconKey, iconName);
+
+      notifyListeners();
+
+      if (kDebugMode) {
+        print('AppIconService: Icon changed to $iconName');
+      }
+      return true;
+    } on PlatformException catch (e) {
+      if (kDebugMode) {
+        print('AppIconService: Failed to change icon: ${e.message}');
+      }
+      return false;
+    }
   }
 
   /// Set the default (dark) icon

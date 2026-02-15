@@ -56,8 +56,7 @@ jobs:
             "APPMETRICA_API_KEY": "${{ secrets.APPMETRICA_API_KEY }}",
             "API_BASE_URL": "https://api.infatium.ru",
             "CUSTOM_AUTH_BASE_URL": "https://api.infatium.ru/auth",
-            "SPLASH_TEXT": "infatium",
-            "ENABLE_NOTIFICATIONS": "true"
+            "SPLASH_TEXT": "infatium"
           }
           EOF
 

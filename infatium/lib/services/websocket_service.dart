@@ -34,6 +34,11 @@ class WebSocketService extends ChangeNotifier {
   static const int _maxReconnectDelay = 30; // seconds
   static const int _heartbeatInterval = 30; // seconds
 
+  // Auth failure tracking - prevents infinite retry with expired tokens
+  int _consecutiveAuthFailures = 0;
+  static const int _maxConsecutiveAuthFailures = 5;
+  bool _suspendedForAuth = false;
+
   // Token refresh tracking
   StreamSubscription<CustomAuthState>? _authStateSubscription;
   DateTime? _lastConnectionTime;
@@ -66,12 +71,27 @@ class WebSocketService extends ChangeNotifier {
     _subscribedFeedIds = {..._subscribedFeedIds, ...feedIds};
     _onPostCreatedCallback = onPostCreated;
 
-    // Subscribe to token refresh events
+    // Subscribe to auth state events
     _authStateSubscription?.cancel();
     _authStateSubscription = AuthService().authStateChanges.listen((state) {
-      if (state.event == CustomAuthEvent.tokenRefreshed && _isConnected) {
-        print('[WebSocketService] Token refreshed, reconnecting WebSocket');
-        _reconnectForTokenRefresh();
+      if (state.event == CustomAuthEvent.tokenRefreshed) {
+        if (_isConnected) {
+          // Connected → graceful reconnect with new token
+          print('[WebSocketService] Token refreshed, reconnecting WebSocket');
+          _reconnectForTokenRefresh();
+        } else if (_reconnectTimer != null || _suspendedForAuth) {
+          // Disconnected with pending retry or suspended → immediate reconnect
+          print('[WebSocketService] Token refreshed while disconnected, reconnecting immediately');
+          _reconnectTimer?.cancel();
+          _reconnectTimer = null;
+          _reconnectAttempts = 0;
+          _consecutiveAuthFailures = 0;
+          _suspendedForAuth = false;
+          _connect();
+        }
+      } else if (state.event == CustomAuthEvent.signedOut) {
+        print('[WebSocketService] User signed out, disconnecting WebSocket');
+        disconnect();
       }
     });
 
@@ -84,10 +104,31 @@ class WebSocketService extends ChangeNotifier {
     _setState(WebSocketConnectionState.connecting);
 
     try {
-      final token = AuthService().currentSession?.accessToken;
+      final session = AuthService().currentSession;
+      final token = session?.accessToken;
       if (token == null) {
         throw Exception('No authentication token available');
       }
+
+      // Check if token is expired before attempting connection
+      if (session!.isExpired()) {
+        _consecutiveAuthFailures++;
+        print('[WebSocketService] Token expired, auth failure $_consecutiveAuthFailures/$_maxConsecutiveAuthFailures');
+
+        if (_consecutiveAuthFailures >= _maxConsecutiveAuthFailures) {
+          print('[WebSocketService] Too many auth failures, suspending until token refresh');
+          _suspendedForAuth = true;
+          _setState(WebSocketConnectionState.disconnected);
+          return;
+        }
+
+        _setState(WebSocketConnectionState.disconnected);
+        _scheduleReconnect();
+        return;
+      }
+
+      // Token is valid, reset auth failure counter
+      _consecutiveAuthFailures = 0;
 
       final apiUri = Uri.parse(ApiConfig.baseUrl);
       final wsScheme = apiUri.scheme == 'https' ? 'wss' : 'ws';
@@ -229,8 +270,10 @@ class WebSocketService extends ChangeNotifier {
     _isConnected = false;
     _stopHeartbeat();
 
-    // Reset reconnect attempts (this is a planned reconnection, not an error)
+    // Reset all counters (this is a planned reconnection, not an error)
     _reconnectAttempts = 0;
+    _consecutiveAuthFailures = 0;
+    _suspendedForAuth = false;
 
     // Reconnect immediately with fresh token
     await _connect();
@@ -304,6 +347,21 @@ class WebSocketService extends ChangeNotifier {
     _onFeedCreationComplete = null;
   }
 
+  /// Handle app returning from background
+  /// Resets all retry state and reconnects immediately if disconnected
+  void handleAppResumed() {
+    if (_subscribedFeedIds.isEmpty) return;
+    if (!_isConnected) {
+      print('[WebSocketService] App resumed, reconnecting WebSocket');
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+      _reconnectAttempts = 0;
+      _consecutiveAuthFailures = 0;
+      _suspendedForAuth = false;
+      _connect();
+    }
+  }
+
   /// Disconnect WebSocket (alias for backward compatibility)
   void disconnectPersistent() => disconnect();
 
@@ -321,6 +379,8 @@ class WebSocketService extends ChangeNotifier {
     _pendingFeedId = null;
     _onFeedCreationComplete = null;
     _reconnectAttempts = 0;
+    _consecutiveAuthFailures = 0;
+    _suspendedForAuth = false;
 
     // Clean up token refresh subscription
     _authStateSubscription?.cancel();

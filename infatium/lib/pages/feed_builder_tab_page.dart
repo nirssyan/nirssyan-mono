@@ -291,6 +291,8 @@ class FeedBuilderTabPageState extends State<FeedBuilderTabPage> with AutomaticKe
                         : null,
                     initialFilters: _previewData?.filters?.map((f) => f.getLabel(
                         widget.localeService.currentLocale.languageCode == 'ru')).toList(),
+                    initialViews: _previewData?.views?.map((v) => v.getLabel(
+                        widget.localeService.currentLocale.languageCode == 'ru')).toList(),
                     initialDigestIntervalMinutes: _previewData?.digestIntervalHours != null
                         ? _previewData!.digestIntervalHours! * 60
                         : null,

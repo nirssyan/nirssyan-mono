@@ -1,13 +1,3 @@
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath("com.google.gms:google-services:4.4.2")
-    }
-}
-
 allprojects {
     repositories {
         google()
@@ -31,9 +21,26 @@ subprojects {
                 targetCompatibility = JavaVersion.VERSION_11
             }
 
+            // Fix for old plugins with compileSdkVersion < 30
+            val sdkVer = compileSdkVersion?.substringAfter("android-", "")?.toIntOrNull() ?: 0
+            if (sdkVer in 1..29) {
+                compileSdkVersion("android-35")
+            }
+
             // Fix for packages missing namespace (required by AGP 8.0+)
-            // Note: android_dynamic_icon and flutter_dynamic_icon removed from dependencies
-            // due to AGP 8.0+ incompatibility (package attribute conflicts)
+            if (namespace == null || namespace!!.isEmpty()) {
+                val manifestFile = file("src/main/AndroidManifest.xml")
+                if (manifestFile.exists()) {
+                    val pkg = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+                        .newDocumentBuilder()
+                        .parse(manifestFile)
+                        .documentElement
+                        .getAttribute("package")
+                    if (pkg.isNotEmpty()) {
+                        namespace = pkg
+                    }
+                }
+            }
         }
 
         tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {

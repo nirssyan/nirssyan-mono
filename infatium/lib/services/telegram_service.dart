@@ -42,7 +42,7 @@ class TelegramService {
 
     try {
       final response = await _httpClient.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/telegram/status'),
+        Uri.parse('${ApiConfig.baseUrl}/telegram/status'),
         headers: _authHeaders,
         timeout: ApiConfig.requestTimeout,
       );
@@ -65,7 +65,7 @@ class TelegramService {
 
     try {
       final response = await _httpClient.get(
-        Uri.parse('${ApiConfig.baseUrl}/api/telegram/link-url'),
+        Uri.parse('${ApiConfig.baseUrl}/telegram/link-url'),
         headers: _authHeaders,
         timeout: ApiConfig.requestTimeout,
       );

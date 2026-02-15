@@ -12,10 +12,8 @@ import 'services/theme_service.dart';
 import 'services/locale_service.dart';
 import 'services/analytics_service.dart';
 import 'services/navigation_service.dart';
-import 'services/tag_service.dart';
 import 'services/zen_mode_service.dart';
 import 'services/image_preview_service.dart';
-import 'services/notification_service.dart';
 import 'services/websocket_service.dart';
 import 'services/news_service.dart';
 import 'services/suggestion_service.dart';
@@ -23,7 +21,6 @@ import 'services/subscription_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/session_tracker_service.dart';
 import 'services/error_logging_service.dart';
-import 'config/notification_config.dart';
 
 class MyApp extends StatefulWidget {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -39,7 +36,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final ThemeService _themeService = ThemeService();
   final LocaleService _localeService = LocaleService();
   final AnalyticsService _analytics = AnalyticsService();
-  final TagService _tagService = TagService();
   final SessionTrackerService _sessionTracker = SessionTrackerService();
   bool _isInitializing = true;
   StreamSubscription<CustomAuthState>? _authStateSubscription;
@@ -78,6 +74,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _sessionTracker.handleLifecycleChange(state);
     AuthService().handleAppLifecycleChange(state);
+
+    // Reconnect WebSocket after returning from background
+    // 2-second delay to let AuthService refresh the token first
+    if (state == AppLifecycleState.resumed) {
+      Future.delayed(const Duration(seconds: 2), () {
+        WebSocketService().handleAppResumed();
+      });
+    }
   }
 
   void _listenToAuthStateChanges() {
@@ -123,13 +127,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         // Load data if user is authenticated
         if (AuthService().isAuthenticated) {
           await Future.wait([
-            _loadPromptExamples(),
             NewsService.fetchUserFeedsHTTP(),
             SuggestionService().fetchAll(),
             SubscriptionService().fetchSubscription(),
-            if (NotificationConfig.enableNotifications)
-              NotificationService().initialize(),
           ]);
+
+          // Process pending deep link that arrived during initialization
+          if (DeepLinkService().hasPendingFeedLink) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              DeepLinkService().processPendingFeedLink();
+            });
+          }
         }
       }
 
@@ -144,15 +152,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           _isInitializing = false;
         });
       }
-    }
-  }
-
-  Future<void> _loadPromptExamples() async {
-    try {
-      await _tagService.fetchPromptExamples();
-    } catch (e) {
-      // Don't throw - prompt examples are optional
-      print('Error loading prompt examples: $e');
     }
   }
 
@@ -189,7 +188,6 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   final AuthService _authService = AuthService();
-  final TagService _tagService = TagService();
   final GlobalKey<MainTabScaffoldState> _mainTabKey = GlobalKey<MainTabScaffoldState>();
   bool _wasAuthenticated = false;
   bool _isLoadingData = false;
@@ -221,16 +219,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
       // Load data for the newly authenticated user
       await Future.wait([
-        _tagService.fetchPromptExamples(),
         NewsService.fetchUserFeedsHTTP(),
         SuggestionService().fetchAll(),
         SubscriptionService().fetchSubscription(),
       ]);
-
-      // Initialize notifications for newly logged in user
-      if (NotificationConfig.enableNotifications) {
-        await NotificationService().initialize();
-      }
 
       // Loading completed
       if (mounted) {
@@ -247,10 +239,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     // If user just logged out (transitioned from authenticated to not authenticated)
     if (_wasAuthenticated && !isNowAuthenticated) {
-      // Unregister notification token before user is gone
-      if (NotificationConfig.enableNotifications) {
-        await NotificationService().unregisterToken();
-      }
       // Disconnect persistent WebSocket
       WebSocketService().disconnectPersistent();
       // Clear suggestions cache

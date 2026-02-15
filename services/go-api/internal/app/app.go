@@ -176,7 +176,7 @@ func (a *App) Run(ctx context.Context) error {
 		suggestionRepo, agentsClient, validationClient, telegramClient, adminNotifyClient,
 		a.cfg.AdminTelegramFeedThreadID, nc,
 	)
-	feedViewHandler := handlers.NewFeedViewHandler(feedRepo, postRepo, rawFeedRepo, agentsClient)
+	feedViewHandler := handlers.NewFeedViewHandler(feedRepo, postRepo, rawFeedRepo, marketplaceRepo, agentsClient)
 	postHandler := handlers.NewPostHandler(feedRepo, postRepo, postSeenRepo)
 	userHandler := handlers.NewUserHandler(userRepo, adminNotifyClient, a.cfg.AdminTelegramUserThreadID)
 	subscriptionHandler := handlers.NewSubscriptionHandler(subscriptionRepo, usersFeedRepo, ruStoreClient)

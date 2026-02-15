@@ -839,8 +839,8 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 
 	if h.adminNotify != nil && h.feedThreadID > 0 {
 		userEmail := middleware.GetUserEmail(r.Context())
-		go func(ctx context.Context) {
-			h.adminNotify.NotifyNewFeed(ctx, h.feedThreadID, clients.NotifyFeedParams{
+		go func() {
+			h.adminNotify.NotifyNewFeed(context.WithoutCancel(r.Context()), h.feedThreadID, clients.NotifyFeedParams{
 				Email:        userEmail,
 				FeedID:       feed.ID.String(),
 				FeedName:     feedName,
@@ -851,7 +851,7 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 				CurrentCount: currentFeeds,
 				Limit:        maxFeeds,
 			})
-		}(r.Context())
+		}()
 	}
 
 	writeJSON(w, http.StatusCreated, CreateFeedResponse{

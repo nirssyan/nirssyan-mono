@@ -1,26 +1,18 @@
-import 'package:firebase_core/firebase_core.dart';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'app.dart';
-import 'config/notification_config.dart';
 import 'config/glitchtip_config.dart';
 import 'config/debug_config.dart';
 import 'services/debug_log_service.dart';
 
 void main() async {
-  // Enable debug logging in debug mode OR if explicitly enabled in config
-  if (kDebugMode || DebugConfig.enableDebugLogging) {
-    DebugLogService().startCapturingLogs(_initializeApp);
-  } else {
-    _initializeApp();
-  }
-}
-
-/// Initialize app with error tracking and Firebase.
-void _initializeApp() async {
-  // Initialize Sentry (GlitchTip-compatible) for error tracking
+  // Initialize Sentry (GlitchTip-compatible) for error tracking.
+  // Do NOT call WidgetsFlutterBinding.ensureInitialized() before this —
+  // Sentry creates its own SentryWidgetsFlutterBinding internally.
+  // Release info is auto-detected by Sentry's LoadReleaseIntegration.
   await SentryFlutter.init(
     (options) {
       // GlitchTip DSN (Sentry-compatible)
@@ -39,11 +31,6 @@ void _initializeApp() async {
       // GDPR: Don't send PII automatically
       options.sendDefaultPii = false;
 
-      // Get app version for release tracking
-      PackageInfo.fromPlatform().then((packageInfo) {
-        options.release = 'makefeed@${packageInfo.version}+${packageInfo.buildNumber}';
-      });
-
       // Privacy filter: Remove sensitive data before sending
       options.beforeSend = (event, hint) {
         final message = event.message;
@@ -57,7 +44,8 @@ void _initializeApp() async {
         }
         return event;
       };
-
+    },
+    appRunner: () async {
       if (kDebugMode && GlitchTipConfig.isEnabled) {
         // ignore: avoid_print
         print('Makefeed: GlitchTip error tracking enabled');
@@ -65,7 +53,7 @@ void _initializeApp() async {
         print('Makefeed: Dashboard at ${GlitchTipConfig.dashboardUrl}');
       }
 
-      if (kDebugMode) {
+      if (DebugConfig.enableDebugLogging) {
         // ignore: avoid_print
         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         // ignore: avoid_print
@@ -76,20 +64,6 @@ void _initializeApp() async {
         print('📋 Batch size: 100 logs or every 5 seconds');
         // ignore: avoid_print
         print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      }
-    },
-    appRunner: () async {
-      WidgetsFlutterBinding.ensureInitialized();
-
-      // Initialize Firebase for push notifications
-      if (NotificationConfig.enableNotifications) {
-        try {
-          await Firebase.initializeApp();
-        } catch (e) {
-          if (kDebugMode) {
-            print('Makefeed: Firebase initialization error: $e');
-          }
-        }
       }
 
       // Capture Flutter framework errors
@@ -122,7 +96,23 @@ void _initializeApp() async {
         return true;
       };
 
-      runApp(const MyApp());
+      // Start debug log capturing INSIDE Sentry's zone (not wrapping it).
+      // runZoned only wraps runApp — never SentryFlutter.init — to avoid
+      // double-nested zones that break WidgetsBinding access.
+      if (DebugConfig.enableDebugLogging) {
+        DebugLogService().startCapturing();
+        runZoned(
+          () => runApp(const MyApp()),
+          zoneSpecification: ZoneSpecification(
+            print: (self, parent, zone, line) {
+              parent.print(zone, line);
+              DebugLogService().captureLog(line);
+            },
+          ),
+        );
+      } else {
+        runApp(const MyApp());
+      }
     },
   );
 }

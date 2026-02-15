@@ -20,7 +20,6 @@ import 'feed_builder_state_service.dart';
 import 'feed_cache_service.dart';
 import 'news_service.dart';
 import 'seen_posts_service.dart';
-import 'tag_service.dart';
 import 'token_storage_service.dart';
 import 'custom_auth_client.dart';
 import 'log_service.dart';
@@ -553,7 +552,6 @@ class AuthService extends ChangeNotifier {
     // Clear app state
     await AnalyticsService().reset();
     FeedBuilderStateService().clear();
-    await TagService().clearCache();
     FeedCacheService().clearCache();
     NewsService.clearCache();
     await SeenPostsService().clearSeenPosts();
@@ -726,7 +724,7 @@ class AuthService extends ChangeNotifier {
       final serverClientId = '715376087095-6hhrt2ha4qbhobv4lilrp4u8tsmho3uo.apps.googleusercontent.com';
 
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: Platform.isIOS ? null : clientId,  // Auto-detect on iOS, explicit on Android
+        clientId: clientId,
         serverClientId: serverClientId,
       );
 

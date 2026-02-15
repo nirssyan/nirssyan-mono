@@ -50,7 +50,7 @@ After completing all steps:
 
 📱 **Two apps on your iPhone**:
 - `infatium` (prod) - Bundle ID: `com.nirssyan.makefeed`
-- `infatium DEV` (dev) - Bundle ID: `com.nirssyan.makefeed.dev`
+- `порнахаб` (dev) - Bundle ID: `com.nirssyan.makefeed.dev`
 
 🔄 **Easy building**:
 ```bash

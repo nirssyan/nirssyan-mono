@@ -360,8 +360,8 @@ class _ViewSettingsPageState extends State<ViewSettingsPage> {
               ),
             ),
 
-            // App Icon selector (iOS only)
-            if (Platform.isIOS) ...[
+            // App Icon selector (iOS and Android)
+            if (Platform.isIOS || Platform.isAndroid) ...[
               const SizedBox(height: 12),
 
               Container(

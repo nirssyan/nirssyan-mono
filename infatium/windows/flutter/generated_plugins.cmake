@@ -3,7 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  firebase_core
+  app_links
   gal
   permission_handler_windows
   sentry_flutter
