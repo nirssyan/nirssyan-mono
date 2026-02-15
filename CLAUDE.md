@@ -12,6 +12,27 @@ Use td usage -q after first read.
 
 Монорепозиторий для платформы персонализированных новостных лент Infatium/Makefeed.
 
+## Git Branch Convention
+
+- Фикс **prod** → ветка от `master`, PR в `master`
+- Фикс **dev** / новая фича → ветка от `develop`, PR в `develop`
+
+## СТРОГОЕ ПРАВИЛО: Telegram-сессии DEV и PROD должны быть РАЗНЫМИ
+
+**НИКОГДА не используй одну и ту же Telegram-сессию (аккаунт) одновременно в dev и prod!**
+
+- Dev и prod ОБЯЗАНЫ использовать РАЗНЫЕ Telegram-аккаунты (разные телефоны, разные auth_key)
+- При деплое новой сессии — ВСЕГДА проверяй, что она НЕ совпадает с сессией в другом окружении
+- Файлы: `dev_session.session` (dev) и `prod_session.session` (prod) — это РАЗНЫЕ аккаунты
+- Причина: два клиента с одним auth_key = конфликт сессий, один из клиентов будет отключён Telegram
+
+**Проверка перед деплоем:**
+```bash
+# Сравнить AuthKeyID — должны ОТЛИЧАТЬСЯ
+cat services/go-poller/.telegram/dev_session.session | python3 -c "import sys,json; print('DEV:', json.load(sys.stdin)['Data']['AuthKeyID'])"
+kubectl exec -n infatium-prod <pod> -- cat /app/.telegram/prod_session.session | python3 -c "import sys,json; print('PROD:', json.load(sys.stdin)['Data']['AuthKeyID'])"
+```
+
 ## Структура репозитория
 
 ```
