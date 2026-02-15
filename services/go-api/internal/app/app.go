@@ -115,18 +115,18 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	var redisClient *redis.Client
-	if a.cfg.RedisHost != "" {
+	if a.cfg.RedisCacheAddr != "" {
 		redisClient = redis.NewClient(&redis.Options{
-			Addr:     fmt.Sprintf("%s:%d", a.cfg.RedisHost, a.cfg.RedisPort),
+			Addr:     a.cfg.RedisCacheAddr,
 			Password: a.cfg.RedisPassword,
-			DB:       a.cfg.RedisDB,
+			DB:       a.cfg.RedisCacheDB,
 		})
 		if err := redisClient.Ping(ctx).Err(); err != nil {
 			log.Warn().Err(err).Msg("Redis unavailable, validation cache disabled")
 			redisClient = nil
 		} else {
 			a.redisClient = redisClient
-			log.Info().Str("addr", fmt.Sprintf("%s:%d", a.cfg.RedisHost, a.cfg.RedisPort)).Msg("Redis connected")
+			log.Info().Str("addr", a.cfg.RedisCacheAddr).Msg("Redis connected")
 		}
 	}
 	cacheTTL := time.Duration(a.cfg.ValidationCacheTTLMin) * time.Minute

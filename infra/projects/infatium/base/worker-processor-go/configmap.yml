@@ -28,9 +28,8 @@ data:
   OTEL_SERVICE_NAME: "go-processor"
   OTEL_EXPORTER_ENDPOINT: "otel-collector:4317"
 
-  REDIS_HOST: "redis"
-  REDIS_PORT: "6379"
-  REDIS_DB: "2"
+  REDIS_CACHE_ADDR: "redis:6379"
+  REDIS_CACHE_DB: "2"
   VIEW_CACHE_TTL_HOURS: "72"
 
   HTTP_PORT: "8080"

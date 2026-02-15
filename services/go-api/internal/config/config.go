@@ -50,10 +50,9 @@ type Config struct {
 
 	AllowedOrigins []string `envconfig:"ALLOWED_ORIGINS" default:"*"`
 
-	RedisHost             string `envconfig:"REDIS_HOST"`
-	RedisPort             int    `envconfig:"REDIS_PORT" default:"6379"`
+	RedisCacheAddr        string `envconfig:"REDIS_CACHE_ADDR"`
 	RedisPassword         string `envconfig:"REDIS_PASSWORD"`
-	RedisDB               int    `envconfig:"REDIS_DB" default:"1"`
+	RedisCacheDB          int    `envconfig:"REDIS_CACHE_DB" default:"1"`
 	ValidationCacheTTLMin int    `envconfig:"VALIDATION_CACHE_TTL_MIN" default:"1440"`
 
 	RuStoreKeyID          string `envconfig:"RUSTORE_KEY_ID"`

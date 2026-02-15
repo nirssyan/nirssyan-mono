@@ -47,10 +47,9 @@ type Config struct {
 	Environment  string `envconfig:"ENVIRONMENT" default:"development"`
 
 	// Redis
-	RedisHost         string `envconfig:"REDIS_HOST"`
-	RedisPort         int    `envconfig:"REDIS_PORT" default:"6379"`
+	RedisCacheAddr    string `envconfig:"REDIS_CACHE_ADDR"`
 	RedisPassword     string `envconfig:"REDIS_PASSWORD"`
-	RedisDB           int    `envconfig:"REDIS_DB" default:"2"`
+	RedisCacheDB      int    `envconfig:"REDIS_CACHE_DB" default:"2"`
 	ViewCacheTTLHours int    `envconfig:"VIEW_CACHE_TTL_HOURS" default:"72"`
 
 	// Media Cache Warming
