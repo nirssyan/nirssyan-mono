@@ -25,6 +25,7 @@ import (
 	"github.com/MargoRSq/infatium-mono/services/go-api/pkg/storage"
 	"github.com/MargoRSq/infatium-mono/services/go-api/repository"
 	"github.com/nats-io/nats.go"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
@@ -33,6 +34,7 @@ type App struct {
 
 	dbPool               *db.Pool
 	natsConn             *nats.Conn
+	redisClient          *redis.Client
 	httpServer           *http.Server
 	shutdownOTEL         func(context.Context) error
 	wsManager            *websocket.Manager
@@ -112,9 +114,26 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
+	var redisClient *redis.Client
+	if a.cfg.RedisCacheAddr != "" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     a.cfg.RedisCacheAddr,
+			Password: a.cfg.RedisPassword,
+			DB:       a.cfg.RedisCacheDB,
+		})
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			log.Warn().Err(err).Msg("Redis unavailable, validation cache disabled")
+			redisClient = nil
+		} else {
+			a.redisClient = redisClient
+			log.Info().Str("addr", a.cfg.RedisCacheAddr).Msg("Redis connected")
+		}
+	}
+	cacheTTL := time.Duration(a.cfg.ValidationCacheTTLMin) * time.Minute
+
 	agentsClient := clients.NewAgentsClient(nc)
 	telegramClient := clients.NewTelegramClient(nc, a.cfg.TelegramBotToken)
-	validationClient := clients.NewValidationClient(nc)
+	validationClient := clients.NewValidationClient(nc, redisClient, cacheTTL)
 	adminNotifyClient := clients.NewAdminNotifyClient(
 		a.cfg.FeedbackTelegramBotToken,
 		a.cfg.FeedbackTelegramChatID,
@@ -186,7 +205,7 @@ func (a *App) Run(ctx context.Context) error {
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   a.cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Dry-Run-Notify"},
 		ExposedHeaders:   []string{"X-Request-ID"},
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -194,6 +213,7 @@ func (a *App) Run(ctx context.Context) error {
 	router.Use(observability.HTTPMetrics)
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logging)
+	router.Use(middleware.DryRunNotify)
 
 	router.Get("/healthz", healthHandler.Healthz)
 	router.Get("/readyz", healthHandler.Readyz)
@@ -298,6 +318,12 @@ func (a *App) shutdown() {
 
 	if a.notificationConsumer != nil {
 		a.notificationConsumer.Stop()
+	}
+
+	if a.redisClient != nil {
+		if err := a.redisClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Redis close error")
+		}
 	}
 
 	if a.natsConn != nil {

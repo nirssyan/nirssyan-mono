@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MargoRSq/infatium-mono/services/go-api/internal/middleware"
 	"github.com/rs/zerolog/log"
 )
 
@@ -203,6 +204,16 @@ func (c *AdminNotifyClient) NotifyDeletedUser(ctx context.Context, threadID int,
 }
 
 func (c *AdminNotifyClient) sendMessage(ctx context.Context, threadID int, text string) error {
+	if middleware.IsDryRunNotify(ctx) {
+		preview := text
+		if len(preview) > 100 {
+			preview = preview[:100]
+		}
+		log.Info().Int("thread_id", threadID).Str("text_preview", preview).
+			Msg("Telegram notification suppressed (dry-run)")
+		return nil
+	}
+
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", c.botToken)
 
 	payload := map[string]interface{}{

@@ -20,6 +20,7 @@ import (
 	"github.com/MargoRSq/infatium-mono/services/go-processor/pkg/nats"
 	"github.com/MargoRSq/infatium-mono/services/go-processor/pkg/observability"
 	"github.com/MargoRSq/infatium-mono/services/go-processor/repository"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
@@ -28,6 +29,7 @@ type App struct {
 
 	dbPool       *db.Pool
 	natsClient   *nats.Client
+	redisClient  *redis.Client
 	consumer     *consumer.Consumer
 	httpServer   *http.Server
 	shutdownOTEL func(context.Context) error
@@ -104,8 +106,26 @@ func (a *App) Run(ctx context.Context) error {
 	feedRepo := repository.NewFeedRepository(pool.Pool)
 	offsetRepo := repository.NewOffsetRepository(pool.Pool)
 
+	// Create Redis client for view cache
+	var redisClient *redis.Client
+	if a.cfg.RedisCacheAddr != "" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     a.cfg.RedisCacheAddr,
+			Password: a.cfg.RedisPassword,
+			DB:       a.cfg.RedisCacheDB,
+		})
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			log.Warn().Err(err).Msg("Redis unavailable, view cache disabled")
+			redisClient = nil
+		} else {
+			a.redisClient = redisClient
+			log.Info().Str("addr", a.cfg.RedisCacheAddr).Msg("Redis connected")
+		}
+	}
+	viewCacheTTL := time.Duration(a.cfg.ViewCacheTTLHours) * time.Hour
+
 	// Create agents client
-	agentsClient := clients.NewAgentsClient(a.cfg, natsClient)
+	agentsClient := clients.NewAgentsClient(a.cfg, natsClient, redisClient, viewCacheTTL)
 
 	// Create publisher for WebSocket events
 	publisher := nats.NewPublisher(natsClient.NC())
@@ -252,6 +272,12 @@ func (a *App) shutdown() {
 	if a.httpServer != nil {
 		if err := a.httpServer.Shutdown(shutdownCtx); err != nil {
 			log.Error().Err(err).Msg("HTTP server shutdown error")
+		}
+	}
+
+	if a.redisClient != nil {
+		if err := a.redisClient.Close(); err != nil {
+			log.Error().Err(err).Msg("Redis close error")
 		}
 	}
 
