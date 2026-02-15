@@ -17,3 +17,8 @@ spec:
               value: "production"
             - name: OTEL_ENVIRONMENT
               value: "production"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secrets
+                  key: REDIS_PASSWORD

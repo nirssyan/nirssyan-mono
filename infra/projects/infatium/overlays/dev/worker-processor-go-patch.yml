@@ -17,3 +17,8 @@ spec:
               value: "development"
             - name: OTEL_ENVIRONMENT
               value: "dev"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secrets
+                  key: REDIS_PASSWORD

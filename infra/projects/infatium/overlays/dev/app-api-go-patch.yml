@@ -64,6 +64,11 @@ spec:
                 secretKeyRef:
                   name: service-secrets
                   key: S3_PUBLIC_URL
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secrets
+                  key: REDIS_PASSWORD
 ---
 apiVersion: v1
 kind: ConfigMap
