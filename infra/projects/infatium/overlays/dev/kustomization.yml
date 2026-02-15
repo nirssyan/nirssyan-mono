@@ -62,6 +62,20 @@ patches:
   - path: app-api-go-patch.yml
   - target:
       kind: ConfigMap
+      name: app-api-go-config
+    patch: |
+      - op: replace
+        path: /data/DEBUG
+        value: "true"
+  - target:
+      kind: ConfigMap
+      name: worker-processor-go-config
+    patch: |
+      - op: replace
+        path: /data/DEBUG
+        value: "true"
+  - target:
+      kind: ConfigMap
       name: app-api-python-config
     patch: |
       - op: replace
