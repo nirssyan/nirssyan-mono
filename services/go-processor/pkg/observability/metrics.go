@@ -45,6 +45,16 @@ var (
 		Help:    "Duration of message processing",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"event_type"})
+
+	cacheHits = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "cache_hits_total",
+		Help: "Total number of cache hits",
+	}, []string{"cache"})
+
+	cacheMisses = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "cache_misses_total",
+		Help: "Total number of cache misses",
+	}, []string{"cache"})
 )
 
 func IncNATSConsumed(subject string) {
@@ -73,6 +83,14 @@ func ObserveAgentRequestDuration(agent string, seconds float64) {
 
 func ObserveProcessingDuration(eventType string, seconds float64) {
 	processingDuration.WithLabelValues(eventType).Observe(seconds)
+}
+
+func IncCacheHit(cache string) {
+	cacheHits.WithLabelValues(cache).Inc()
+}
+
+func IncCacheMiss(cache string) {
+	cacheMisses.WithLabelValues(cache).Inc()
 }
 
 func MetricsHandler() http.Handler {

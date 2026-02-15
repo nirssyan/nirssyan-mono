@@ -46,6 +46,13 @@ type Config struct {
 	GlitchTipDSN string `envconfig:"GLITCHTIP_DSN" default:""`
 	Environment  string `envconfig:"ENVIRONMENT" default:"development"`
 
+	// Redis
+	RedisHost         string `envconfig:"REDIS_HOST"`
+	RedisPort         int    `envconfig:"REDIS_PORT" default:"6379"`
+	RedisPassword     string `envconfig:"REDIS_PASSWORD"`
+	RedisDB           int    `envconfig:"REDIS_DB" default:"2"`
+	ViewCacheTTLHours int    `envconfig:"VIEW_CACHE_TTL_HOURS" default:"72"`
+
 	// Media Cache Warming
 	MediaWarmingEnabled bool          `envconfig:"MEDIA_WARMING_ENABLED" default:"true"`
 	MediaWarmingTimeout time.Duration `envconfig:"MEDIA_WARMING_TIMEOUT" default:"30s"`

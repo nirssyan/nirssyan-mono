@@ -28,6 +28,8 @@ spec:
                 name: worker-processor-go-config
             - secretRef:
                 name: service-secrets
+            - secretRef:
+                name: redis-secrets
           resources:
             requests:
               cpu: 50m

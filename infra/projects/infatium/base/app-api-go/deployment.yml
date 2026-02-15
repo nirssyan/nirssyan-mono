@@ -28,6 +28,8 @@ spec:
                 name: app-api-go-config
             - secretRef:
                 name: service-secrets
+            - secretRef:
+                name: redis-secrets
           resources:
             requests:
               memory: "64Mi"

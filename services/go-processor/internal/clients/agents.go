@@ -2,6 +2,8 @@ package clients
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/MargoRSq/infatium-mono/services/go-processor/internal/config"
 	"github.com/MargoRSq/infatium-mono/services/go-processor/pkg/nats"
 	"github.com/MargoRSq/infatium-mono/services/go-processor/pkg/observability"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
@@ -33,14 +36,18 @@ type AgentsClient struct {
 	timeout        time.Duration
 	maxRetries     int
 	retryBaseDelay time.Duration
+	cache          *redis.Client
+	viewCacheTTL   time.Duration
 }
 
-func NewAgentsClient(cfg *config.Config, natsClient *nats.Client) *AgentsClient {
+func NewAgentsClient(cfg *config.Config, natsClient *nats.Client, redisClient *redis.Client, viewCacheTTL time.Duration) *AgentsClient {
 	return &AgentsClient{
 		requester:      nats.NewRequester(natsClient),
 		timeout:        cfg.AgentsClientTimeout,
 		maxRetries:     cfg.AgentsClientMaxRetries,
 		retryBaseDelay: cfg.AgentsClientRetryBaseDelay,
+		cache:          redisClient,
+		viewCacheTTL:   viewCacheTTL,
 	}
 }
 
@@ -199,6 +206,11 @@ type ViewGeneratorResponse struct {
 	Content string `json:"content"`
 }
 
+func viewCacheKey(content, viewPrompt string) string {
+	h := sha256.Sum256([]byte(content + "\x00" + viewPrompt))
+	return "view_gen:" + hex.EncodeToString(h[:16])
+}
+
 // GenerateView calls the view generator agent
 func (c *AgentsClient) GenerateView(ctx context.Context, content, viewPrompt string, userID *string, requestID string) (*ViewGeneratorResponse, error) {
 	start := time.Now()
@@ -206,6 +218,20 @@ func (c *AgentsClient) GenerateView(ctx context.Context, content, viewPrompt str
 		observability.IncAgentRequests("view_generator")
 		observability.ObserveAgentRequestDuration("view_generator", time.Since(start).Seconds())
 	}()
+
+	cacheKey := viewCacheKey(content, viewPrompt)
+
+	if c.cache != nil {
+		cached, err := c.cache.Get(ctx, cacheKey).Result()
+		if err == nil {
+			observability.IncCacheHit("view_generator")
+			log.Debug().Str("key", cacheKey).Msg("View generator cache hit")
+			return &ViewGeneratorResponse{Content: cached}, nil
+		} else if err != redis.Nil {
+			log.Warn().Err(err).Str("key", cacheKey).Msg("Redis cache read error")
+		}
+		observability.IncCacheMiss("view_generator")
+	}
 
 	req := ViewGeneratorRequest{
 		Content:    content,
@@ -226,6 +252,12 @@ func (c *AgentsClient) GenerateView(ctx context.Context, content, viewPrompt str
 	var result ViewGeneratorResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return nil, fmt.Errorf("unmarshal view response: %w", err)
+	}
+
+	if c.cache != nil && result.Content != "" {
+		if err := c.cache.Set(ctx, cacheKey, result.Content, c.viewCacheTTL).Err(); err != nil {
+			log.Warn().Err(err).Str("key", cacheKey).Msg("Redis cache write error")
+		}
 	}
 
 	return &result, nil
