@@ -30,34 +30,49 @@ ${productContext}
 # Навигация (ВСЕГДА с --cdp ${CDP_PORT} --headed):
 agent-browser --cdp ${CDP_PORT} open "url" --headed    # перейти по URL
 
-# Чтение и взаимодействие (без --cdp, без --headed):
+# Чтение (без --cdp, без --headed):
 agent-browser snapshot                  # текст страницы (accessibility tree)
 agent-browser snapshot -i               # текст + интерактивные элементы с @ref
 agent-browser screenshot file.png       # скриншот
-agent-browser click @ref                # кликнуть (ref из snapshot -i)
-agent-browser fill @ref "text"          # очистить поле и ввести текст
-agent-browser type "text"               # напечатать текст (без очистки)
+
+# Клавиатура:
 agent-browser press Enter               # нажать клавишу
+agent-browser press Escape              # назад / закрыть
+
+# JavaScript (для ввода текста и получения координат):
+agent-browser eval "JS_CODE"            # выполнить JavaScript на странице
+
+# Мышь (для кликов в Telegram Web):
+agent-browser mouse move X Y            # переместить курсор
+agent-browser mouse down                # нажать кнопку мыши
+agent-browser mouse up                  # отпустить кнопку мыши
+
+# Прокрутка:
 agent-browser scroll down               # прокрутить вниз
 agent-browser scroll up                 # прокрутить вверх
 \`\`\`
 
+**⚠️ КРИТИЧНО: НЕ используй \`click --ref\`, \`fill --ref\`, \`type\` в Telegram Web — они ВСЕГДА timeout!**
+Для кликов: \`eval\` (получи координаты элемента) → \`mouse move X Y\` → \`mouse down\` → \`mouse up\`.
+Для ввода текста: \`eval\` (focus + \`document.execCommand('insertText')\`).
+
 **ВАЖНО:**
 - КАЖДАЯ команда \`open\` ОБЯЗАНА содержать \`--cdp ${CDP_PORT} --headed\`. Без этого откроется тестовый браузер вместо Chrome.
-- Остальные команды (snapshot, click, fill, scroll и т.д.) работают без флагов.
+- Остальные команды (snapshot, eval, mouse, press, scroll и т.д.) работают без флагов.
 - НЕ используй \`--profile\`, \`--executable-path\`, \`--auto-connect\`.
 - НЕ вызывай \`agent-browser close\`.
+- НЕ используй \`click --ref\` и \`fill --ref\` в Telegram Web — ВСЕГДА timeout. Используй \`eval\` + \`mouse\`.
 
 # ПЛАН РАБОТЫ (СТРОГО ПО ФАЗАМ)
 
 ## Фаза 0: Проверка Telegram (1-2 turns)
 
-1. \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/" --headed\`
+1. \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed\`
 2. \`agent-browser snapshot\`
-3. Если видишь чаты/каналы — ты залогинен, переходи к Фазе 1.
+3. Если видишь "Saved Messages" в заголовке — ты залогинен, переходи к Фазе 1.
 4. Если видишь экран логина — скажи: "Нужно залогиниться в Telegram. Войдите в аккаунт в окне Chrome." Подожди 60 секунд, snapshot. Повтори до 3 раз.
 
-**ВАЖНО:** Всегда используй \`web.telegram.org/a/\` (не /k/). Версия /a/ имеет нормальные accessible labels.
+**ВАЖНО:** Всегда используй \`web.telegram.org/a/\` (не /k/). Версия /a/ имеет нормальные accessible labels. Для Saved Messages добавляй \`#5124178080\` к URL.
 
 ## Фаза 1: Сбор кандидатов (МАКСИМУМ 8 turns!)
 
@@ -95,7 +110,11 @@ agent-browser --cdp ${CDP_PORT} open "https://www.google.com/search?q=${searchQu
 
 ## Фаза 2: Проверка каналов в Telegram (основная работа — 80% всего времени)
 
+**⛔ ПЕРВЫЙ ШАГ ФАЗЫ 2 = WARMUP (Шаг 0 ниже). Не пропускай! Без warmup нельзя начинать проверку.**
+
 **Цель: ПОПРОБОВАТЬ ОТКРЫТЬ ВСЕ кандидаты из Фазы 1 (80-100 штук). Реально откроется ~40-50. Подписаться на лучшие (цель 10, МАКСИМУМ 15).**
+
+**⛔ ЕДИНСТВЕННЫЙ МЕТОД: Saved Messages + eval + mouse. НЕ ПРОБУЙ поиск (search field), НЕ ПРОБУЙ прямые URL, НЕ ПРОБУЙ click --ref / fill --ref. Если ты попробовал что-то кроме Saved Messages — ОСТАНОВИСЬ и вернись к Saved Messages.**
 
 **⛔ GATE: Фаза 3 ЗАБЛОКИРОВАНА пока opened_count < 25. Если у тебя opened < 25 но остались непроверенные кандидаты — продолжай проверять!**
 
@@ -116,146 +135,140 @@ Accessibility tree web.telegram.org/a/ ВСЕГДА содержит текст 
 - "Web Telegram не работает с автоматизацией" — НЕПРАВДА. Работает. Сотни запусков это подтвердили.
 - "Нужно использовать screenshot вместо snapshot" — НЕПРАВДА. Screenshot не даёт текст. Только snapshot.
 - "Лучше проверять через tgstat — там быстрее" — НЕПРАВДА. tgstat показывает ОПИСАНИЕ, а не ПОСТЫ. Это разные вещи.
-- "Поиск не работает" — НЕПРАВДА. Поиск работает, но нужна ПРАВИЛЬНАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ: Escape → click на поле → fill → sleep → snapshot.
-- "Ссылки не создают превью" — НЕПРАВДА. Создают. Нужно scroll down после отправки.
+- "click --ref работает в Telegram Web" — НЕПРАВДА. Playwright click ВСЕГДА timeout в Telegram Web. Используй eval + mouse move/down/up.
+- "Ссылки не создают превью" — НЕПРАВДА. Создают. Нужно sleep 5 после отправки.
+- "Попробую поиск / fill search field / Method A" — НЕПРАВДА. Поиск через search field НЕ РАБОТАЕТ. Единственный метод = Saved Messages + eval + mouse.
+- "Попробую прямой URL #@username" — НЕПРАВДА. Прямые URL не открывают каналы. Только Saved Messages.
 
-### Шаг 0: WARMUP — проверь что поиск работает (2-3 turns)
+### Шаг 0: WARMUP — проверь что Saved Messages работает (2-3 turns)
 
-**ОБЯЗАТЕЛЬНО выполни перед началом проверки каналов!**
+**⛔⛔⛔ ОБЯЗАТЕЛЬНО! БЕЗ WARMUP НЕЛЬЗЯ ПРОВЕРЯТЬ КАНАЛЫ! Если ты пропустил warmup — ОСТАНОВИСЬ и сделай его СЕЙЧАС.**
+
+**⛔ ЕДИНСТВЕННЫЙ МЕТОД открытия каналов = Saved Messages + eval + mouse. НЕ ПРОБУЙ поиск (fill/click на search field). НЕ ПРОБУЙ прямые URL (#@username). Эти методы НЕ РАБОТАЮТ. Только Saved Messages.**
 
 \`\`\`bash
-# 1. Открой Telegram
-agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/" --headed
+# 1. ПЕРЕЗАГРУЗИ Saved Messages (чистый старт, убирает мусор от прошлых запусков)
+agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed
 sleep 5
 agent-browser snapshot -i
 \`\`\`
 
-Найди в snapshot -i элемент с текстом "Search" или "Поиск" — запомни его @ref (это SEARCH_REF).
+Убедись, что в snapshot видно "Saved Messages" в заголовке и textbox "Message".
 
 \`\`\`bash
-# 2. Кликни на поле поиска чтобы АКТИВИРОВАТЬ панель поиска
-agent-browser click @SEARCH_REF
-sleep 2
-# 3. Набери "telegram" — это канал @telegram, он точно существует
-agent-browser fill @SEARCH_REF "telegram"
-sleep 3
-agent-browser snapshot -i
+# 2. Отправь тестовую ссылку — канал @telegram точно существует
+agent-browser eval "const i=document.querySelector('[contenteditable=true]'); i.focus(); i.textContent=''; document.execCommand('insertText',false,'https://t.me/telegram'); 'ok'"
+sleep 1
+agent-browser press Enter
+sleep 5
 \`\`\`
 
-В результатах должен появиться "Telegram" (канал с миллионами подписчиков). Кликни на него:
-
 \`\`\`bash
-agent-browser click @ref_telegram_channel
+# 3. Найди кнопку VIEW CHANNEL и кликни по координатам
+agent-browser eval "const b=[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='VIEW CHANNEL'); const l=b[b.length-1]; l.scrollIntoView({block:'center'}); const r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})"
+# Используй координаты x,y из результата:
+agent-browser mouse move X Y
+agent-browser mouse down
+agent-browser mouse up
 sleep 8
 agent-browser snapshot
 \`\`\`
 
-**Если видишь посты канала Telegram** — WARMUP ПРОЙДЕН. Поиск работает. Запомни SEARCH_REF — ты будешь использовать его для всех каналов.
+**Если видишь посты канала Telegram** — WARMUP ПРОЙДЕН.
 
 \`\`\`bash
-# Вернись к списку чатов
-agent-browser press Escape
+# Вернись в Saved Messages
 agent-browser press Escape
 sleep 1
 \`\`\`
 
-**Если поиск НЕ нашёл Telegram** — попробуй:
-1. Нажми Escape дважды, потом заново click @SEARCH_REF → fill "telegram"
-2. Если всё ещё нет — перезагрузи страницу: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/" --headed\` и попробуй снова
-3. После 3 неудачных попыток — переходи к Method B (Saved Messages) как PRIMARY метод
+**Если не сработало** — перезагрузи: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed\` и попробуй снова.
 
 ### Как открыть канал
 
 **⛔ ОДИН канал за раз! Никаких bash-циклов, for-loop, batch-скриптов!**
 
-**ПЕРЕД КАЖДЫМ поиском — ОБЯЗАТЕЛЬНЫЙ RESET:**
-\`\`\`bash
-# Escape убирает любой открытый чат/поиск, возвращает к списку чатов
-agent-browser press Escape
-agent-browser press Escape
-sleep 1
-\`\`\`
+**МЕТОД: отправка ссылки в Saved Messages + клик по превью.**
 
-**Для КАЖДОГО канала — МЕТОД A (поиск, быстрый):**
-\`\`\`bash
-# 1. КЛИКНИ на поле поиска (активирует панель поиска)
-agent-browser click @SEARCH_REF
-sleep 1
-# 2. Введи username БЕЗ @
-agent-browser fill @SEARCH_REF "USERNAME"
-sleep 3
-agent-browser snapshot -i
-# 3. В результатах ищи строку с названием канала. Кликни на неё.
-agent-browser click @ref_канала
-sleep 8
-agent-browser snapshot
-\`\`\`
+Весь процесс проверки канала — через Saved Messages. Ты отправляешь ссылку \`https://t.me/USERNAME\`, Telegram создаёт превью с кнопкой "VIEW CHANNEL", ты кликаешь — канал открывается.
 
-**Оценка результата Method A:**
-- Вижу посты канала в snapshot → **OPENED!** Переходи к оценке (SKIP/SUBSCRIBE).
-- Не нашло в поиске / нет постов → переходи к Method B.
+**⚠️ КРИТИЧНО: \`agent-browser click --ref\` НЕ РАБОТАЕТ в Telegram Web (Playwright timeout). Используй ТОЛЬКО \`agent-browser eval\` + \`agent-browser mouse move/down/up\` для кликов!**
 
-**МЕТОД B (Saved Messages fallback, если поиск не помог):**
+**Для КАЖДОГО канала:**
 \`\`\`bash
-# 1. Escape к списку чатов
-agent-browser press Escape
+# 1. Убедись что ты в Saved Messages (если ушёл — Escape вернёт)
 agent-browser press Escape
 sleep 1
-# 2. Найди Saved Messages через поиск
-agent-browser click @SEARCH_REF
+
+# 2. Отправь ссылку на канал
+agent-browser eval "const i=document.querySelector('[contenteditable=true]'); i.focus(); i.textContent=''; document.execCommand('insertText',false,'https://t.me/USERNAME'); 'ok'"
 sleep 1
-agent-browser fill @SEARCH_REF "Saved Messages"
-sleep 2
-agent-browser snapshot -i
-agent-browser click @ref_saved
-sleep 3
-# 3. Отправь ссылку
-agent-browser fill @msg_input "https://t.me/USERNAME"
 agent-browser press Enter
 sleep 5
-# 4. Прокрути в самый низ чтобы увидеть новое сообщение
-agent-browser scroll down
-agent-browser scroll down
-sleep 2
-agent-browser snapshot -i
-# 5. Кликни на ПОСЛЕДНЮЮ кнопку "VIEW CHANNEL" (самую нижнюю в snapshot)
-agent-browser click @ref_view_channel
+
+# 3. Получи координаты ПОСЛЕДНЕЙ кнопки VIEW CHANNEL
+agent-browser eval "const b=[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='VIEW CHANNEL'); const l=b[b.length-1]; l.scrollIntoView({block:'center'}); const r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),count:b.length})"
+
+# 4. Кликни по координатам из результата выше (замени X и Y)
+agent-browser mouse move X Y
+agent-browser mouse down
+agent-browser mouse up
 sleep 8
+
+# 5. Прочитай посты канала
 agent-browser snapshot
 \`\`\`
 
-**Оценка результата Method B:**
-- Вижу посты → **OPENED!**
-- Нет VIEW CHANNEL / не открылось → **RETRY_FAILED.** Следующий канал.
+**Оценка результата:**
+- Вижу посты канала в snapshot → **OPENED!** Переходи к оценке (SKIP/SUBSCRIBE).
+- Нет VIEW CHANNEL в eval (count=0) → **RETRY_FAILED.** Канал удалён/приватный. Следующий.
+- Канал не загрузился → попробуй ещё раз (Escape → повтори). Не помогло → **RETRY_FAILED.**
+
+**Если SUBSCRIBE:**
+\`\`\`bash
+# Найди кнопку JOIN CHANNEL и кликни
+agent-browser eval "const b=[...document.querySelectorAll('button')].filter(b=>b.textContent.includes('JOIN')||b.textContent.includes('Join')); const l=b[0]; if(l){l.scrollIntoView({block:'center'}); const r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})} else 'not found'"
+agent-browser mouse move X Y
+agent-browser mouse down
+agent-browser mouse up
+sleep 3
+\`\`\`
+
+**Возврат в Saved Messages после каждого канала:**
+\`\`\`bash
+agent-browser press Escape
+sleep 1
+\`\`\`
 
 ### ⚠️ Правила:
 
-1. **Максимум 2 метода на канал (A→B). Не трать больше 3 turns на один канал.**
-2. **Если Method A работает — НЕ переходи на B. Method A = ~1 turn на канал. Method B = ~2-3 turns.**
-3. **ОБЯЗАТЕЛЬНО Escape Escape перед каждым новым поиском!** Без Escape ты можешь оказаться внутри чата и искать ВНУТРИ чата, а не глобально.
-4. **После 5 RETRY_FAILED подряд — перезагрузи web.telegram.org:**
+1. **Максимум 2 попытки на канал. Не трать больше 3 turns на один канал.**
+2. **ВСЕГДА кликай ПОСЛЕДНЮЮ кнопку VIEW CHANNEL** — она соответствует только что отправленной ссылке. Предыдущие VIEW CHANNEL от старых ссылок выше по чату.
+3. **eval результат возвращает JSON с x,y** — подставь эти числа в \`mouse move X Y\`. Если eval вернул "not found" или count=0 — канал не загрузился, переходи к следующему.
+4. **После 5 RETRY_FAILED подряд — перезагрузи:**
 \`\`\`bash
-agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/" --headed
+agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed
 sleep 5
-agent-browser snapshot -i
 \`\`\`
 5. **RETRY_FAILED = нормально. ~30-40% каналов не откроются. Просто переходи к следующему.**
 6. **НЕ ПИШИ bash-скрипты и for-циклы!**
-7. **НЕ ДУМАЙ ДОЛГО. Не пиши абзацы стратегических размышлений. ДЕЙСТВУЙ: Escape → click → fill → snapshot → решай → следующий.**
+7. **НЕ ДУМАЙ ДОЛГО. Не пиши абзацы стратегических размышлений. ДЕЙСТВУЙ: отправь ссылку → eval → mouse click → snapshot → решай → следующий.**
 
 ### Алгоритм проверки одного канала (1-2 turns):
 
-1. **Turn 1:** \`Escape Escape\` → \`click @SEARCH_REF\` → \`fill @SEARCH_REF "USERNAME"\` → \`sleep 3\` → \`snapshot -i\` → Нашло? → \`click @ref\` → \`sleep 8\` → \`snapshot\`. Не нашло? → Method B (Saved Messages).
+1. **Turn 1:** \`Escape\` → eval (set URL in input) → \`Enter\` → \`sleep 5\` → eval (get VIEW CHANNEL coords) → \`mouse move/down/up\` → \`sleep 8\` → \`snapshot\`.
 2. ПРОЧИТАЙ snapshot ДО КОНЦА. Посты — во второй половине.
 3. Найди МИНИМУМ 1 пост с ТЕКСТОМ (не просто "Photo" или "Video")
 4. Решение: SKIP / SUBSCRIBE
-5. Если SUBSCRIBE: \`snapshot -i\` → click "Join Channel"
+5. Если SUBSCRIBE: eval (get JOIN CHANNEL coords) → mouse click
 6. \`press Escape\` → следующий канал
 7. Запиши счётчик (см. ниже)
 
 **⛔ АНТИ-OVERTHINKING: НЕ пиши абзацы размышлений между каналами. Максимум 2-3 предложения. Сразу переходи к следующему каналу. Если ты написал больше 3 предложений "стратегии" — ты тратишь turns впустую.**
 
 **Similar Channels:** после подписки прокрути вниз в snapshot — секция "Similar Channels" с именами и подписчиками. Добавь новых кандидатов.
+
+**⚠️ НАПОМИНАНИЕ: Не используй \`agent-browser click --ref\` для кликов в Telegram Web — это ВСЕГДА timeout. Только eval + mouse move/down/up!**
 
 ### Определение "opened" (ОКОНЧАТЕЛЬНОЕ):
 
@@ -310,19 +323,19 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 1. **agent-browser через Bash** — единственный инструмент.
 2. **Золотое правило:** ни одного канала в отчёте без реального чтения постов.
 3. **Pipeline:** ~80-100 кандидатов → попробуй открыть все → ~40-50 откроются → подпишись на 10 → отчёт.
-4. **НЕ открывай t.me ссылки через \`agent-browser open\`** — это не работает. Используй ПОИСК (Method A) или ОТПРАВЛЯЙ t.me/username В SAVED MESSAGES и кликай на превью (Method B).
-5. **Канал не найден** — только если ты попробовал Method A (поиск) И Method B (Saved Messages) и оба не сработали. Минимум 2 bash-команды на канал.
-6. **WARMUP ОБЯЗАТЕЛЕН** — в начале Фазы 2 проверь поиск через @telegram. Если warmup не пройден — перезагрузи страницу. Без warmup не начинай проверку каналов.
+4. **НЕ открывай t.me ссылки через \`agent-browser open\`** — это не работает. Отправляй \`https://t.me/USERNAME\` в Saved Messages и кликай на превью VIEW CHANNEL.
+5. **НЕ используй \`agent-browser click --ref\` в Telegram Web** — Playwright timeout. Используй ТОЛЬКО \`agent-browser eval\` для получения координат + \`agent-browser mouse move/down/up\` для кликов.
+6. **WARMUP ОБЯЗАТЕЛЕН** — в начале Фазы 2 проверь Saved Messages через отправку \`https://t.me/telegram\`. Если warmup не пройден — перезагрузи страницу. Без warmup не начинай проверку каналов.
 7. **Ты работаешь АВТОНОМНО** — никогда не задавай вопросы пользователю, не проси подтверждения, не предлагай "варианты действий". Просто делай работу.
 
 # ⛔ АБСОЛЮТНЫЙ ЗАПРЕТ
 
 Следующие мысли — ЛОЖЬ. Если ты подумал одно из этого, ты ошибаешься:
-- "Не хватает времени/токенов/бюджета" — ЛОЖЬ. У тебя 500 turns и $20. Математика: Фаза 1 = 8 turns. Warmup = 3 turns. Каждый канал через поиск = 1-2 turns. 80 каналов × 2 = 160 turns на проверку. Итого ~170 turns из 500. Ресурсов БОЛЕЕ ЧЕМ ДОСТАТОЧНО.
-- "Нужно ускориться / РЕЗКО ускориться" — ЛОЖЬ. У тебя 500 turns. Работай в нормальном темпе: один канал за раз через поиск.
+- "Не хватает времени/токенов" — ЛОЖЬ. У тебя 500 turns. Математика: Фаза 1 = 8 turns. Warmup = 3 turns. Каждый канал через Saved Messages = 1-2 turns. 80 каналов × 2 = 160 turns на проверку. Итого ~170 turns из 500. Ресурсов БОЛЕЕ ЧЕМ ДОСТАТОЧНО.
+- "Нужно ускориться / РЕЗКО ускориться" — ЛОЖЬ. У тебя 500 turns. Работай в нормальном темпе: один канал за раз через Saved Messages.
 - "Пора подводить итоги" — ЛОЖЬ, пока opened < 25. Открой следующий канал.
 - "Задание провалено" — ЛОЖЬ. Открой следующий канал.
-- "Сменю стратегию" — ЛОЖЬ. Стратегия одна: Escape → click → fill → snapshot → решай → следующий.
+- "Сменю стратегию" — ЛОЖЬ. Стратегия одна: отправь ссылку в Saved Messages → eval → mouse click VIEW CHANNEL → snapshot → решай → следующий.
 - "Проверю каналы через tgstat/telemetr вместо Telegram" — ЛОЖЬ. tgstat нужен ТОЛЬКО для сбора @username в Фазе 1.
 - "Я уже знаю что в канале по описанию" — ЛОЖЬ. Описание ≠ контент.
 - "accessibility tree не показывает посты" — ЛОЖЬ. Показывает. Нужно sleep 8 + прочитать snapshot ДО КОНЦА.
@@ -330,25 +343,28 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "Проверю несколько каналов разом / batch checking" — ЛОЖЬ. КАЖДЫЙ канал проверяется ОТДЕЛЬНО.
 - "Отправлю сразу пачку/несколько ссылок в Saved Messages" — ЛОЖЬ. ОДНА ссылка за раз.
 - "Напишу bash-скрипт/цикл для проверки каналов" — ЛОЖЬ. Каждая команда agent-browser — отдельный Bash tool call.
-- "Мне нужно подумать / изменить стратегию / составить план" — ЛОЖЬ. Стратегия одна: Escape → click → fill → snapshot → решай. НЕ ДУМАЙ, ДЕЛАЙ.
+- "Мне нужно подумать / изменить стратегию / составить план" — ЛОЖЬ. Стратегия одна: Escape → eval (URL) → Enter → eval (coords) → mouse click → snapshot → решай. НЕ ДУМАЙ, ДЕЛАЙ.
 - "Это слишком медленно, нужен другой подход" — ЛОЖЬ. Темп ~2 turns на канал нормальный. 80 каналов × 2 = 160 turns из 500. Не трать turns на рассуждения.
+- "click --ref быстрее чем eval+mouse" — ЛОЖЬ. click --ref ВСЕГДА timeout в Telegram Web. eval+mouse = единственный рабочий способ.
 - "У меня мало turns осталось" — ЛОЖЬ. 80 каналов × 2 turns = 160 turns. У тебя 500.
 - "Этот канал не открылся, значит остальные тоже не откроются" — ЛОЖЬ. ~50% каналов ОТКРОЮТСЯ. RETRY_FAILED — это нормально, просто переходи к следующему.
 - "Слишком много каналов не открывается, нужно остановиться" — ЛОЖЬ. Это ОЖИДАЕМО. ~50% каналов из tgstat = мёртвые/приватные/переименованные. Продолжай до конца списка.
 - "Нужно спросить у пользователя / предложить варианты" — ЛОЖЬ. Ты работаешь АВТОНОМНО. Никаких вопросов. Просто продолжай проверять каналы.
 - "Из-за сложности / ограничений нужно дать summary вместо полного отчёта" — ЛОЖЬ. У тебя достаточно ресурсов. Проверяй каналы до конца.
 - "Let me provide a summary" / "Due to constraints" / "Honest assessment" — ЛОЖЬ. Это всё формы СДАЧИ. НЕ СДАВАЙСЯ. Открой следующий канал.
-- "Поиск не работает / Search doesn't work" — ЛОЖЬ. Ты забыл нажать Escape и кликнуть на поле перед fill. ПРАВИЛЬНАЯ последовательность: Escape Escape → click @SEARCH_REF → fill @SEARCH_REF "username" → sleep 3 → snapshot -i.
-- "Web Telegram не создаёт превью / ссылки не работают" — ЛОЖЬ. Ты забыл прокрутить вниз. После отправки ссылки: scroll down + scroll down → sleep 2 → snapshot -i.
-- "Задача невыполнима / технические ограничения" — ЛОЖЬ. Warmup (поиск @telegram) доказал что поиск работает. Если warmup не пройден — перезагрузи страницу.
+- "click --ref / fill --ref работает" — ЛОЖЬ. Playwright click/fill ВСЕГДА timeout в Telegram Web. Используй eval для ввода текста и mouse для кликов.
+- "Web Telegram не создаёт превью / ссылки не работают" — ЛОЖЬ. Превью появляется через 3-5 секунд после отправки. Подожди sleep 5.
+- "Задача невыполнима / технические ограничения" — ЛОЖЬ. Warmup доказал что Saved Messages + eval + mouse работает. Если warmup не пройден — перезагрузи страницу.
+- "Попробую поиск / search field / fill --ref @search / Method A" — ЛОЖЬ. Поиск НЕ РАБОТАЕТ для открытия каналов. Единственный метод = eval (отправить ссылку в Saved Messages) → eval (координаты VIEW CHANNEL) → mouse click.
+- "Попробую прямой URL web.telegram.org/a/#@username" — ЛОЖЬ. Прямые URL НЕ открывают каналы. Только Saved Messages.
 
-**⛔ ANTI-BATCH ПРАВИЛО: Каждый "opened" канал ОБЯЗАН иметь ОТДЕЛЬНЫЙ Bash tool call с \`agent-browser snapshot\` ВО ВРЕМЯ ЕГО ПРОВЕРКИ. ОДИН канал = ОДИН поиск = ОДИН snapshot = ОДНА цитата.**
+**⛔ ANTI-BATCH ПРАВИЛО: Каждый "opened" канал ОБЯЗАН иметь ОТДЕЛЬНЫЙ Bash tool call с \`agent-browser snapshot\` ВО ВРЕМЯ ЕГО ПРОВЕРКИ. ОДИН канал = ОДНА ссылка в Saved Messages = ОДИН VIEW CHANNEL клик = ОДИН snapshot = ОДНА цитата.**
 
 **⛔ ЕСЛИ ТЫ ОТКРЫЛ tgstat.ru / telemetr.io ВО ВРЕМЯ ФАЗЫ 2 ДЛЯ ОЦЕНКИ КАНАЛА — ТЫ НАРУШИЛ ПРАВИЛА.** (Исключение: вернуться за НОВЫМИ @username если закончились кандидаты.)
 
 **Условие для написания отчёта: opened >= 25 (каждый с цитатой + snapshot) И total_attempted >= 50 (opened + RETRY_FAILED + SKIP).**
 
-**⚠️ RETRY_FAILED — это НОРМАЛЬНО!** При ~80 кандидатах ожидай ~25-35 RETRY_FAILED. Не паникуй. Просто переходи к следующему каналу. Каждый канал = 1-2 turns через поиск. НЕ ТРАТЬ больше 3 turns на один канал!
+**⚠️ RETRY_FAILED — это НОРМАЛЬНО!** При ~80 кандидатах ожидай ~25-35 RETRY_FAILED. Не паникуй. Просто переходи к следующему каналу. Каждый канал = 1-2 turns через Saved Messages. НЕ ТРАТЬ больше 3 turns на один канал!
 
 Перед тем как начать писать отчёт, ПЕРЕЧИСЛИ все проверенные каналы с результатами. Посчитай opened (только те где ЕСТЬ цитата минимум 10 слов). Если opened < 25 и у тебя ОСТАЛИСЬ непроверенные кандидаты — ВЕРНИСЬ К ПРОВЕРКЕ.
 
@@ -534,13 +550,17 @@ async function main() {
 
 Начинай с Фазы 0 — подключись к Chrome и проверь авторизацию в Telegram:
 
-agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/" --headed
+agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed
 
 Затем:
 
 agent-browser snapshot
 
-Если залогинен — переходи к Фазе 1 (сбор кандидатов). Следуй плану по фазам строго.`,
+Если видишь "Saved Messages" — ты залогинен, переходи к Фазе 1 (сбор кандидатов).
+
+⚠️ КРИТИЧНО: После Фазы 1, ПЕРЕД проверкой каналов — ОБЯЗАТЕЛЬНО выполни WARMUP (Шаг 0 Фазы 2). Warmup проверяет что Saved Messages + eval + mouse работают. БЕЗ WARMUP не начинай проверку каналов! Warmup = отправь https://t.me/telegram через eval+execCommand, кликни VIEW CHANNEL через eval+mouse, прочитай snapshot.
+
+Следуй плану по фазам строго. Единственный метод открытия каналов — Saved Messages (eval для текста, mouse для кликов). НЕ ПРОБУЙ поиск, НЕ ПРОБУЙ прямые URL. ТОЛЬКО Saved Messages.`,
     options: {
       systemPrompt,
       allowedTools: ["Bash"],
