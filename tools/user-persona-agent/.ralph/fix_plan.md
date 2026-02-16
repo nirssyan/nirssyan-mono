@@ -10,7 +10,8 @@
 - [x] **Warmup enforcement + block search/URL methods** — DONE (Run 11). Agent выполнил warmup, использовал ТОЛЬКО Saved Messages. 4 канала opened с цитатами за первые 6 попыток. Saved Messages метод работает ~2-3 turns/channel когда нет проблем. ПРОБЛЕМА: agent сдался после 6 попыток и написал отчёт с 4 каналами.
 - [x] **Anti-premature-report** — DONE (Run 12). GATE CHECK РАБОТАЕТ — agent НЕ написал преждевременный отчёт с 2 opened каналами. Добавлены English-language blocks и "acceleration trap" detector.
 - [x] **Fix VIEW CHANNEL navigation** — DONE (Run 13). Agent обнаружил t.me/s/USERNAME метод — 100% success rate. Но НЕ подписывается реально. Нужен гибридный подход.
-- [ ] **Hybrid screening + subscription** — НОВЫЙ P0. Agent в Run 13 читает посты через t.me/s/ (100% success) но НЕ подписывается и НЕ создаёт папку. Фикс: Phase 2a = t.me/s/ для быстрого скрининга всех кандидатов → Phase 2b = Saved Messages для подписки на 10-15 лучших → Phase 3 = папка. Это даст: быстрый скрининг + реальные подписки + реальную папку.
+- [x] **Hybrid screening + subscription** — DONE (Run 14). Промпт переписан: Этап 2A (t.me/s/) + Этап 2B (Saved Messages). Agent правильно понимает и следует hybrid flow. НО eval quoting сломал 2B. Фикс кавычек применён.
+- [ ] **Eval quoting fix** — P0. Все eval команды переписаны на одинарные кавычки снаружи (bash) + двойные внутри (JS). Добавлена документация. Нужен тестовый запуск Run 15.
 
 ## Medium Priority (P1)
 
@@ -130,11 +131,20 @@
 - ROOT CAUSE: t.me/s/ идеален для ЧТЕНИЯ постов, но не позволяет ПОДПИСАТЬСЯ. Нужен гибридный подход: t.me/s/ для быстрого скрининга → Saved Messages для подписки на лучшие.
 - КЛЮЧЕВОЙ ИНСАЙТ: **t.me/s/ — ПРОРЫВ для Phase 2 скрининга.** 100% success, ~1 turn/channel. Но нужно добавить Step 2: после скрининга, вернуться в web.telegram.org и подписаться на лучшие каналы через Saved Messages. Гибрид: (Phase 2a) t.me/s/ для чтения постов → (Phase 2b) Saved Messages для подписки на финалистов.
 
+### Run 14 (Дизайн интерьеров, maxTurns=500, hybrid Phase 2: t.me/s/ screening + Saved Messages subscription)
+- Кандидатов: 18, Attempted (2A): 12, Opened: 12 (100%), Failed: 0, Подписался: 0, Папка: НЕТ, Отчёт: ПОЛНЫЙ "# Моя лента:" — ДА!
+- Turns: ~50/500, Cost: $5.60
+- **Этап 2A = ОТЛИЧНО:** 12/12 каналов проверены через t.me/s/, реальные цитаты из каждого. ~1-2 turns/channel.
+- **Этап 2B = ПРОВАЛ:** Agent не смог выполнить eval команды в web.telegram.org из-за ПРОБЛЕМЫ С КАВЫЧКАМИ в bash. Пытался разные варианты ~7 turns, сдался и написал отчёт.
+- УЛУЧШЕНИЯ vs Run 13: (1) Hybrid подход ПОНЯТ — agent правильно разделил 2A и 2B (2) Shortlist из 10 каналов составлен (3) Agent ПОПЫТАЛСЯ сделать 2B (4) Богатый отчёт с реальными цитатами
+- ПРОБЛЕМЫ: (1) eval кавычки: примеры в промпте используют `"..."` для bash и `'...'` для JS — bash не может корректно передать одинарные кавычки внутри двойных (2) Agent сдался после ~7 tries на 2B (3) GATE CHECK обойден — agent написал отчёт без подписок (4) Только 18 кандидатов (5) 6 каналов из списка не проверены
+- ROOT CAUSE: **Кавычки в eval!** Все примеры в промпте используют `agent-browser eval "...JS с '...'..."` — при копировании agent получает ошибки bash quoting. Фикс: переписать ВСЕ eval команды на `agent-browser eval '...JS с "..."...'` (одинарные снаружи, двойные внутри).
+- КЛЮЧЕВОЙ ИНСАЙТ: Гибридный подход ПРАВИЛЬНЫЙ, agent его понимает и следует. Единственная проблема — техническая (bash quoting). Фикс кавычек должен разблокировать 2B полностью.
+
 ## Notes
 
 - Каждый loop Ральфа = один фикс из этого списка + тестовый запуск
 - После запуска — анализировать лог, считать метрики, обновлять этот файл
-- ТЕКУЩАЯ ПРОБЛЕМА: Agent использует t.me/s/ для чтения но НЕ подписывается и НЕ создаёт папку. Нужен гибридный подход.
-- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check), VIEW CHANNEL navigation (through t.me/s/ discovery)
-- НАБЛЮДЕНИЕ: t.me/s/USERNAME = ПРОРЫВ. 100% success, 1 turn/channel, реальные посты. НО: нет подписки, нет Similar Channels.
-- Следующий фикс: Гибридный подход — Phase 2a (t.me/s/ скрининг) + Phase 2b (Saved Messages подписка на лучшие).
+- ТЕКУЩАЯ ПРОБЛЕМА: eval quoting в bash. Переписал ВСЕ eval на одинарные кавычки снаружи + двойные внутри. Добавил документацию про кавычки в промпт.
+- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check), VIEW CHANNEL navigation (t.me/s/ discovery), hybrid approach design
+- Следующий фикс: Уже применён — eval quoting fix (single quotes outside, double inside). Нужен тестовый запуск Run 15.

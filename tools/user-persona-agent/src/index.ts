@@ -157,12 +157,12 @@ agent-browser snapshot -i
 Убедись, что видно "Saved Messages" и textbox "Message".
 
 \`\`\`bash
-# Тестовая ссылка
-agent-browser eval "const i=document.querySelector('[contenteditable=true]'); i.focus(); i.textContent=''; document.execCommand('insertText',false,'https://t.me/telegram'); 'ok'"
+# Тестовая ссылка — ВАЖНО: bash одинарные кавычки снаружи, JS двойные внутри!
+agent-browser eval 'var i=document.querySelector("[contenteditable=true]"); i.focus(); i.textContent=""; document.execCommand("insertText",false,"https://t.me/telegram"); "ok"'
 sleep 1
 agent-browser press Enter
 sleep 5
-agent-browser eval "const b=[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='VIEW CHANNEL'); const l=b[b.length-1]; if(!l) 'no button'; else {l.scrollIntoView({block:'center'}); const r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}"
+agent-browser eval 'var b=[...document.querySelectorAll("button")].filter(function(b){return b.textContent.trim()==="VIEW CHANNEL"}); var l=b[b.length-1]; if(!l){"no button"}else{l.scrollIntoView({block:"center"}); var r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}'
 agent-browser mouse move X Y
 agent-browser mouse down
 agent-browser mouse up
@@ -171,45 +171,53 @@ agent-browser snapshot
 \`\`\`
 Если видишь посты @telegram — WARMUP ПРОЙДЕН. Escape назад.
 
+**⚠️ ВАЖНО ПРО КАВЫЧКИ: Все \`agent-browser eval\` команды используют ОДИНАРНЫЕ КАВЫЧКИ снаружи (bash) и ДВОЙНЫЕ КАВЫЧКИ внутри (JS). НЕ МЕНЯЙ этот порядок! Пример:**
+\`\`\`bash
+# ПРАВИЛЬНО — одинарные снаружи, двойные внутри:
+agent-browser eval 'document.querySelector("[contenteditable=true]").focus()'
+# НЕПРАВИЛЬНО — двойные снаружи, одинарные внутри (СЛОМАЕТСЯ!):
+# agent-browser eval "document.querySelector('[contenteditable=true]').focus()"
+\`\`\`
+
 **Шаг 2 — Подписка на каждый канал из shortlist:**
 
 **⚠️ КРИТИЧНО: \`agent-browser click --ref\` НЕ РАБОТАЕТ в Telegram Web. Используй ТОЛЬКО eval + mouse.**
 
-Для КАЖДОГО канала из shortlist:
+Для КАЖДОГО канала из shortlist (замени USERNAME на реальный):
 \`\`\`bash
-# 1. Escape → отправь ссылку
+# 1. Escape → отправь ссылку (ОДИНАРНЫЕ кавычки снаружи!)
 agent-browser press Escape
 sleep 1
-agent-browser eval "const i=document.querySelector('[contenteditable=true]'); i.focus(); i.textContent=''; document.execCommand('insertText',false,'https://t.me/USERNAME'); 'ok'"
+agent-browser eval 'var i=document.querySelector("[contenteditable=true]"); i.focus(); i.textContent=""; document.execCommand("insertText",false,"https://t.me/USERNAME"); "ok"'
 sleep 1
 agent-browser press Enter
 sleep 5
 
-# 2. Клик VIEW CHANNEL
-agent-browser eval "const b=[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='VIEW CHANNEL'); const l=b[b.length-1]; if(!l) JSON.stringify({error:'no button',count:0}); else {l.scrollIntoView({block:'center'}); const r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),count:b.length})}"
+# 2. Клик VIEW CHANNEL (ищем последнюю кнопку)
+agent-browser eval 'var b=[...document.querySelectorAll("button")].filter(function(b){return b.textContent.trim()==="VIEW CHANNEL"}); var l=b[b.length-1]; if(!l){JSON.stringify({error:"no button",count:0})}else{l.scrollIntoView({block:"center"}); var r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),count:b.length})}'
 agent-browser mouse move X Y
 agent-browser mouse down
 agent-browser mouse up
 sleep 5
 
 # 3. Клик JOIN CHANNEL
-agent-browser eval "const b=[...document.querySelectorAll('button')].filter(b=>b.textContent.includes('JOIN')||b.textContent.includes('Join')); const l=b[0]; if(l){l.scrollIntoView({block:'center'}); const r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})} else 'not found'"
+agent-browser eval 'var b=[...document.querySelectorAll("button")].filter(function(b){return b.textContent.includes("JOIN")||b.textContent.includes("Join")}); var l=b[0]; if(l){l.scrollIntoView({block:"center"}); var r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"not found"}'
 agent-browser mouse move X Y
 agent-browser mouse down
 agent-browser mouse up
 sleep 2
 
-# 4. УДАЛИ сообщение (ОБЯЗАТЕЛЬНО — предотвращает накопление VIEW CHANNEL кнопок!)
+# 4. УДАЛИ сообщение (ОБЯЗАТЕЛЬНО!)
 agent-browser press Escape
 sleep 2
-agent-browser eval "const msgs=[...document.querySelectorAll('.Message')]; const last=msgs[msgs.length-1]; if(last){last.scrollIntoView({block:'center'}); const r=last.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})} else 'no messages'"
+agent-browser eval 'var msgs=[...document.querySelectorAll(".Message")]; var last=msgs[msgs.length-1]; if(last){last.scrollIntoView({block:"center"}); var r=last.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no messages"}'
 agent-browser mouse move X Y
-agent-browser eval "document.elementFromPoint(X,Y).dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:X,clientY:Y}))"
+agent-browser eval 'document.elementFromPoint(X,Y).dispatchEvent(new MouseEvent("contextmenu",{bubbles:true,clientX:X,clientY:Y}))'
 sleep 1
-agent-browser eval "const del=[...document.querySelectorAll('[role=menuitem]')].find(e=>e.textContent.includes('Delete')); if(del){const r=del.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})} else 'no delete'"
+agent-browser eval 'var del=[...document.querySelectorAll("[role=menuitem]")].find(function(e){return e.textContent.includes("Delete")}); if(del){var r=del.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no delete"}'
 agent-browser mouse move X Y && agent-browser mouse down && agent-browser mouse up
 sleep 1
-agent-browser eval "const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Delete'); if(btn){const r=btn.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})} else 'no confirm'"
+agent-browser eval 'var btn=[...document.querySelectorAll("button")].find(function(b){return b.textContent.trim()==="Delete"}); if(btn){var r=btn.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no confirm"}'
 agent-browser mouse move X Y && agent-browser mouse down && agent-browser mouse up
 sleep 1
 \`\`\`
