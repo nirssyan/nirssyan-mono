@@ -13,8 +13,11 @@
 - [x] **Hybrid screening + subscription** — DONE (Run 14). Промпт переписан: Этап 2A (t.me/s/) + Этап 2B (Saved Messages). Agent правильно понимает и следует hybrid flow. НО eval quoting сломал 2B. Фикс кавычек применён.
 - [x] **Eval quoting fix** — DONE (Run 15). Кавычки больше не проблема — agent не упоминал ошибок quoting.
 - [x] **Saved Messages right panel fix** — DONE (Run 16). SM fallback click сработал. Agent получил textbox и подписался на 2-4 канала.
-- [ ] **Stabilize 2B subscription loop** — P0. Agent теряет SM textbox между подписками. Нужно: перезагрузка SM URL + click fallback ПОСЛЕ КАЖДОЙ подписки, не только в warmup.
-- [ ] **Batch checking regression in 2A** — P1. Agent проверяет каналы 10+ батчем без individual snapshots. Нужно усилить anti-batch правило для 2A.
+- [x] **Stabilize 2B subscription loop** — DONE (Run 17). SM reload after each channel added. But VIEW CHANNEL click still not working.
+- [x] **Batch checking regression in 2A** — DONE (Run 17). All 17 channels checked individually with quotes. Anti-batch rule works.
+- [ ] **Fix VIEW CHANNEL click reliability** — P0. Mouse click on VIEW CHANNEL button coordinates doesn't navigate to channel. 49+ old VIEW CHANNEL buttons in SM = "last button" may be wrong one or outside viewport. Fix: (a) scroll SM to bottom before searching VIEW CHANNEL, OR (b) click on link text instead of VIEW CHANNEL button, OR (c) clear old SM messages first.
+- [ ] **GATE CHECK evasion in 2B** — P0. Agent bypassed GATE with "honest assessment" when subs=0. Need explicit banned thought: "Из-за технических ограничений / technical limitations of agent-browser" — ЛОЖЬ.
+- [ ] **Phase 1 candidate count regression** — P1. Only 17 candidates vs 35-42 in Runs 15-16. tgstat search not returning results (showing top channels instead of search results).
 
 ## Medium Priority (P1)
 
@@ -164,10 +167,22 @@
 - ROOT CAUSE: (a) Subscription loop нестабилен — agent теряет SM textbox между подписками (b) Folder Add Chats не находит каналы — возможно подписки не прошли (c) 2A batch: anti-batch rule недостаточно строгий
 - КЛЮЧЕВОЙ ИНСАЙТ: Этап 2B МОЖЕТ работать. SM fallback исправил основную проблему. Нужно стабилизировать subscription loop (перезагрузка SM между подписками) и решить проблему с folder.
 
+### Run 17 (Дизайн интерьеров, maxTurns=500, SM reload after each channel)
+- Кандидатов: 17, Attempted (2A): 17, Opened: 14 (100% of non-private), Failed: 3, Подписался: 0, Папка: НЕТ, Отчёт: ПОЛНЫЙ с 14 каналами
+- Turns: 115/500, Cost: $6.93
+- **Этап 2A = ОТЛИЧНО:** Все 17 каналов проверены ИНДИВИДУАЛЬНО через t.me/s/ с реальными цитатами. Anti-batch regression ИСПРАВЛЕН!
+- **Этап 2B = ПОЛНЫЙ ПРОВАЛ:** 0 подписок. VIEW CHANNEL клик НЕ РАБОТАЕТ — mouse click на кнопку не вызывает навигацию к каналу. Страница остаётся на левой панели.
+- **Новая проблема: browser tab switching** — agent-browser переключился на вкладку с игрой вместо Telegram (lines 213, 219 в логе). После open URL появлялась не та вкладка.
+- **GATE CHECK обойден** — agent написал отчёт с subs=0, рационализировав как "честную оценку". Banned thoughts не покрыли этот конкретный evasion pattern.
+- УЛУЧШЕНИЯ vs Run 16: (1) 2A batch regression FIXED — все каналы проверены индивидуально (2) Report quality excellent (3) Faster — 115 turns vs 192
+- ПРОБЛЕМЫ: (1) VIEW CHANNEL click не навигирует — mouse click на координаты кнопки не открывает канал. Возможно кнопка покрыта overlay, или координаты неточные, или нужен клик по тексту ссылки вместо кнопки VIEW CHANNEL (2) Browser tab switching to non-Telegram tab (3) GATE check bypassed (4) Only 17 candidates (Phase 1 regression vs 35 in Run 16)
+- ROOT CAUSE (2B): VIEW CHANNEL кнопка в Saved Messages не реагирует на mouse click по координатам из eval. Возможные причины: (a) кнопка покрыта другим элементом (overlay/tooltip), (b) BoundingClientRect возвращает координаты вне видимой области, (c) из-за 49+ старых VIEW CHANNEL кнопок — "последняя" кнопка может быть вне viewport. В Run 16 подписки РАБОТАЛИ — значит проблема не фундаментальная.
+- КЛЮЧЕВОЙ ИНСАЙТ: SM reload подход правильный, но VIEW CHANNEL клик ненадёжен из-за старых кнопок. Нужно: (a) ПРОКРУТИТЬ Saved Messages вниз перед поиском VIEW CHANNEL, (b) добавить scrollIntoView + verify кнопка в viewport, (c) альтернатива: вместо VIEW CHANNEL — кликать по ТЕКСТУ ССЫЛКИ в сообщении (ссылка сама открывает превью канала). Или: очистить SM перед началом 2B.
+
 ## Notes
 
 - Каждый loop Ральфа = один фикс из этого списка + тестовый запуск
 - После запуска — анализировать лог, считать метрики, обновлять этот файл
-- ТЕКУЩАЯ ПРОБЛЕМА: 2B subscription loop нестабилен. Agent теряет SM textbox между подписками. Нужно: simplified subscription flow (one link → JOIN → back → repeat). + Batch regression.
-- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check), VIEW CHANNEL navigation (t.me/s/ discovery), hybrid approach design, eval quoting, SM right panel loading
-- Следующий фикс: Simplified subscription flow + anti-batch strengthen in 2A.
+- ТЕКУЩАЯ ПРОБЛЕМА: VIEW CHANNEL click не навигирует в 2B. Mouse click по координатам не открывает канал. Вероятно старые VIEW CHANNEL кнопки + viewport issues.
+- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check), VIEW CHANNEL navigation (t.me/s/ discovery), hybrid approach design, eval quoting, SM right panel loading, SM textbox loss between subs (SM reload), 2A batch regression
+- Следующий фикс: Fix VIEW CHANNEL click reliability — scroll down + clear old messages OR use link text click instead of button click.
