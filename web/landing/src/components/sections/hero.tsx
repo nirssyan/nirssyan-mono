@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, useMotionValue, useTransform, animate, AnimationPlaybackControls } from 'framer-motion'
-import { useEffect, useState, memo } from 'react'
+import { useEffect, useState, memo, useMemo } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useMatomo } from '@/hooks/use-matomo'
 import { useIntersectionTracking } from '@/hooks/use-intersection-tracking'
@@ -104,6 +104,20 @@ export function Hero() {
     trackOnce: true
   })
 
+  // Detect AudioSession API support (Safari 16.4+)
+  const supportsAudioSession = useMemo(
+    () => typeof navigator !== 'undefined' && 'audioSession' in navigator,
+    []
+  )
+
+  // Set audio session to ambient so video autoplay doesn't interrupt background music on iOS
+  useEffect(() => {
+    if (supportsAudioSession) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(navigator as any).audioSession.type = 'ambient'
+    }
+  }, [supportsAudioSession])
+
   return (
     <section ref={sectionRef} className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-black">
       {/* Ultra-minimal background - single subtle orb (desktop only, conditionally rendered) */}
@@ -145,15 +159,26 @@ export function Hero() {
       {/* Full-screen video background - conditional rendering (only one video loads) */}
       <div className="absolute inset-0 pointer-events-none z-[1]">
         {isMobile ? (
-          <video
-            src="/hero-video-mobile.mp4"
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="w-full h-full object-cover"
-          />
+          supportsAudioSession ? (
+            // iOS 16.4+ — AudioSession ambient mode prevents music interruption
+            <video
+              src="/hero-video-mobile.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            // Older iOS — animated WebP doesn't trigger audio session takeover
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src="/hero-video-mobile.webp"
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          )
         ) : (
           <video
             src="/hero-video.mp4"
