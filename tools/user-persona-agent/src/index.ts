@@ -393,7 +393,7 @@ agent-browser snapshot
       permissionMode: "bypassPermissions" as any,
       allowDangerouslySkipPermissions: true,
       model: "claude-sonnet-4-5-20250929",
-      maxTurns: 200,
+      maxTurns: 500,
       stderr: (data: string) => {
         if (!data.includes("NON-FATAL")) {
           process.stderr.write(data);
