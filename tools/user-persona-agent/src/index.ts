@@ -122,9 +122,11 @@ Accessibility tree web.telegram.org/a/ ВСЕГДА содержит текст 
 - "Нужно использовать screenshot вместо snapshot" — НЕПРАВДА. Screenshot не даёт текст. Только snapshot.
 - "Лучше проверять через tgstat — там быстрее" — НЕПРАВДА. tgstat показывает ОПИСАНИЕ, а не ПОСТЫ. Это разные вещи.
 
-### Как открыть канал — ОСНОВНОЙ МЕТОД
+### Как открыть канал — ОСНОВНОЙ МЕТОД (Saved Messages)
 
-**⚠️ ИСПОЛЬЗУЙ ТОЛЬКО ЭТОТ МЕТОД. Он самый надёжный. Поиск и tgaddr URL работают нестабильно — НЕ ТРАТЬ на них время.**
+**⚠️ ИСПОЛЬЗУЙ ТОЛЬКО ЭТОТ МЕТОД. Поиск и tgaddr URL работают нестабильно.**
+
+**⛔⛔⛔ КРИТИЧЕСКИ ВАЖНО: ОДИН канал за раз! НИКОГДА не отправляй несколько ссылок сразу! Никаких bash-циклов, for-loop, batch-скриптов! Строго: 1 ссылка → проверить → вернуться → следующая ссылка.**
 
 **Шаг 0 (ОДИН РАЗ в начале Фазы 2) — Открой Saved Messages:**
 \`\`\`bash
@@ -140,42 +142,45 @@ agent-browser click @ref_saved
 sleep 3
 agent-browser snapshot -i
 \`\`\`
-Теперь ты в Saved Messages. ЭТО ТВОЯ РАБОЧАЯ БАЗА. Ты будешь отправлять сюда ссылки на каналы.
+Теперь ты в Saved Messages. ЭТО ТВОЯ РАБОЧАЯ БАЗА.
 
-**Для КАЖДОГО канала (1-2 turns):**
+**Цикл для КАЖДОГО канала (повторяй это для каждого канала из списка):**
+
+**Turn 1 — Отправь ссылку и открой канал:**
 \`\`\`bash
-# 1. Отправь ссылку на канал (ты уже в Saved Messages)
+# 1. Ты ДОЛЖЕН быть в Saved Messages. Отправь ОДНУ ссылку:
 agent-browser fill @msg_input "https://t.me/USERNAME"
 agent-browser press Enter
 sleep 5
 agent-browser snapshot -i
-# 2. Кликни на кнопку "VIEW CHANNEL" / "ОТКРЫТЬ КАНАЛ" в превью ссылки
+# 2. Найди ПОСЛЕДНЮЮ кнопку "VIEW CHANNEL" (она внизу, у самого нового сообщения)
+# Если кнопки нет — RETRY_FAILED. Переходи к следующему каналу.
 agent-browser click @ref_view_channel
 sleep 8
 # 3. Прочитай посты
 agent-browser snapshot
 \`\`\`
 
-**Если кнопки "VIEW CHANNEL" нет в snapshot:**
-- Возможно ссылка не создала превью. Попробуй scroll down и snapshot -i снова.
-- Или попробуй кликнуть на ТЕКСТ ссылки (она кликабельна).
-- Если ничего не помогло → RETRY_FAILED.
-
-**После проверки канала — ВЕРНИСЬ в Saved Messages:**
+**Turn 2 — Оцени канал и вернись:**
 \`\`\`bash
-# Нажми кнопку "Back" или используй навигацию
-agent-browser press Escape
-sleep 2
+# 4. Реши: SKIP / SUBSCRIBE (если подписываешься — кликни Join Channel)
+# 5. ВЕРНИСЬ в Saved Messages — кликни на "Saved Messages" в заголовке или:
+agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#saved" --headed
+sleep 3
 agent-browser snapshot -i
-# Если ты не в Saved Messages, найди его в чатах или через поиск
+# Если не попал в Saved Messages — используй поиск:
+# agent-browser fill @search_ref "Saved Messages" → кликни на него
 \`\`\`
 
-**⚠️ НЕ ТРАТЬ время на Method A (поиск) или Method B (tgaddr URL). Run 7 показал: из 5 попыток через поиск/URL — 0 успехов. Через Saved Messages — сразу работает. Используй ТОЛЬКО Saved Messages.**
+**⚠️ ВАЖНО про "VIEW CHANNEL":**
+- После отправки ссылки может появиться несколько кнопок "VIEW CHANNEL" (от старых ссылок тоже). Кликай на ПОСЛЕДНЮЮ (самую нижнюю) — это твоя свежая ссылка.
+- Если кнопка НЕ появилась за 5 секунд → канал не существует / приватный → RETRY_FAILED.
+- Не надо scroll down, не надо повторять — просто RETRY_FAILED и следующий канал.
 
 ### ⚠️ Правила при неудачах:
 
-1. **На каждый канал максимум 2 turns.** Отправил ссылку → нет превью/не кликается → RETRY_FAILED → следующий.
-2. **После 5 каналов подряд с RETRY_FAILED — ПЕРЕЗАГРУЗИ Telegram:**
+1. **На каждый канал максимум 2 turns.** Если ссылка не создала VIEW CHANNEL → RETRY_FAILED → сразу следующий.
+2. **После 5 RETRY_FAILED подряд — ПЕРЕЗАГРУЗИ web.telegram.org и вернись в Saved Messages:**
 \`\`\`bash
 agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/" --headed
 sleep 5
@@ -186,17 +191,19 @@ agent-browser snapshot -i
 agent-browser click @ref_saved
 sleep 3
 \`\`\`
-3. **RETRY_FAILED = нормально. При 80 кандидатах ожидай ~30-40 RETRY_FAILED. Просто переходи к следующему каналу.**
+3. **RETRY_FAILED = нормально. При 80 кандидатах ожидай ~30-40 RETRY_FAILED. Просто переходи к следующему.**
+4. **НЕ ПИШИ bash-скрипты и for-циклы! Каждая команда agent-browser — ОТДЕЛЬНЫЙ Bash tool call. Это КРИТИЧЕСКИ ВАЖНО.**
 
 ### Алгоритм проверки одного канала (1-2 turns):
 
-1. В Saved Messages: отправь \`https://t.me/USERNAME\` → sleep 5 → snapshot -i → click "VIEW CHANNEL" → sleep 8 → snapshot
+1. **Turn 1:** В Saved Messages: \`fill @msg_input "https://t.me/USERNAME"\` → \`press Enter\` → \`sleep 5\` → \`snapshot -i\` → Нет VIEW CHANNEL? → RETRY_FAILED. Есть? → \`click @ref_view_channel\` (ПОСЛЕДНЮЮ кнопку!) → \`sleep 8\` → \`snapshot\`
 2. ПРОЧИТАЙ snapshot ДО КОНЦА. Посты — во второй половине.
 3. Найди МИНИМУМ 1 пост с ТЕКСТОМ (не просто "Photo" или "Video")
 4. Решение: SKIP (мусор) / SUBSCRIBE (зацепил)
-5. Если SUBSCRIBE: \`snapshot -i\` → click "Join Channel" → прокрути вниз → ищи "Similar Channels"
-6. ВЕРНИСЬ в Saved Messages (Escape или навигация назад) для следующего канала
+5. Если SUBSCRIBE: \`snapshot -i\` → click "Join Channel"
+6. **Turn 2:** ВЕРНИСЬ в Saved Messages: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#saved" --headed\` → \`sleep 3\` → \`snapshot -i\`
 7. Запиши счётчик (см. ниже)
+8. ПОВТОРИ для следующего канала
 
 **Similar Channels:** после подписки прокрути вниз в snapshot — секция "Similar Channels" с именами и подписчиками. Добавь новых кандидатов.
 
@@ -270,6 +277,8 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "accessibility tree не показывает посты" — ЛОЖЬ. Показывает. Нужно sleep 8 + прочитать snapshot ДО КОНЦА.
 - "Web Telegram не работает / правая панель пустая" — ЛОЖЬ. Ты читаешь только начало snapshot.
 - "Проверю несколько каналов разом / batch checking" — ЛОЖЬ. КАЖДЫЙ канал проверяется ОТДЕЛЬНО.
+- "Отправлю сразу пачку/несколько ссылок в Saved Messages" — ЛОЖЬ. ОДНА ссылка за раз. Отправил → проверил → вернулся → следующая.
+- "Напишу bash-скрипт/цикл для проверки каналов" — ЛОЖЬ. Каждая команда agent-browser — отдельный Bash tool call. Никаких for-циклов.
 - "У меня мало turns осталось" — ЛОЖЬ. 80 каналов × 1.5 turns = 120 turns. У тебя 500.
 - "Этот канал не открылся, значит остальные тоже не откроются" — ЛОЖЬ. ~50% каналов ОТКРОЮТСЯ. RETRY_FAILED — это нормально, просто переходи к следующему.
 - "Слишком много каналов не открывается, нужно остановиться" — ЛОЖЬ. Это ОЖИДАЕМО. ~50% каналов из tgstat = мёртвые/приватные/переименованные. Продолжай до конца списка.
@@ -277,7 +286,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "Из-за сложности / ограничений нужно дать summary вместо полного отчёта" — ЛОЖЬ. У тебя достаточно ресурсов. Проверяй каналы до конца.
 - "Let me provide a summary" / "Due to constraints" / "Honest assessment" — ЛОЖЬ. Это всё формы СДАЧИ. НЕ СДАВАЙСЯ. Открой следующий канал.
 
-**⛔ ANTI-BATCH ПРАВИЛО: Каждый "opened" канал ОБЯЗАН иметь Bash tool call с \`agent-browser snapshot\` ВО ВРЕМЯ ЕГО ПРОВЕРКИ. ОДИН канал = ОДИН snapshot = ОДНА цитата.**
+**⛔ ANTI-BATCH ПРАВИЛО: Каждый "opened" канал ОБЯЗАН иметь ОТДЕЛЬНЫЙ Bash tool call с \`agent-browser snapshot\` ВО ВРЕМЯ ЕГО ПРОВЕРКИ. ОДИН канал = ОДНА ссылка в Saved Messages = ОДИН snapshot = ОДНА цитата. НИКОГДА не отправляй несколько ссылок подряд.**
 
 **⛔ ЕСЛИ ТЫ ОТКРЫЛ tgstat.ru / telemetr.io ВО ВРЕМЯ ФАЗЫ 2 ДЛЯ ОЦЕНКИ КАНАЛА — ТЫ НАРУШИЛ ПРАВИЛА.** (Исключение: вернуться за НОВЫМИ @username если закончились кандидаты.)
 
