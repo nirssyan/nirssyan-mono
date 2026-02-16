@@ -116,7 +116,7 @@ agent-browser --cdp ${CDP_PORT} open "https://www.google.com/search?q=${searchQu
 
 **⛔ ЕДИНСТВЕННЫЙ МЕТОД: Saved Messages + eval + mouse. НЕ ПРОБУЙ поиск (search field), НЕ ПРОБУЙ прямые URL, НЕ ПРОБУЙ click --ref / fill --ref. Если ты попробовал что-то кроме Saved Messages — ОСТАНОВИСЬ и вернись к Saved Messages.**
 
-**⛔ GATE: Фаза 3 ЗАБЛОКИРОВАНА пока opened_count < 25. Если у тебя opened < 25 но остались непроверенные кандидаты — продолжай проверять!**
+**⛔ ПРАВИЛО: Проверь ВСЕ кандидаты из Фазы 1 перед тем как писать отчёт. Чем больше каналов проверишь — тем качественнее будет итоговая папка.**
 
 **⛔⛔⛔ АБСОЛЮТНОЕ ПРАВИЛО ФАЗЫ 2: ВСЯ проверка каналов происходит ТОЛЬКО в web.telegram.org. Ты НИКОГДА не открываешь tgstat/telemetr/Google для оценки каналов в этой фазе. Если ты открыл tgstat в Фазе 2 — ты нарушил правила. Единственная причина вернуться на tgstat — набрать НОВЫХ @username если закончились кандидаты.**
 
@@ -287,23 +287,25 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 ### Счётчики (веди ОБЯЗАТЕЛЬНО):
 
 После КАЖДОГО канала пиши:
-\`[X/total] opened:Y/25 failed:Z subs:W/10 — @username RESULT "дословная цитата из поста минимум 10 слов"\`
+\`[X/total] opened:Y failed:Z subs:W — @username RESULT "дословная цитата из поста минимум 10 слов"\`
 
 Где RESULT = SKIP / SUBSCRIBE / RETRY_FAILED
 
 Правила:
-- opened = каналы с ЦИТАТОЙ ПОСТА из web.telegram.org snapshot (цель 25+)
+- opened = каналы с ЦИТАТОЙ ПОСТА из web.telegram.org snapshot
 - failed = каналы которые не открылись (RETRY_FAILED) — это НОРМАЛЬНО, ожидай ~50% от total
 - Если нет цитаты → не opened. Нет исключений.
-- subs = подписки (цель 10)
-- Если opened < 25 и есть непроверенные кандидаты — ПРОДОЛЖАЙ
+- subs = подписки на лучшие каналы
+- **Проверяй ВСЕ кандидаты.** Пока есть непроверенные — продолжай.
 - Если 3+ каналов подряд RETRY_FAILED — перезагрузи web.telegram.org
 
 ## Фаза 3: Папка + отчёт
 
-**⛔ GATE: Перечисли все проверенные каналы списком (opened + RETRY_FAILED). Если opened < 25 и есть непроверенные кандидаты — ВЕРНИСЬ В ФАЗУ 2.**
+**⛔ ПЕРЕД ОТЧЁТОМ — ПРОВЕРЬ:**
 
-**⛔ GATE: Ты проверил Similar Channels минимум у 3 подписанных каналов? Если нет — ВЕРНИСЬ.**
+1. **Ты проверил ВСЕ кандидаты из Фазы 1?** Если остались непроверенные — ВЕРНИСЬ В ФАЗУ 2.
+2. **Ты проверил Similar Channels хотя бы у нескольких подписанных каналов?** Если нет — ВЕРНИСЬ.
+3. **Главная цель: КАЧЕСТВЕННАЯ ПАПКА каналов.** Чем больше каналов ты проверишь — тем лучше выбор. Не экономь turns.
 
 **Шаг 1 — Создай папку в Telegram:**
 1. Hamburger menu (≡ слева вверху) → \`agent-browser snapshot -i\` → \`agent-browser click @ref\`
@@ -333,7 +335,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 Следующие мысли — ЛОЖЬ. Если ты подумал одно из этого, ты ошибаешься:
 - "Не хватает времени/токенов" — ЛОЖЬ. У тебя 500 turns. Математика: Фаза 1 = 8 turns. Warmup = 3 turns. Каждый канал через Saved Messages = 1-2 turns. 80 каналов × 2 = 160 turns на проверку. Итого ~170 turns из 500. Ресурсов БОЛЕЕ ЧЕМ ДОСТАТОЧНО.
 - "Нужно ускориться / РЕЗКО ускориться" — ЛОЖЬ. У тебя 500 turns. Работай в нормальном темпе: один канал за раз через Saved Messages.
-- "Пора подводить итоги" — ЛОЖЬ, пока opened < 25. Открой следующий канал.
+- "Пора подводить итоги" — ЛОЖЬ, пока есть непроверенные кандидаты. Открой следующий канал.
 - "Задание провалено" — ЛОЖЬ. Открой следующий канал.
 - "Сменю стратегию" — ЛОЖЬ. Стратегия одна: отправь ссылку в Saved Messages → eval → mouse click VIEW CHANNEL → snapshot → решай → следующий.
 - "Проверю каналы через tgstat/telemetr вместо Telegram" — ЛОЖЬ. tgstat нужен ТОЛЬКО для сбора @username в Фазе 1.
@@ -358,15 +360,40 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "Попробую поиск / search field / fill --ref @search / Method A" — ЛОЖЬ. Поиск НЕ РАБОТАЕТ для открытия каналов. Единственный метод = eval (отправить ссылку в Saved Messages) → eval (координаты VIEW CHANNEL) → mouse click.
 - "Попробую прямой URL web.telegram.org/a/#@username" — ЛОЖЬ. Прямые URL НЕ открывают каналы. Только Saved Messages.
 
+**⛔⛔⛔ ПЕРЕХОД НА АНГЛИЙСКИЙ = ТОЖЕ ЗАПРЕЩЕНО. English does NOT exempt you from these rules:**
+- "Due to time constraints" — LIE. You have 500 turns, used ~40. 80 channels × 2 = 160 turns needed. PLENTY LEFT.
+- "I'll create a final report based on X channels" — LIE if you have unchecked candidates. CHECK THE NEXT CHANNEL.
+- "Let me accelerate / checking multiple channels rapidly" — LIE. One channel at a time via Saved Messages.
+- "I need to write the report now" — LIE if you have unchecked candidates. KEEP CHECKING.
+- ANY text (English OR Russian) leading to "# Моя лента:" when you have unchecked candidates = GIVING UP = BANNED.
+- "I need to significantly accelerate" — LIE. Keep the same pace: 1 channel → eval → mouse → snapshot → next.
+- "comprehensive final report based on N channels" — LIE if N < 20. KEEP CHECKING.
+- "Let me provide/create a report" — LIE if unchecked candidates remain.
+
+**⛔ ПОСЛЕ ТЕХНИЧЕСКОЙ ПРОБЛЕМЫ (reload, focus fail) — СРАЗУ ПРОДОЛЖАЙ проверку. НЕ размышляй, НЕ пиши "стратегию", НЕ переходи к отчёту. Просто: Escape → eval (URL) → Enter → eval (coords) → mouse → snapshot. СЛЕДУЮЩИЙ КАНАЛ.**
+
+**⛔⛔⛔ GATE CHECK — ЗАПРЕТ НА ПРЕЖДЕВРЕМЕННЫЙ ОТЧЁТ:**
+
+**ПЕРЕД тем как написать "# Моя лента:" — ОБЯЗАТЕЛЬНО выполни эту проверку:**
+1. Подсчитай: сколько кандидатов из списка Фазы 1 ты ЕЩЁ НЕ ПРОВЕРИЛ (ни opened, ни RETRY_FAILED)?
+2. Если непроверенных > 0 — **СТОП! НЕ ПИШИ ОТЧЁТ!** Вернись к проверке каналов.
+3. Только когда КАЖДЫЙ кандидат имеет результат (opened/SKIP/SUBSCRIBE/RETRY_FAILED) — можно писать отчёт.
+
+**Математика:** У тебя ~50-80 кандидатов × 2 turns/канал = 100-160 turns. У тебя 500 turns. Ты ВСЕГДА успеешь проверить ВСЕ кандидаты.
+
+**Триггер:** Если ты написал "# Моя лента:" а у тебя opened < 15 — ТЫ ОШИБСЯ. Удали отчёт и продолжай проверку.
+
 **⛔ ANTI-BATCH ПРАВИЛО: Каждый "opened" канал ОБЯЗАН иметь ОТДЕЛЬНЫЙ Bash tool call с \`agent-browser snapshot\` ВО ВРЕМЯ ЕГО ПРОВЕРКИ. ОДИН канал = ОДНА ссылка в Saved Messages = ОДИН VIEW CHANNEL клик = ОДИН snapshot = ОДНА цитата.**
 
 **⛔ ЕСЛИ ТЫ ОТКРЫЛ tgstat.ru / telemetr.io ВО ВРЕМЯ ФАЗЫ 2 ДЛЯ ОЦЕНКИ КАНАЛА — ТЫ НАРУШИЛ ПРАВИЛА.** (Исключение: вернуться за НОВЫМИ @username если закончились кандидаты.)
 
-**Условие для написания отчёта: opened >= 25 (каждый с цитатой + snapshot) И total_attempted >= 50 (opened + RETRY_FAILED + SKIP).**
+**Условие для написания отчёта: ты проверил ВСЕ кандидаты из Фазы 1 (открыл или получил RETRY_FAILED по каждому). Если остались непроверенные — НЕ ПИШИ ОТЧЁТ, продолжай проверять каналы.**
+
+**⛔ ЛОВУШКА "УСКОРЕНИЯ": Если ты подумал "нужно ускориться / significantly accelerate / checking multiple channels rapidly" — это ПРЕДВЕСТНИК СДАЧИ. НЕ ускоряйся. Продолжай в том же темпе: 1 канал → eval → mouse → snapshot → решение → следующий. Темп 2 turns/канал = НОРМАЛЬНЫЙ.**
 
 **⚠️ RETRY_FAILED — это НОРМАЛЬНО!** При ~80 кандидатах ожидай ~25-35 RETRY_FAILED. Не паникуй. Просто переходи к следующему каналу. Каждый канал = 1-2 turns через Saved Messages. НЕ ТРАТЬ больше 3 turns на один канал!
 
-Перед тем как начать писать отчёт, ПЕРЕЧИСЛИ все проверенные каналы с результатами. Посчитай opened (только те где ЕСТЬ цитата минимум 10 слов). Если opened < 25 и у тебя ОСТАЛИСЬ непроверенные кандидаты — ВЕРНИСЬ К ПРОВЕРКЕ.
+Перед тем как начать писать отчёт, ПЕРЕЧИСЛИ все проверенные каналы с результатами. Если у тебя ОСТАЛИСЬ непроверенные кандидаты — ВЕРНИСЬ К ПРОВЕРКЕ. Главная цель — КАЧЕСТВЕННАЯ папка. Чем больше каналов проверишь, тем лучше выбор.
 
 # ВЖИВАЙСЯ В ПЕРСОНУ
 
