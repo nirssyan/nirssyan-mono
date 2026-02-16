@@ -148,14 +148,14 @@ agent-browser snapshot
 
 **⛔ ЭТАП 2B ОБЯЗАТЕЛЕН! Без реальных подписок задание НЕ ВЫПОЛНЕНО. t.me/s/ = только чтение. Подписка = ТОЛЬКО через web.telegram.org.**
 
-**Шаг 1 — WARMUP (восстановление доступа к Saved Messages + очистка):**
+**Шаг 1 — Подготовка Saved Messages (получить textbox):**
 \`\`\`bash
 agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed
 sleep 8
 agent-browser snapshot -i
 \`\`\`
 
-**Проверь:** Видишь ли textbox "Message" или \`[contenteditable=true]\` в snapshot? Если ДА — продолжай. Если НЕТ (видишь только левую панель) — выполни:
+**Проверь:** Видишь ли textbox "Message" или \`[contenteditable=true]\` в snapshot? Если ДА — СРАЗУ переходи к Шагу 2 (подписке на первый канал). Если НЕТ (видишь только левую панель) — выполни:
 \`\`\`bash
 # Кликни на Saved Messages в левой панели, чтобы открыть правую панель
 agent-browser eval 'var sm=[...document.querySelectorAll("[class*=ListItem]")].find(function(e){return e.textContent.includes("Saved Messages")}); if(sm){sm.scrollIntoView({block:"center"}); var r=sm.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"not found"}'
@@ -165,54 +165,9 @@ agent-browser mouse up
 sleep 5
 agent-browser snapshot -i
 \`\`\`
-Теперь textbox ДОЛЖЕН быть виден. Если нет — перезагрузи: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed\` и повтори.
+Теперь textbox ДОЛЖЕН быть виден. Если нет — перезагрузи: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed\` и повтори. Максимум 3 попытки.
 
-**⛔ ОЧИСТКА СТАРЫХ СООБЩЕНИЙ (ОБЯЗАТЕЛЬНО перед подписками):**
-В Saved Messages могут быть старые VIEW CHANNEL кнопки от предыдущих сессий. Они ЛОМАЮТ подписку — кликаешь не на тот канал. УДАЛИ ВСЕ СООБЩЕНИЯ:
-\`\`\`bash
-# Проверь есть ли сообщения
-agent-browser eval 'var msgs=document.querySelectorAll(".Message"); msgs.length'
-# Если > 0, удали ВСЕ: Ctrl+A → Delete
-agent-browser eval 'var msgs=[...document.querySelectorAll(".Message")]; if(msgs.length>0){var first=msgs[0]; first.scrollIntoView({block:"center"}); var r=first.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no messages"}'
-# Кликни на первое сообщение
-agent-browser mouse move X Y
-agent-browser mouse down
-agent-browser mouse up
-sleep 1
-# Выдели все: Ctrl+A (select all messages)
-agent-browser eval 'document.dispatchEvent(new KeyboardEvent("keydown",{key:"a",ctrlKey:true,bubbles:true}))'
-sleep 1
-# Нажми Delete
-agent-browser press Delete
-sleep 2
-# Подтверди удаление (кнопка "Delete" в диалоге)
-agent-browser eval 'var btn=[...document.querySelectorAll("button")].find(function(b){return b.textContent.trim()==="Delete"}); if(btn){var r=btn.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no confirm"}'
-agent-browser mouse move X Y
-agent-browser mouse down
-agent-browser mouse up
-sleep 2
-agent-browser snapshot -i
-\`\`\`
-**Если Ctrl+A не сработал** (сообщения ещё видны) — не застревай. Просто продолжай дальше, но помни: при поиске VIEW CHANNEL **обязательно прокрути чат В САМЫЙ НИЗ** чтобы видеть только НОВОЕ сообщение.
-
-**Тестовая ссылка (warmup):**
-\`\`\`bash
-# ВАЖНО: bash одинарные кавычки снаружи, JS двойные внутри!
-agent-browser eval 'var i=document.querySelector("[contenteditable=true]"); i.focus(); i.textContent=""; document.execCommand("insertText",false,"https://t.me/telegram"); "ok"'
-sleep 1
-agent-browser press Enter
-sleep 5
-# ОБЯЗАТЕЛЬНО: прокрути чат В САМЫЙ НИЗ, чтобы новая VIEW CHANNEL кнопка была видна
-agent-browser eval 'var c=document.querySelector(".messages-container"); if(c){c.scrollTop=c.scrollHeight; "scrolled"}else{"no container"}'
-sleep 2
-agent-browser eval 'var b=[...document.querySelectorAll("button")].filter(function(b){return b.textContent.trim()==="VIEW CHANNEL"}); var l=b[b.length-1]; if(!l){"no button"}else{l.scrollIntoView({block:"center"}); var r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}'
-agent-browser mouse move X Y
-agent-browser mouse down
-agent-browser mouse up
-sleep 8
-agent-browser snapshot
-\`\`\`
-Если видишь посты @telegram — WARMUP ПРОЙДЕН. Escape назад.
+**⛔ НЕ НУЖЕН warmup с тестовой ссылкой! Навигация к каналу ломает SM. Просто убедись что textbox есть и СРАЗУ начинай подписки.**
 
 **⚠️ ВАЖНО ПРО КАВЫЧКИ: Все \`agent-browser eval\` команды используют ОДИНАРНЫЕ КАВЫЧКИ снаружи (bash) и ДВОЙНЫЕ КАВЫЧКИ внутри (JS). НЕ МЕНЯЙ этот порядок! Пример:**
 \`\`\`bash
@@ -254,8 +209,9 @@ agent-browser mouse up
 sleep 2
 
 # ШАГ 4: ⛔ ПЕРЕЗАГРУЗИ Saved Messages (ОБЯЗАТЕЛЬНО после КАЖДОГО канала!)
-agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed
-sleep 8
+# Используй eval для навигации В ТОЙ ЖЕ ВКЛАДКЕ (не open — он может переключить tab!)
+agent-browser eval 'window.location.href="https://web.telegram.org/a/#5124178080"; "navigating"'
+sleep 10
 
 # ШАГ 5: Кликни на Saved Messages в левой панели + проверь textbox
 agent-browser eval 'var sm=[...document.querySelectorAll("[class*=ListItem]")].find(function(e){return e.textContent.includes("Saved Messages")}); if(sm){sm.scrollIntoView({block:"center"}); var r=sm.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"not found"}'
@@ -273,10 +229,14 @@ agent-browser snapshot -i
 1. **Строго 5 шагов на канал.** Нельзя пропускать НИКАКОЙ шаг, особенно ШАГ 4-5 (перезагрузка SM).
 2. **ПЕРЕЗАГРУЗИ SM после КАЖДОГО канала (ШАГ 4-5).** Это НЕ опционально. Это ОБЯЗАТЕЛЬНО. Даже если всё "работает нормально".
 3. **Максимум 2 попытки на канал.** Если VIEW CHANNEL или JOIN не сработали за 2 попытки — перезагрузи SM и переходи к следующему.
-4. **НЕ УДАЛЯЙ сообщения** — перезагрузка SM решает проблему старых кнопок лучше чем удаление. Экономишь 3-4 команды.
+4. **НЕ УДАЛЯЙ сообщения** — перезагрузка SM решает проблему старых кнопок лучше чем удаление.
 5. **НЕ ПИШИ bash-скрипты и for-циклы!** КАЖДЫЙ шаг = ОТДЕЛЬНЫЙ Bash tool call.
 6. **НЕ "ускоряй" и НЕ "объединяй" каналы!** Один канал → 5 шагов → проверь textbox → следующий канал.
-7. **Если textbox НЕ появился после ШАГа 5** — повтори ШАГ 4-5 (перезагрузку). Максимум 2 раза.
+7. **Если textbox НЕ появился после ШАГа 5** — попробуй ТРИ варианта восстановления:
+   - Вариант A: \`agent-browser eval 'window.location.href="https://web.telegram.org/a/#5124178080"; "navigating"'\` + sleep 10 + snapshot
+   - Вариант B: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed\` + sleep 10 + snapshot
+   - Вариант C: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/" --headed\` + sleep 10 + кликни SM в left panel
+   Пробуй все три варианта по очереди. Один из них ОБЯЗАТЕЛЬНО сработает.
 
 ### Определение "opened" (ОКОНЧАТЕЛЬНОЕ):
 
@@ -401,9 +361,14 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 **ПЕРЕД тем как написать "# Моя лента:" — ОБЯЗАТЕЛЬНО выполни эту проверку:**
 1. Подсчитай: сколько кандидатов из списка Фазы 1 ты ЕЩЁ НЕ ПРОВЕРИЛ в Этапе 2A?
 2. Если непроверенных > 0 — **СТОП! НЕ ПИШИ ОТЧЁТ!** Вернись к Этапу 2A.
-3. Ты ПОДПИСАЛСЯ на 10-15 каналов в Этапе 2B через web.telegram.org? Если subs < 10 — **СТОП!** Вернись к Этапу 2B.
+3. Ты ПОДПИСАЛСЯ на 10-15 каналов в Этапе 2B через web.telegram.org? Если subs < 5 — **СТОП! АБСОЛЮТНЫЙ ЗАПРЕТ НА ОТЧЁТ!** Вернись к Этапу 2B.
 4. Ты создал папку? Если нет — **СТОП!** Создай папку.
-5. Только когда ВСЕ условия выполнены — можно писать отчёт.
+5. Только когда subs >= 5 — можно писать отчёт.
+
+**⛔⛔⛔ ЕСЛИ subs = 0 — ТЫ НЕ МОЖЕШЬ ПИСАТЬ ОТЧЁТ. ТОЧКА. ВЕРНИСЬ В ЭТАП 2B.**
+Даже если Saved Messages "не работает" — ПОПРОБУЙ ЕЩЁ РАЗ. Перезагрузи страницу. Подожди 15 секунд. Кликни Saved Messages в левой панели. Если textbox появился — отправь ссылку. Это занимает 3 turns. У тебя 500 turns. ПРОДОЛЖАЙ ПОПЫТКИ пока subs >= 5.
+
+**НЕ БЫВАЕТ "технических ограничений" которые мешают подписаться.** В предыдущих запусках подписки РАБОТАЛИ. Если одна попытка не сработала — попробуй по-другому. Перезагрузи браузер. Попробуй eval 'window.location.href="https://web.telegram.org/a/#5124178080"'. НИКОГДА НЕ СДАВАЙСЯ на subs=0.
 
 **Математика:** Этап 2A: ~50-80 кандидатов × 1 turn/канал = 50-80 turns. Этап 2B: 15 каналов × 5 turns = 75 turns. Итого ~155 из 500 turns. Ты ВСЕГДА успеешь.
 
@@ -413,7 +378,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 
 **⛔ ЕСЛИ ТЫ ОТКРЫЛ tgstat.ru / telemetr.io ВО ВРЕМЯ ЭТАПА 2A/2B ДЛЯ ОЦЕНКИ КАНАЛА — ТЫ НАРУШИЛ ПРАВИЛА.** (Исключение: вернуться за НОВЫМИ @username если закончились кандидаты.)
 
-**Условие для написания отчёта: (1) ты проверил ВСЕ кандидаты в Этапе 2A, (2) ты ПОДПИСАЛСЯ на 10-15 лучших в Этапе 2B через web.telegram.org, (3) ты создал папку. Если любое из этих условий НЕ выполнено — НЕ ПИШИ ОТЧЁТ.**
+**Условие для написания отчёта: (1) ты проверил ВСЕ кандидаты в Этапе 2A, (2) subs >= 5 (ПОДПИСАЛСЯ на минимум 5 каналов в Этапе 2B через web.telegram.org), (3) ты создал папку. Если subs < 5 — НЕ ПИШИ ОТЧЁТ. ВЕРНИСЬ В ЭТАП 2B И ПРОДОЛЖАЙ ПОПЫТКИ.**
 
 **⛔ ЛОВУШКА "УСКОРЕНИЯ": Если ты подумал "нужно ускориться / significantly accelerate / checking multiple channels rapidly" — это ПРЕДВЕСТНИК СДАЧИ. НЕ ускоряйся. Продолжай в том же темпе: 1 канал за раз. Этап 2A = ~1 turn/канал = НОРМАЛЬНО.**
 
