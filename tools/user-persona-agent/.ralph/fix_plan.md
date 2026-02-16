@@ -9,7 +9,8 @@
 - [x] **Anti-batch-send** — DONE (Run 9). Agent послушно не отправляет пачки. Но Saved Messages метод слишком медленный (27 turns/channel из-за навигации).
 - [x] **Warmup enforcement + block search/URL methods** — DONE (Run 11). Agent выполнил warmup, использовал ТОЛЬКО Saved Messages. 4 канала opened с цитатами за первые 6 попыток. Saved Messages метод работает ~2-3 turns/channel когда нет проблем. ПРОБЛЕМА: agent сдался после 6 попыток и написал отчёт с 4 каналами.
 - [x] **Anti-premature-report** — DONE (Run 12). GATE CHECK РАБОТАЕТ — agent НЕ написал преждевременный отчёт с 2 opened каналами. Добавлены English-language blocks и "acceleration trap" detector.
-- [ ] **Fix VIEW CHANNEL navigation** — НОВЫЙ P0. В Run 12 agent не может переключиться между каналами: VIEW CHANNEL кнопки накапливаются в Saved Messages от старых ссылок, eval ищет "последнюю" но возвращает координаты старой кнопки. Два варианта фикса: (A) Удалять отправленное сообщение после проверки канала (Ctrl+Shift+Backspace или right-click → Delete), чтобы в чате была ОДНА ссылка (B) Перейти на global search как основной метод — он сработал для @romasheda в Run 12.
+- [x] **Fix VIEW CHANNEL navigation** — DONE (Run 13). Agent обнаружил t.me/s/USERNAME метод — 100% success rate. Но НЕ подписывается реально. Нужен гибридный подход.
+- [ ] **Hybrid screening + subscription** — НОВЫЙ P0. Agent в Run 13 читает посты через t.me/s/ (100% success) но НЕ подписывается и НЕ создаёт папку. Фикс: Phase 2a = t.me/s/ для быстрого скрининга всех кандидатов → Phase 2b = Saved Messages для подписки на 10-15 лучших → Phase 3 = папка. Это даст: быстрый скрининг + реальные подписки + реальную папку.
 
 ## Medium Priority (P1)
 
@@ -120,12 +121,20 @@
 - ROOT CAUSE: Saved Messages метод ломается когда в чате много старых VIEW CHANNEL кнопок от предыдущих ссылок и от прошлых запусков. Eval ищет "последнюю" кнопку, но это может быть кнопка от СТАРОГО сообщения если новая ещё не загрузилась.
 - КЛЮЧЕВОЙ ИНСАЙТ: Нужно ОЧИЩАТЬ старые сообщения из Saved Messages перед началом Phase 2. Вариант: после отправки ссылки и клика VIEW CHANNEL — УДАЛИТЬ сообщение перед следующим каналом. Или: перед Phase 2 послать команду "Clear chat history" в Saved Messages. Или: вместо поиска "последней" кнопки VIEW CHANNEL — искать кнопку, БЛИЖАЙШУЮ к ссылке с нужным @username.
 
+### Run 13 (Дизайн интерьеров, maxTurns=500, message deletion + relaxed search ban)
+- Кандидатов: ~20, Attempted: 18, Opened: 18 (100%!), Failed: 0, Подписался: 12 (claimed), Папка: claimed но вероятно не создана, Отчёт: ПОЛНЫЙ "# Моя лента:" — ДА!
+- Turns: 80/500, Cost: $4.61
+- **ПРОРЫВ:** Agent обнаружил метод `t.me/s/USERNAME` (публичный просмотр) — 100% success rate, ~1-2 turns/channel! Все 18 каналов открылись через этот метод.
+- УЛУЧШЕНИЯ vs Run 12: (1) 18 opened vs 2 — ОГРОМНЫЙ прогресс! (2) 100% success rate vs 50% (3) ПОЛНЫЙ ОТЧЁТ с реальными цитатами (4) 12 подписок (5) Richнейший отчёт с описаниями, примерами постов, анализом что понравилось/не понравилось (6) Конфигурация ленты с обоснованием
+- ПРОБЛЕМЫ: (1) Agent НЕ ПОДПИСАЛСЯ реально — t.me/s/ = публичный просмотр без авторизации, нет JOIN CHANNEL (2) Папка НЕ СОЗДАНА (agent не вернулся в web.telegram.org) (3) Каналы #8-10 похоже проверены батчем — не все имеют отдельные snapshots (4) Каналы #8 (dezhurko) и #9 (ponravu) — "не увидел в snapshot" (5) Всего 20 кандидатов (нужно 80-100) (6) Нет Similar Channels (t.me/s/ не показывает их)
+- ROOT CAUSE: t.me/s/ идеален для ЧТЕНИЯ постов, но не позволяет ПОДПИСАТЬСЯ. Нужен гибридный подход: t.me/s/ для быстрого скрининга → Saved Messages для подписки на лучшие.
+- КЛЮЧЕВОЙ ИНСАЙТ: **t.me/s/ — ПРОРЫВ для Phase 2 скрининга.** 100% success, ~1 turn/channel. Но нужно добавить Step 2: после скрининга, вернуться в web.telegram.org и подписаться на лучшие каналы через Saved Messages. Гибрид: (Phase 2a) t.me/s/ для чтения постов → (Phase 2b) Saved Messages для подписки на финалистов.
+
 ## Notes
 
 - Каждый loop Ральфа = один фикс из этого списка + тестовый запуск
 - После запуска — анализировать лог, считать метрики, обновлять этот файл
-- ТЕКУЩАЯ ПРОБЛЕМА: VIEW CHANNEL навигация ломается из-за накопления старых кнопок. Agent не может переключиться с первого открытого канала на новый.
-- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check работает)
-- НАБЛЮДЕНИЕ: Global search через eval + execCommand РАБОТАЕТ (romasheda открылся). Это может быть АЛЬТЕРНАТИВОЙ Saved Messages.
-- НАБЛЮДЕНИЕ: Run 12 GATE check = УСПЕХ. Agent не написал отчёт с 2 opened. Но нужно чтобы agent ПРОДОЛЖАЛ проверку после технических проблем вместо остановки.
-- Следующий фикс: Исправить VIEW CHANNEL навигацию — очистка Saved Messages от старых сообщений ИЛИ использование глобального поиска как основного метода.
+- ТЕКУЩАЯ ПРОБЛЕМА: Agent использует t.me/s/ для чтения но НЕ подписывается и НЕ создаёт папку. Нужен гибридный подход.
+- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check), VIEW CHANNEL navigation (through t.me/s/ discovery)
+- НАБЛЮДЕНИЕ: t.me/s/USERNAME = ПРОРЫВ. 100% success, 1 turn/channel, реальные посты. НО: нет подписки, нет Similar Channels.
+- Следующий фикс: Гибридный подход — Phase 2a (t.me/s/ скрининг) + Phase 2b (Saved Messages подписка на лучшие).
