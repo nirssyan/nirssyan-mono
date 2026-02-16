@@ -12,7 +12,8 @@
 - [x] **Fix VIEW CHANNEL navigation** — DONE (Run 13). Agent обнаружил t.me/s/USERNAME метод — 100% success rate. Но НЕ подписывается реально. Нужен гибридный подход.
 - [x] **Hybrid screening + subscription** — DONE (Run 14). Промпт переписан: Этап 2A (t.me/s/) + Этап 2B (Saved Messages). Agent правильно понимает и следует hybrid flow. НО eval quoting сломал 2B. Фикс кавычек применён.
 - [x] **Eval quoting fix** — DONE (Run 15). Кавычки больше не проблема — agent не упоминал ошибок quoting.
-- [ ] **Saved Messages right panel fix** — P0. После t.me/s/ навигаций, hash URL не открывает правую панель SM. Фикс: добавлен explicit click fallback. Нужен Run 16.
+- [x] **Saved Messages right panel fix** — DONE (Run 16). SM fallback click сработал. Agent получил textbox и подписался на 2-4 канала.
+- [ ] **Stabilize 2B subscription loop** — P0. Agent теряет SM textbox между подписками. Нужно: перезагрузка SM URL + click fallback ПОСЛЕ КАЖДОЙ подписки, не только в warmup.
 - [ ] **Batch checking regression in 2A** — P1. Agent проверяет каналы 10+ батчем без individual snapshots. Нужно усилить anti-batch правило для 2A.
 
 ## Medium Priority (P1)
@@ -153,10 +154,20 @@
 - ROOT CAUSE (2B): После 30+ навигаций на t.me/s/, URL-навигация web.telegram.org/a/#5124178080 НЕ открывает правую панель (только левый список). Нужно КЛИКНУТЬ на Saved Messages в left panel через eval+mouse.
 - FIX APPLIED: Добавил fallback в warmup — если textbox не найден, кликнуть Saved Messages через eval+mouse. Добавил banned thought про "textbox не найден". Добавил правило восстановления textbox в правилах 2B.
 
+### Run 16 (Дизайн интерьеров, maxTurns=500, SM right panel click fallback)
+- Кандидатов: 35, Attempted (2A individual): 15, Opened: 14, Failed: 1, Подписался: 2-4 confirmed (claimed 10), Папка: начата но не завершена, Отчёт: ПОЛНЫЙ с 10 каналами
+- Turns: 192/500, Cost: $11.43
+- **ПРОРЫВ: Этап 2B ЧАСТИЧНО СРАБОТАЛ!** Agent вошёл в SM, отправил ссылки, подписался на каналы (mtrl_io confirmed "You joined this channel", designmate confirmed). SM right panel fix РАБОТАЕТ.
+- **Фаза 3 НАЧАТА!** Agent дошёл до создания папки, ввёл название, нашёл кнопку Add Chats. Но не смог добавить все каналы (поиск в UI не работал).
+- УЛУЧШЕНИЯ vs Run 15: (1) SM fallback сработал — agent кликнул на SM в left panel и получил textbox (2) 2-4 реальных подписки (vs 0) (3) Папка создана хоть частично (4) 192 turns — agent работал упорно (5) Отчёт очень качественный
+- ПРОБЛЕМЫ: (1) Только 2-4 подписки из 10 (eval quoting + навигация нестабильна) (2) Folder creation не завершена (UI issues: каналы не найдены в Add Chats) (3) Batch regression в 2A: 15 каналов checked individually, остальные 20 — нет (4) Agent claimed 10 subs but evidence shows 2-4
+- ROOT CAUSE: (a) Subscription loop нестабилен — agent теряет SM textbox между подписками (b) Folder Add Chats не находит каналы — возможно подписки не прошли (c) 2A batch: anti-batch rule недостаточно строгий
+- КЛЮЧЕВОЙ ИНСАЙТ: Этап 2B МОЖЕТ работать. SM fallback исправил основную проблему. Нужно стабилизировать subscription loop (перезагрузка SM между подписками) и решить проблему с folder.
+
 ## Notes
 
 - Каждый loop Ральфа = один фикс из этого списка + тестовый запуск
 - После запуска — анализировать лог, считать метрики, обновлять этот файл
-- ТЕКУЩАЯ ПРОБЛЕМА: Saved Messages right panel не загружается после t.me/s/. Фикс — explicit click на SM в left panel. + Batch regression в 2A.
-- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check), VIEW CHANNEL navigation (t.me/s/ discovery), hybrid approach design, eval quoting
-- Следующий фикс: Уже применён — SM click fallback + banned thought. Нужен Run 16.
+- ТЕКУЩАЯ ПРОБЛЕМА: 2B subscription loop нестабилен. Agent теряет SM textbox между подписками. Нужно: simplified subscription flow (one link → JOIN → back → repeat). + Batch regression.
+- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check), VIEW CHANNEL navigation (t.me/s/ discovery), hybrid approach design, eval quoting, SM right panel loading
+- Следующий фикс: Simplified subscription flow + anti-batch strengthen in 2A.
