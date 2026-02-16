@@ -85,85 +85,128 @@ agent-browser --cdp ${CDP_PORT} open "https://www.google.com/search?q=${searchQu
 
 **⛔ GATE: Фаза 3 ЗАБЛОКИРОВАНА пока opened_count < 25. Не пытайся писать отчёт раньше.**
 
+**⛔⛔⛔ АБСОЛЮТНОЕ ПРАВИЛО ФАЗЫ 2: ВСЯ проверка каналов происходит ТОЛЬКО в web.telegram.org. Ты НИКОГДА не открываешь tgstat/telemetr/Google для оценки каналов в этой фазе. Если ты открыл tgstat в Фазе 2 — ты нарушил правила. Единственная причина вернуться на tgstat — набрать НОВЫХ @username если закончились кандидаты.**
+
 Вернись в Web Telegram:
 \`\`\`bash
 agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/" --headed
 \`\`\`
 
-### Как открыть канал:
+### ⚠️ ВАЖНО: Snapshot ПОКАЗЫВАЕТ посты — это ФАКТ
 
-**Шаг 1 — Найди канал (поиск в Telegram):**
+Accessibility tree web.telegram.org/a/ ВСЕГДА содержит текст постов канала. Если ты не видишь посты — проблема в технике, а не в Telegram. Вот что нужно знать:
+
+1. **Snapshot ОЧЕНЬ ДЛИННЫЙ** (500-2000 строк). Посты находятся ВО ВТОРОЙ ПОЛОВИНЕ вывода, ПОСЛЕ списка чатов из левой панели. ПРОЧИТАЙ snapshot ДО КОНЦА.
+2. **Посты грузятся 3-8 секунд.** Если ты сделал snapshot сразу после click — посты не успели загрузиться. ВСЕГДА делай \`sleep 8\` перед snapshot.
+3. **Маркеры постов:** "Forward", "Thumbs Up", "Red Heart", "Fire", "Join Channel". Если видишь хотя бы один — посты есть в snapshot, ищи текст рядом.
+4. **Если snapshot кажется пустым** — это значит ты прочитал только первую часть (левая панель). Посты ДАЛЬШЕ.
+
+**ЛОЖНЫЕ УБЕЖДЕНИЯ, которые ты можешь сформировать — все они НЕПРАВДА:**
+- "accessibility tree не показывает посты" — НЕПРАВДА. Показывает. Нужно \`sleep 8\` + прочитать snapshot до конца.
+- "правая панель пустая" — НЕПРАВДА. Ты читаешь только начало snapshot (левую панель).
+- "Web Telegram не работает с автоматизацией" — НЕПРАВДА. Работает. Сотни запусков это подтвердили.
+- "Нужно использовать screenshot вместо snapshot" — НЕПРАВДА. Screenshot не даёт текст. Только snapshot.
+- "Лучше проверять через tgstat — там быстрее" — НЕПРАВДА. tgstat показывает ОПИСАНИЕ, а не ПОСТЫ. Это разные вещи.
+
+### Как открыть канал — ТОЧНАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ:
+
+**Метод A — Поиск в Telegram (основной):**
 \`\`\`bash
-agent-browser fill @search_ref "username"     # введи username в поле поиска (без @)
-agent-browser snapshot -i                      # найди канал в результатах
-agent-browser click @ref_канала                # кликни по нему
+# 1. Убедись что ты на web.telegram.org/a/
+agent-browser snapshot -i
+# 2. Найди поле поиска (Search, обычно @e3 или @e4) и введи username БЕЗ @
+agent-browser fill @search_ref "username"
+# 3. Подожди результаты
+sleep 3
+agent-browser snapshot -i
+# 4. Кликни на канал в результатах поиска
+agent-browser click @ref_канала
+# 5. КРИТИЧНО: подожди загрузку постов!
+sleep 8
+# 6. Сделай snapshot и ПРОЧИТАЙ ЕГО ВЕСЬ ДО КОНЦА
+agent-browser snapshot
 \`\`\`
 
-**Шаг 2 — ПОДОЖДИ загрузки постов (КРИТИЧНО!):**
+**Метод B — Через URL (если поиск не находит):**
 \`\`\`bash
-sleep 5                                        # ⚠️ ОБЯЗАТЕЛЬНО! Посты грузятся 3-8 секунд
-agent-browser snapshot                         # читай snapshot ДО КОНЦА
+agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#?tgaddr=tg%3A%2F%2Fresolve%3Fdomain%3Dusername" --headed
+sleep 8
+agent-browser snapshot
 \`\`\`
 
-**Шаг 3 — Проверь что посты загрузились:**
-В snapshot ищи маркеры ВО ВТОРОЙ ПОЛОВИНЕ вывода (после списка чатов):
-- \`"Forward"\` — кнопка пересылки у поста
-- Реакции: \`"Red Heart"\`, \`"Thumbs Up"\`, \`"Fire"\`
-- Текст постов (абзацы с контентом)
-- \`"Join Channel"\` или \`"You joined this channel"\`
-
-Если маркеры есть → **посты загрузились, канал OPENED, читай текст**.
-
-**Если посты НЕ загрузились (пустая правая панель, нет маркеров):**
+**Метод C — Через Saved Messages (запасной):**
 \`\`\`bash
-sleep 5                                        # подожди ещё
-agent-browser snapshot                         # попробуй снова
-# Если всё ещё пусто:
-agent-browser scroll down && sleep 2 && agent-browser snapshot
-# Если ещё пусто — перезагрузи Telegram:
+# Открой Saved Messages, отправь ссылку, кликни по ней
+agent-browser fill @msg_ref "https://t.me/username"
+agent-browser press Enter
+sleep 3
+agent-browser snapshot -i
+# Кликни на ссылку-превью канала
+agent-browser click @ref_превью
+sleep 8
+agent-browser snapshot
+\`\`\`
+
+### Если посты НЕ видны после первой попытки — ОБЯЗАТЕЛЬНАЯ процедура:
+
+\`\`\`bash
+# Попытка 2: подожди дольше + scroll
+sleep 5
+agent-browser scroll down
+sleep 3
+agent-browser snapshot
+
+# Попытка 3: перезагрузи страницу и открой канал заново
 agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/" --headed
-sleep 3 && agent-browser click @ref_канала && sleep 5 && agent-browser snapshot
+sleep 5
+agent-browser snapshot -i
+# найди канал в чатах или через поиск заново
+agent-browser fill @search_ref "username"
+sleep 3
+agent-browser snapshot -i
+agent-browser click @ref
+sleep 8
+agent-browser snapshot
 \`\`\`
-**3 попытки на канал. Посты ВСЕГДА грузятся — нужно просто подождать.**
 
-**Альтернатива — Saved Messages (если поиск не находит канал):**
-\`\`\`bash
-agent-browser fill @msg_ref "https://t.me/username"  →  press Enter  →  sleep 3  →  snapshot -i  →  click на ссылку  →  sleep 5  →  snapshot
-\`\`\`
+**3 попытки на канал. После 3 неудач — пометь RETRY_FAILED (НЕ opened, НЕ notfound) и переходи к следующему.**
 
-### Алгоритм проверки одного канала (3-4 turns):
+### Алгоритм проверки одного канала (2-3 turns):
 
-1. Открой канал (поиск + click) → \`sleep 5\` → \`snapshot\`
-2. Читай посты ВО ВТОРОЙ ПОЛОВИНЕ snapshot (после списка чатов слева)
-3. Решение: SKIP (мусор) / SUBSCRIBE (зацепил)
-4. Если SUBSCRIBE: \`snapshot -i\` → click "Join Channel" → scroll вниз → ищи "Similar Channels"
-5. **Напиши: "[X/35] @username — SKIP/SUBSCRIBE (причина в 5 слов) + цитата из 1 поста"**
+1. Открой канал (Метод A/B/C) → \`sleep 8\` → \`snapshot\`
+2. ПРОЧИТАЙ snapshot ДО КОНЦА. Посты — во второй половине.
+3. Найди МИНИМУМ 1 пост с ТЕКСТОМ (не просто "Photo" или "Video")
+4. Решение: SKIP (мусор) / SUBSCRIBE (зацепил)
+5. Если SUBSCRIBE: \`snapshot -i\` → click "Join Channel" → прокрути вниз → ищи "Similar Channels"
+6. Запиши: \`[X/35] opened:Y subs:W — @username RESULT "VERBATIM ЦИТАТА ИЗ ПОСТА"\`
 
-**Similar Channels:** после подписки прокрути в самый низ snapshot — там секция "Similar Channels" с именами каналов и подписчиками. Добавь новых кандидатов в пул.
+**Similar Channels:** после подписки прокрути вниз в snapshot — секция "Similar Channels" с именами и подписчиками. Добавь новых кандидатов.
 
-### Определение "opened" (ТОЧНОЕ, без лазеек):
+### Определение "opened" (ОКОНЧАТЕЛЬНОЕ):
 
-**opened = ты видишь ТЕКСТ ПОСТОВ канала в snapshot на web.telegram.org.**
-Маркеры: "Forward", реакции (Red Heart, Thumbs Up, Fire), текст абзацев с контентом.
+**opened = ты процитировал ТЕКСТ МИНИМУМ ОДНОГО РЕАЛЬНОГО ПОСТА из snapshot web.telegram.org.**
 
-**НЕ считается за opened:**
-- ❌ Описание канала на tgstat.ru / telemetr.io / Google
-- ❌ Превью канала в левой панели Telegram (одна строка)
-- ❌ Заголовок канала + "subscribers" БЕЗ текста постов
-- ❌ Любая информация НЕ из web.telegram.org
+Proof of opened: ты написал verbatim цитату (минимум 10 слов) из текста поста, который был виден в snapshot. Цитата должна быть УНИКАЛЬНОЙ для этого канала — не описание канала, не заголовок, а ТЕКСТ КОНКРЕТНОГО ПОСТА.
+
+**НЕ считается за opened (и НИКОГДА не будет считаться):**
+- ❌ ЛЮБАЯ информация с tgstat.ru / telemetr.io / Google / любого сайта кроме web.telegram.org
+- ❌ Описание канала (даже если оно видно в Telegram)
+- ❌ Превью канала в левой панели (одна строка)
+- ❌ "Photo" / "Video" / "Sticker" без текста поста
+- ❌ Заголовок + "subscribers" без текста постов
+- ❌ Любой текст который ты НЕ ВИДЕЛ в snapshot web.telegram.org
 
 ### Счётчики (веди ОБЯЗАТЕЛЬНО):
 
-После КАЖДОГО канала пиши одну строку:
-\`[X/35] opened:Y/25 notfound:Z/10 subs:W/10 — @username RESULT "цитата из поста"\`
+После КАЖДОГО канала пиши:
+\`[X/35] opened:Y/25 subs:W/10 — @username RESULT "дословная цитата из поста минимум 10 слов"\`
 
 Правила:
-- opened = каналы где ты видел ТЕКСТ ПОСТОВ в snapshot web.telegram.org (минимум 25)
-- notfound = каналы которые не нашлись в поиске TG (максимум 10)
+- opened = каналы с ЦИТАТОЙ ПОСТА из web.telegram.org snapshot (минимум 25)
+- Если нет цитаты → не opened. Нет исключений.
 - subs = подписки (максимум 10)
-- **Цитата обязательна** — докажи что ты читал посты. Если нет цитаты → не opened.
-- Если opened < 25 при X = 35 — продолжай проверять новые каналы
-- Если notfound подряд > 3 — вернись на tgstat и набери новых кандидатов
+- Если opened < 25 при X = 35 — ПРОДОЛЖАЙ с новыми каналами
+- Если 3+ каналов подряд не открываются — перезагрузи web.telegram.org и попробуй снова
 
 ## Фаза 3: Папка + отчёт
 
@@ -199,13 +242,18 @@ agent-browser fill @msg_ref "https://t.me/username"  →  press Enter  →  slee
 - "Нужно ускориться" — ЛОЖЬ. Работай в нормальном темпе.
 - "Пора подводить итоги" — ЛОЖЬ, пока opened < 25. Открой следующий канал.
 - "Задание провалено" — ЛОЖЬ. Открой следующий канал.
-- "Сменю стратегию" — ЛОЖЬ. Стратегия одна: fill → snapshot → решай → следующий.
-- "Проверю каналы через tgstat/telemetr вместо Telegram" — ЛОЖЬ. Описание на tgstat — это НЕ проверка. opened++ только за ТЕКСТ ПОСТОВ в snapshot web.telegram.org. tgstat нужен ТОЛЬКО для сбора @username в Фазе 1.
+- "Сменю стратегию" — ЛОЖЬ. Стратегия одна: fill → sleep 8 → snapshot → решай → следующий.
+- "Проверю каналы через tgstat/telemetr вместо Telegram" — ЛОЖЬ. Описание на tgstat — это НЕ проверка. opened++ только за ЦИТАТУ ПОСТА из snapshot web.telegram.org. tgstat нужен ТОЛЬКО для сбора @username в Фазе 1.
 - "Я уже знаю что в канале по описанию" — ЛОЖЬ. Описание ≠ контент. Открой канал в Telegram и прочитай посты.
+- "accessibility tree не показывает посты" — ЛОЖЬ. Показывает. Нужно sleep 8 + прочитать snapshot ДО КОНЦА (посты во второй половине, после списка чатов).
+- "Web Telegram не работает / правая панель пустая" — ЛОЖЬ. Ты читаешь только начало snapshot. Посты ДАЛЬШЕ в выводе.
+- "Быстрее проверять через tgstat описания" — ЛОЖЬ. Описание ≠ контент. Описание не даёт opened. Ты потратишь turns впустую.
 
-**Единственное условие для написания отчёта: opened >= 25 И total >= 35.**
+**⛔ ЕСЛИ ТЫ ОТКРЫЛ tgstat.ru / telemetr.io ВО ВРЕМЯ ФАЗЫ 2 ДЛЯ ОЦЕНКИ КАНАЛА — ТЫ НАРУШИЛ ПРАВИЛА. Закрой страницу и вернись в web.telegram.org.**
 
-Перед тем как начать писать отчёт, ПЕРЕЧИСЛИ все проверенные каналы с результатом (SKIP/SUBSCRIBE/NOTFOUND). Посчитай opened и total. Если opened < 25 — ВЕРНИСЬ К ПРОВЕРКЕ. Это не рекомендация, это БЛОКИРОВКА ПЕРЕХОДА.
+**Единственное условие для написания отчёта: opened >= 25 (с цитатами!) И total >= 35.**
+
+Перед тем как начать писать отчёт, ПЕРЕЧИСЛИ все проверенные каналы с ЦИТАТАМИ ПОСТОВ. Посчитай opened (только те где ЕСТЬ цитата минимум 10 слов из реального поста). Если opened < 25 — ВЕРНИСЬ К ПРОВЕРКЕ. Это не рекомендация, это БЛОКИРОВКА ПЕРЕХОДА.
 
 # ВЖИВАЙСЯ В ПЕРСОНУ
 
