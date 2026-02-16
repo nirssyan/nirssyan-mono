@@ -11,7 +11,9 @@
 - [x] **Anti-premature-report** — DONE (Run 12). GATE CHECK РАБОТАЕТ — agent НЕ написал преждевременный отчёт с 2 opened каналами. Добавлены English-language blocks и "acceleration trap" detector.
 - [x] **Fix VIEW CHANNEL navigation** — DONE (Run 13). Agent обнаружил t.me/s/USERNAME метод — 100% success rate. Но НЕ подписывается реально. Нужен гибридный подход.
 - [x] **Hybrid screening + subscription** — DONE (Run 14). Промпт переписан: Этап 2A (t.me/s/) + Этап 2B (Saved Messages). Agent правильно понимает и следует hybrid flow. НО eval quoting сломал 2B. Фикс кавычек применён.
-- [ ] **Eval quoting fix** — P0. Все eval команды переписаны на одинарные кавычки снаружи (bash) + двойные внутри (JS). Добавлена документация. Нужен тестовый запуск Run 15.
+- [x] **Eval quoting fix** — DONE (Run 15). Кавычки больше не проблема — agent не упоминал ошибок quoting.
+- [ ] **Saved Messages right panel fix** — P0. После t.me/s/ навигаций, hash URL не открывает правую панель SM. Фикс: добавлен explicit click fallback. Нужен Run 16.
+- [ ] **Batch checking regression in 2A** — P1. Agent проверяет каналы 10+ батчем без individual snapshots. Нужно усилить anti-batch правило для 2A.
 
 ## Medium Priority (P1)
 
@@ -141,10 +143,20 @@
 - ROOT CAUSE: **Кавычки в eval!** Все примеры в промпте используют `agent-browser eval "...JS с '...'..."` — при копировании agent получает ошибки bash quoting. Фикс: переписать ВСЕ eval команды на `agent-browser eval '...JS с "..."...'` (одинарные снаружи, двойные внутри).
 - КЛЮЧЕВОЙ ИНСАЙТ: Гибридный подход ПРАВИЛЬНЫЙ, agent его понимает и следует. Единственная проблема — техническая (bash quoting). Фикс кавычек должен разблокировать 2B полностью.
 
+### Run 15 (Дизайн интерьеров, maxTurns=500, eval quoting fix)
+- Кандидатов: 42, Attempted (2A): 42, Opened (individual): 9, Opened (batch claimed): 40, Failed: 2, Подписался: 0, Папка: НЕТ, Отчёт: ПОЛНЫЙ
+- Turns: 91/500, Cost: $5.84
+- **Этап 2A = ПРОРЫВ по охвату:** 42 кандидата собрано (vs 18 в Run 14), SHORTLIST из 15 каналов составлен
+- **Этап 2B = ПРОВАЛ (другой root cause чем Run 14):** Agent открыл web.telegram.org но НЕ СМОГ найти textbox — правая панель не загрузилась. Потратил ~15 turns на борьбу.
+- УЛУЧШЕНИЯ vs Run 14: (1) 42 кандидатов vs 18 (2) Кавычки НЕ были проблемой (agent нигде не упомянул ошибки кавычек) (3) Agent правильно следует hybrid flow (4) Полный отчёт с 10 каналами + цитатами
+- ПРОБЛЕМЫ: (1) BATCH РЕГРЕССИЯ: каналы 10-42 проверены "группами" без individual snapshots. Нет цитат для каналов 10-42. (2) Saved Messages right panel не загрузилась после t.me/s/ URLs — hash URL (#5124178080) не открывает чат, нужно кликнуть в left panel (3) Agent не знает как кликнуть на Saved Messages в left panel
+- ROOT CAUSE (2B): После 30+ навигаций на t.me/s/, URL-навигация web.telegram.org/a/#5124178080 НЕ открывает правую панель (только левый список). Нужно КЛИКНУТЬ на Saved Messages в left panel через eval+mouse.
+- FIX APPLIED: Добавил fallback в warmup — если textbox не найден, кликнуть Saved Messages через eval+mouse. Добавил banned thought про "textbox не найден". Добавил правило восстановления textbox в правилах 2B.
+
 ## Notes
 
 - Каждый loop Ральфа = один фикс из этого списка + тестовый запуск
 - После запуска — анализировать лог, считать метрики, обновлять этот файл
-- ТЕКУЩАЯ ПРОБЛЕМА: eval quoting в bash. Переписал ВСЕ eval на одинарные кавычки снаружи + двойные внутри. Добавил документацию про кавычки в промпт.
-- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check), VIEW CHANNEL navigation (t.me/s/ discovery), hybrid approach design
-- Следующий фикс: Уже применён — eval quoting fix (single quotes outside, double inside). Нужен тестовый запуск Run 15.
+- ТЕКУЩАЯ ПРОБЛЕМА: Saved Messages right panel не загружается после t.me/s/. Фикс — explicit click на SM в left panel. + Batch regression в 2A.
+- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check), VIEW CHANNEL navigation (t.me/s/ discovery), hybrid approach design, eval quoting
+- Следующий фикс: Уже применён — SM click fallback + banned thought. Нужен Run 16.

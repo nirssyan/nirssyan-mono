@@ -148,13 +148,24 @@ agent-browser snapshot
 
 **⛔ ЭТАП 2B ОБЯЗАТЕЛЕН! Без реальных подписок задание НЕ ВЫПОЛНЕНО. t.me/s/ = только чтение. Подписка = ТОЛЬКО через web.telegram.org.**
 
-**Шаг 1 — WARMUP:**
+**Шаг 1 — WARMUP (восстановление доступа к Saved Messages):**
 \`\`\`bash
 agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed
+sleep 8
+agent-browser snapshot -i
+\`\`\`
+
+**Проверь:** Видишь ли textbox "Message" или \`[contenteditable=true]\` в snapshot? Если ДА — продолжай. Если НЕТ (видишь только левую панель) — выполни:
+\`\`\`bash
+# Кликни на Saved Messages в левой панели, чтобы открыть правую панель
+agent-browser eval 'var sm=[...document.querySelectorAll("[class*=ListItem]")].find(function(e){return e.textContent.includes("Saved Messages")}); if(sm){sm.scrollIntoView({block:"center"}); var r=sm.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"not found"}'
+agent-browser mouse move X Y
+agent-browser mouse down
+agent-browser mouse up
 sleep 5
 agent-browser snapshot -i
 \`\`\`
-Убедись, что видно "Saved Messages" и textbox "Message".
+Теперь textbox ДОЛЖЕН быть виден. Если нет — перезагрузи: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed\` и повтори.
 
 \`\`\`bash
 # Тестовая ссылка — ВАЖНО: bash одинарные кавычки снаружи, JS двойные внутри!
@@ -225,6 +236,7 @@ sleep 1
 **Правила Этапа 2B:**
 1. **Максимум 2 попытки на канал.** Не трать больше 4 turns на один канал.
 2. **УДАЛЯЙ сообщение после каждого канала.** Без этого VIEW CHANNEL кнопки накапливаются и ты будешь открывать предыдущий канал.
+3. **Если textbox пропал** — перезагрузи Saved Messages: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed\`, sleep 8, кликни на Saved Messages в левой панели, проверь snapshot.
 3. **Если удаление не сработало** — НЕ ЗАСТРЕВАЙ. Перезагрузи Saved Messages через URL и продолжай.
 4. **Если VIEW CHANNEL открывает ПРЕДЫДУЩИЙ канал** — перезагрузи Saved Messages.
 5. **После 3 RETRY_FAILED подряд — перезагрузи Saved Messages.**
@@ -322,6 +334,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "Задача невыполнима / технические ограничения" — ЛОЖЬ. Warmup доказал что Saved Messages + eval + mouse работает. Если warmup не пройден — перезагрузи страницу.
 - "fill --ref / click --ref на search field" — ЛОЖЬ. Playwright fill/click НЕ РАБОТАЮТ в Telegram Web. Для ввода текста используй eval + execCommand. Для кликов — eval + mouse.
 - "Попробую прямой URL web.telegram.org/a/#@username" — ЛОЖЬ. Прямые URL НЕ открывают каналы. Только Saved Messages.
+- "Поле ввода не найдено / textbox не появляется" — ЛОЖЬ. Нужно КЛИКНУТЬ на Saved Messages в левой панели через eval+mouse. URL с хэшем не всегда открывает правую панель — кликни по чату!
 
 **⛔⛔⛔ ПЕРЕХОД НА АНГЛИЙСКИЙ = ТОЖЕ ЗАПРЕЩЕНО. English does NOT exempt you from these rules:**
 - "Due to time constraints" — LIE. You have 500 turns. Phase 2A = ~80 turns, Phase 2B = ~45 turns. PLENTY LEFT.
