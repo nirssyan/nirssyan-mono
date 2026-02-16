@@ -148,7 +148,7 @@ agent-browser snapshot
 
 **⛔ ЭТАП 2B ОБЯЗАТЕЛЕН! Без реальных подписок задание НЕ ВЫПОЛНЕНО. t.me/s/ = только чтение. Подписка = ТОЛЬКО через web.telegram.org.**
 
-**Шаг 1 — WARMUP (восстановление доступа к Saved Messages):**
+**Шаг 1 — WARMUP (восстановление доступа к Saved Messages + очистка):**
 \`\`\`bash
 agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed
 sleep 8
@@ -167,12 +167,44 @@ agent-browser snapshot -i
 \`\`\`
 Теперь textbox ДОЛЖЕН быть виден. Если нет — перезагрузи: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed\` и повтори.
 
+**⛔ ОЧИСТКА СТАРЫХ СООБЩЕНИЙ (ОБЯЗАТЕЛЬНО перед подписками):**
+В Saved Messages могут быть старые VIEW CHANNEL кнопки от предыдущих сессий. Они ЛОМАЮТ подписку — кликаешь не на тот канал. УДАЛИ ВСЕ СООБЩЕНИЯ:
 \`\`\`bash
-# Тестовая ссылка — ВАЖНО: bash одинарные кавычки снаружи, JS двойные внутри!
+# Проверь есть ли сообщения
+agent-browser eval 'var msgs=document.querySelectorAll(".Message"); msgs.length'
+# Если > 0, удали ВСЕ: Ctrl+A → Delete
+agent-browser eval 'var msgs=[...document.querySelectorAll(".Message")]; if(msgs.length>0){var first=msgs[0]; first.scrollIntoView({block:"center"}); var r=first.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no messages"}'
+# Кликни на первое сообщение
+agent-browser mouse move X Y
+agent-browser mouse down
+agent-browser mouse up
+sleep 1
+# Выдели все: Ctrl+A (select all messages)
+agent-browser eval 'document.dispatchEvent(new KeyboardEvent("keydown",{key:"a",ctrlKey:true,bubbles:true}))'
+sleep 1
+# Нажми Delete
+agent-browser press Delete
+sleep 2
+# Подтверди удаление (кнопка "Delete" в диалоге)
+agent-browser eval 'var btn=[...document.querySelectorAll("button")].find(function(b){return b.textContent.trim()==="Delete"}); if(btn){var r=btn.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no confirm"}'
+agent-browser mouse move X Y
+agent-browser mouse down
+agent-browser mouse up
+sleep 2
+agent-browser snapshot -i
+\`\`\`
+**Если Ctrl+A не сработал** (сообщения ещё видны) — не застревай. Просто продолжай дальше, но помни: при поиске VIEW CHANNEL **обязательно прокрути чат В САМЫЙ НИЗ** чтобы видеть только НОВОЕ сообщение.
+
+**Тестовая ссылка (warmup):**
+\`\`\`bash
+# ВАЖНО: bash одинарные кавычки снаружи, JS двойные внутри!
 agent-browser eval 'var i=document.querySelector("[contenteditable=true]"); i.focus(); i.textContent=""; document.execCommand("insertText",false,"https://t.me/telegram"); "ok"'
 sleep 1
 agent-browser press Enter
 sleep 5
+# ОБЯЗАТЕЛЬНО: прокрути чат В САМЫЙ НИЗ, чтобы новая VIEW CHANNEL кнопка была видна
+agent-browser eval 'var c=document.querySelector(".messages-container"); if(c){c.scrollTop=c.scrollHeight; "scrolled"}else{"no container"}'
+sleep 2
 agent-browser eval 'var b=[...document.querySelectorAll("button")].filter(function(b){return b.textContent.trim()==="VIEW CHANNEL"}); var l=b[b.length-1]; if(!l){"no button"}else{l.scrollIntoView({block:"center"}); var r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}'
 agent-browser mouse move X Y
 agent-browser mouse down
@@ -204,7 +236,9 @@ sleep 1
 agent-browser press Enter
 sleep 5
 
-# ШАГ 2: Клик VIEW CHANNEL (ищем последнюю кнопку)
+# ШАГ 2: Прокрути вниз + клик VIEW CHANNEL
+agent-browser eval 'var c=document.querySelector(".messages-container"); if(c){c.scrollTop=c.scrollHeight; "scrolled"}else{"no container"}'
+sleep 2
 agent-browser eval 'var b=[...document.querySelectorAll("button")].filter(function(b){return b.textContent.trim()==="VIEW CHANNEL"}); var l=b[b.length-1]; if(!l){JSON.stringify({error:"no button",count:0})}else{l.scrollIntoView({block:"center"}); var r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),count:b.length})}'
 agent-browser mouse move X Y
 agent-browser mouse down
@@ -341,6 +375,9 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "Объединю несколько подписок / подпишусь пачкой / batch subscribe" — ЛОЖЬ. ОДИН канал = 5 шагов = перезагрузка SM. Батчи ЛОМАЮТ textbox.
 - "Уже использовал X tokens, нужно ускориться в 2B" — ЛОЖЬ. 15 каналов × 5 шагов = 75 команд = ~45 turns. У тебя 500 turns. РЕСУРСОВ ДОСТАТОЧНО.
 - "Пропущу перезагрузку SM, всё работает нормально" — ЛОЖЬ. Без перезагрузки SM ломается на 2-3 канале. ПЕРЕЗАГРУЖАЙ КАЖДЫЙ РАЗ.
+- "Из-за технических ограничений / limitations agent-browser / web.telegram.org не работает" — ЛОЖЬ. В Run 16 подписки РАБОТАЛИ. Если одна попытка не сработала — перезагрузи SM и попробуй снова. НЕ СДАВАЙСЯ.
+- "Я уже выполнил главную задачу (нашёл каналы)" — ЛОЖЬ. Без подписок задание НЕ ВЫПОЛНЕНО. t.me/s/ = только чтение. Подписки = ОБЯЗАТЕЛЬНО.
+- "Честная оценка / honest assessment: подписки не работают" — ЛОЖЬ. Подписки работали в предыдущих запусках. Проблема решаемая. ПРОДОЛЖАЙ.
 
 **⛔⛔⛔ ПЕРЕХОД НА АНГЛИЙСКИЙ = ТОЖЕ ЗАПРЕЩЕНО. English does NOT exempt you from these rules:**
 - "Due to time constraints" — LIE. You have 500 turns. Phase 2A = ~80 turns, Phase 2B = ~75 turns. PLENTY LEFT.
@@ -353,6 +390,9 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "Let me provide/create a report" — LIE if unchecked candidates remain.
 - "Skip SM reload to save time" / "I'll batch the subscriptions" — LIE. SM reload after EACH channel = 2 commands. Skipping = textbox lost = 10+ turns wasted.
 - "Already used X tokens, need to speed up Phase 2B" — LIE. 15 channels × 5 steps = 75 commands = ~45 turns out of 500. PLENTY.
+- "Technical limitations of agent-browser / web.telegram.org doesn't work for subscriptions" — LIE. Subscriptions WORKED in previous runs. If one attempt fails, reload SM and try again. DO NOT GIVE UP.
+- "I've already done the main work (found channels)" — LIE. Without subscriptions the task is NOT COMPLETE. Keep trying.
+- "Honest assessment: subscriptions don't work" — LIE. They worked before. The problem is solvable. KEEP GOING.
 
 **⛔ ПОСЛЕ ТЕХНИЧЕСКОЙ ПРОБЛЕМЫ (reload, focus fail, textbox пропал) — СРАЗУ ПРОДОЛЖАЙ. НЕ размышляй, НЕ пиши "стратегию", НЕ переходи к отчёту. В Этапе 2A: открывай следующий t.me/s/USERNAME. В Этапе 2B: перезагрузи SM (ШАГ 4-5) и продолжай со следующего канала. СЛЕДУЮЩИЙ КАНАЛ.**
 
