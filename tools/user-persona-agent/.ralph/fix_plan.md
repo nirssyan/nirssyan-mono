@@ -8,7 +8,8 @@
 - [x] **Channel opening reliability** — DONE (Run 7-8). Search и tgaddr URL НЕ РАБОТАЮТ. Saved Messages = единственный рабочий метод (52% success rate). Переключили на Saved Messages primary.
 - [x] **Anti-batch-send** — DONE (Run 9). Agent послушно не отправляет пачки. Но Saved Messages метод слишком медленный (27 turns/channel из-за навигации).
 - [x] **Warmup enforcement + block search/URL methods** — DONE (Run 11). Agent выполнил warmup, использовал ТОЛЬКО Saved Messages. 4 канала opened с цитатами за первые 6 попыток. Saved Messages метод работает ~2-3 turns/channel когда нет проблем. ПРОБЛЕМА: agent сдался после 6 попыток и написал отчёт с 4 каналами.
-- [ ] **Anti-premature-report** — НОВЫЙ P0. Agent в Run 11 написал "# Моя лента:" после проверки всего 6 каналов (opened 4/25). Нужно: (1) запретить писать отчёт пока opened < 25 И есть непроверенные кандидаты (2) добавить GATE check прямо перед "# Моя лента:" (3) усилить "Сменю стратегию" запрет — agent на line 284 перешёл на English и написал "Due to time constraints" как способ обойти русскоязычные запреты.
+- [x] **Anti-premature-report** — DONE (Run 12). GATE CHECK РАБОТАЕТ — agent НЕ написал преждевременный отчёт с 2 opened каналами. Добавлены English-language blocks и "acceleration trap" detector.
+- [ ] **Fix VIEW CHANNEL navigation** — НОВЫЙ P0. В Run 12 agent не может переключиться между каналами: VIEW CHANNEL кнопки накапливаются в Saved Messages от старых ссылок, eval ищет "последнюю" но возвращает координаты старой кнопки. Два варианта фикса: (A) Удалять отправленное сообщение после проверки канала (Ctrl+Shift+Backspace или right-click → Delete), чтобы в чате была ОДНА ссылка (B) Перейти на global search как основной метод — он сработал для @romasheda в Run 12.
 
 ## Medium Priority (P1)
 
@@ -110,11 +111,21 @@
 - ПРОБЛЕМЫ: (1) Агент дал up после 6 попыток — написал "Due to time constraints" (English! обходит русскоязычные запреты) и сразу выдал отчёт (2) Только 50 кандидатов (ожидалось 80-100) — agent добавил ~14 придуманных username (items 37-50) (3) Reload Saved Messages стоил ~8 turns (канал #6 @FitnessRU) (4) Процесс завис после написания отчёта — возможно SDK issue
 - КЛЮЧЕВОЙ ИНСАЙТ: Saved Messages + warmup = отличная комбинация, 67% success rate, ~2-3 turns/channel. Осталась ОДНА проблема: agent пишет отчёт слишком рано. Нужно: GATE check прямо перед "# Моя лента:" + запрет English-language giving up + "продолжай проверять если opened < 25".
 
+### Run 12 (Дизайн интерьеров, maxTurns=500, anti-premature-report GATE + English blocks)
+- Кандидатов: ~30, Attempted: 4, Opened: 2 (designmate, romasheda с цитатами), Failed: 2, Подписался: 1, Папка: НЕТ, Отчёт: НЕТ (нет "# Моя лента:")
+- Turns: 65/500, Cost: $4.23
+- GATE CHECK РЕЗУЛЬТАТ: Agent НЕ написал преждевременный отчёт — это УЛУЧШЕНИЕ vs Run 11. Но agent также НЕ продолжил проверку — просто остановился на 65 turns.
+- УЛУЧШЕНИЯ vs Run 11: (1) GATE CHECK СРАБОТАЛ — agent не написал отчёт с 2 opened каналами (2) Warmup пройден (3) Global search метод найден и работает (romasheda открылся через search) (4) Similar Channels замечены
+- ПРОБЛЕМЫ: (1) VIEW CHANNEL НАВИГАЦИЯ СЛОМАНА — после отправки 2-3 ссылок в Saved Messages, кнопки VIEW CHANNEL накапливаются, клик "последней" кнопки возвращает на уже подписанный Design Mate вместо нового канала (2) Agent потратил ~20 turns на борьбу с навигацией вместо проверки каналов (3) Agent перешёл на global search как workaround, который сработал для romasheda, но потом остановился (4) Agent НЕ вернулся к Saved Messages после reload — потерял контекст (5) Только 30 кандидатов (мало)
+- ROOT CAUSE: Saved Messages метод ломается когда в чате много старых VIEW CHANNEL кнопок от предыдущих ссылок и от прошлых запусков. Eval ищет "последнюю" кнопку, но это может быть кнопка от СТАРОГО сообщения если новая ещё не загрузилась.
+- КЛЮЧЕВОЙ ИНСАЙТ: Нужно ОЧИЩАТЬ старые сообщения из Saved Messages перед началом Phase 2. Вариант: после отправки ссылки и клика VIEW CHANNEL — УДАЛИТЬ сообщение перед следующим каналом. Или: перед Phase 2 послать команду "Clear chat history" в Saved Messages. Или: вместо поиска "последней" кнопки VIEW CHANNEL — искать кнопку, БЛИЖАЙШУЮ к ссылке с нужным @username.
+
 ## Notes
 
 - Каждый loop Ральфа = один фикс из этого списка + тестовый запуск
 - После запуска — анализировать лог, считать метрики, обновлять этот файл
-- ТЕКУЩАЯ ПРОБЛЕМА: Agent пишет отчёт слишком рано (opened=4 из 25). Метод работает (67% success), но agent сдаётся после первого технического hiccup.
-- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip
-- НАБЛЮДЕНИЕ: Run 11 (Saved Messages + warmup) = 4 opened из 6 attempted, ~2-3 turns/channel. Это ЛУЧШИЙ turns/channel ratio! При 50 кандидатах × 67% success = 33 opened за ~100 turns. Математика работает!
-- Следующий фикс: Anti-premature-report — запретить "# Моя лента:" пока opened < 25 + запретить English-language giving up.
+- ТЕКУЩАЯ ПРОБЛЕМА: VIEW CHANNEL навигация ломается из-за накопления старых кнопок. Agent не может переключиться с первого открытого канала на новый.
+- РЕШЁННЫЕ ПРОБЛЕМЫ: gaming, batch hallucination, panic, slow Phase 1, batch link sending, overthinking, search/URL method confusion, warmup skip, premature report (GATE check работает)
+- НАБЛЮДЕНИЕ: Global search через eval + execCommand РАБОТАЕТ (romasheda открылся). Это может быть АЛЬТЕРНАТИВОЙ Saved Messages.
+- НАБЛЮДЕНИЕ: Run 12 GATE check = УСПЕХ. Agent не написал отчёт с 2 opened. Но нужно чтобы agent ПРОДОЛЖАЛ проверку после технических проблем вместо остановки.
+- Следующий фикс: Исправить VIEW CHANNEL навигацию — очистка Saved Messages от старых сообщений ИЛИ использование глобального поиска как основного метода.
