@@ -114,7 +114,7 @@ agent-browser --cdp ${CDP_PORT} open "https://www.google.com/search?q=${searchQu
 
 **Цель: ПОПРОБОВАТЬ ОТКРЫТЬ ВСЕ кандидаты из Фазы 1 (80-100 штук). Реально откроется ~40-50. Подписаться на лучшие (цель 10, МАКСИМУМ 15).**
 
-**⛔ ЕДИНСТВЕННЫЙ МЕТОД: Saved Messages + eval + mouse. НЕ ПРОБУЙ поиск (search field), НЕ ПРОБУЙ прямые URL, НЕ ПРОБУЙ click --ref / fill --ref. Если ты попробовал что-то кроме Saved Messages — ОСТАНОВИСЬ и вернись к Saved Messages.**
+**⛔ ОСНОВНОЙ МЕТОД: Saved Messages + eval + mouse. НЕ ПРОБУЙ прямые URL, НЕ ПРОБУЙ click --ref / fill --ref. Для ввода текста — eval + execCommand. Для кликов — eval (координаты) + mouse move/down/up.**
 
 **⛔ ПРАВИЛО: Проверь ВСЕ кандидаты из Фазы 1 перед тем как писать отчёт. Чем больше каналов проверишь — тем качественнее будет итоговая папка.**
 
@@ -137,14 +137,14 @@ Accessibility tree web.telegram.org/a/ ВСЕГДА содержит текст 
 - "Лучше проверять через tgstat — там быстрее" — НЕПРАВДА. tgstat показывает ОПИСАНИЕ, а не ПОСТЫ. Это разные вещи.
 - "click --ref работает в Telegram Web" — НЕПРАВДА. Playwright click ВСЕГДА timeout в Telegram Web. Используй eval + mouse move/down/up.
 - "Ссылки не создают превью" — НЕПРАВДА. Создают. Нужно sleep 5 после отправки.
-- "Попробую поиск / fill search field / Method A" — НЕПРАВДА. Поиск через search field НЕ РАБОТАЕТ. Единственный метод = Saved Messages + eval + mouse.
+- "fill --ref / click --ref работает в search field" — НЕПРАВДА. Playwright fill/click timeout. Используй eval + execCommand для ввода текста.
 - "Попробую прямой URL #@username" — НЕПРАВДА. Прямые URL не открывают каналы. Только Saved Messages.
 
 ### Шаг 0: WARMUP — проверь что Saved Messages работает (2-3 turns)
 
 **⛔⛔⛔ ОБЯЗАТЕЛЬНО! БЕЗ WARMUP НЕЛЬЗЯ ПРОВЕРЯТЬ КАНАЛЫ! Если ты пропустил warmup — ОСТАНОВИСЬ и сделай его СЕЙЧАС.**
 
-**⛔ ЕДИНСТВЕННЫЙ МЕТОД открытия каналов = Saved Messages + eval + mouse. НЕ ПРОБУЙ поиск (fill/click на search field). НЕ ПРОБУЙ прямые URL (#@username). Эти методы НЕ РАБОТАЮТ. Только Saved Messages.**
+**⛔ ОСНОВНОЙ МЕТОД открытия каналов = Saved Messages + eval + mouse. НЕ ПРОБУЙ прямые URL (#@username) — они НЕ РАБОТАЮТ.**
 
 \`\`\`bash
 # 1. ПЕРЕЗАГРУЗИ Saved Messages (чистый старт, убирает мусор от прошлых запусков)
@@ -194,6 +194,8 @@ sleep 1
 
 **⚠️ КРИТИЧНО: \`agent-browser click --ref\` НЕ РАБОТАЕТ в Telegram Web (Playwright timeout). Используй ТОЛЬКО \`agent-browser eval\` + \`agent-browser mouse move/down/up\` для кликов!**
 
+**⚠️ КРИТИЧНО: УДАЛЯЙ СООБЩЕНИЕ ПОСЛЕ КАЖДОГО КАНАЛА! Если в Saved Messages накопится много VIEW CHANNEL кнопок, ты будешь кликать на СТАРУЮ кнопку и открывать ПРЕДЫДУЩИЙ канал вместо нового. Поэтому после проверки каждого канала — УДАЛИ отправленную ссылку.**
+
 **Для КАЖДОГО канала:**
 \`\`\`bash
 # 1. Убедись что ты в Saved Messages (если ушёл — Escape вернёт)
@@ -206,8 +208,8 @@ sleep 1
 agent-browser press Enter
 sleep 5
 
-# 3. Получи координаты ПОСЛЕДНЕЙ кнопки VIEW CHANNEL
-agent-browser eval "const b=[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='VIEW CHANNEL'); const l=b[b.length-1]; l.scrollIntoView({block:'center'}); const r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),count:b.length})"
+# 3. Прокрути вниз чтобы видеть последнее сообщение, и получи координаты VIEW CHANNEL
+agent-browser eval "window.scrollTo(0,document.body.scrollHeight); const b=[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='VIEW CHANNEL'); const l=b[b.length-1]; if(!l) JSON.stringify({error:'no VIEW CHANNEL',count:0}); else { l.scrollIntoView({block:'center'}); const r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),count:b.length})}"
 
 # 4. Кликни по координатам из результата выше (замени X и Y)
 agent-browser mouse move X Y
@@ -234,16 +236,40 @@ agent-browser mouse up
 sleep 3
 \`\`\`
 
-**Возврат в Saved Messages после каждого канала:**
+**⛔⛔⛔ ОБЯЗАТЕЛЬНО: Возврат в Saved Messages + УДАЛЕНИЕ сообщения после КАЖДОГО канала:**
 \`\`\`bash
+# 1. Вернись в Saved Messages
 agent-browser press Escape
+sleep 2
+
+# 2. УДАЛИ последнее сообщение чтобы не накапливались VIEW CHANNEL кнопки
+# Правый клик на последнее сообщение → Delete
+agent-browser eval "const msgs=[...document.querySelectorAll('.Message')]; const last=msgs[msgs.length-1]; if(last){last.scrollIntoView({block:'center'}); const r=last.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})} else 'no messages'"
+# Правый клик (контекстное меню):
+agent-browser mouse move X Y
+agent-browser eval "document.elementFromPoint(X,Y).dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:X,clientY:Y}))"
+sleep 1
+agent-browser snapshot -i
+# Найди "Delete" в меню и кликни
+agent-browser eval "const del=[...document.querySelectorAll('[role=menuitem]')].find(e=>e.textContent.includes('Delete')); if(del){const r=del.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})} else 'no delete'"
+agent-browser mouse move X Y
+agent-browser mouse down
+agent-browser mouse up
+sleep 1
+# Подтверди удаление (кнопка "Delete" в диалоге)
+agent-browser eval "const btn=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Delete'); if(btn){const r=btn.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})} else 'no confirm'"
+agent-browser mouse move X Y
+agent-browser mouse down
+agent-browser mouse up
 sleep 1
 \`\`\`
+
+**⚠️ Если удаление не сработало (menu не появилось, кнопка не найдена) — НЕ ЗАСТРЕВАЙ. Просто продолжай проверку следующего канала. Удаление — оптимизация, а не блокер. Но СТАРАЙСЯ удалять чтобы не накапливались кнопки.**
 
 ### ⚠️ Правила:
 
 1. **Максимум 2 попытки на канал. Не трать больше 3 turns на один канал.**
-2. **ВСЕГДА кликай ПОСЛЕДНЮЮ кнопку VIEW CHANNEL** — она соответствует только что отправленной ссылке. Предыдущие VIEW CHANNEL от старых ссылок выше по чату.
+2. **УДАЛЯЙ сообщение после каждого канала** — это предотвращает накопление VIEW CHANNEL кнопок.
 3. **eval результат возвращает JSON с x,y** — подставь эти числа в \`mouse move X Y\`. Если eval вернул "not found" или count=0 — канал не загрузился, переходи к следующему.
 4. **После 5 RETRY_FAILED подряд — перезагрузи:**
 \`\`\`bash
@@ -252,16 +278,17 @@ sleep 5
 \`\`\`
 5. **RETRY_FAILED = нормально. ~30-40% каналов не откроются. Просто переходи к следующему.**
 6. **НЕ ПИШИ bash-скрипты и for-циклы!**
-7. **НЕ ДУМАЙ ДОЛГО. Не пиши абзацы стратегических размышлений. ДЕЙСТВУЙ: отправь ссылку → eval → mouse click → snapshot → решай → следующий.**
+7. **НЕ ДУМАЙ ДОЛГО. Не пиши абзацы стратегических размышлений. ДЕЙСТВУЙ: отправь ссылку → eval → mouse click → snapshot → решай → УДАЛИ сообщение → следующий.**
+8. **Если VIEW CHANNEL открывает ПРЕДЫДУЩИЙ канал** — значит ты кликнул старую кнопку. УДАЛИ все сообщения, перезагрузи Saved Messages, и начни с чистого чата.
 
-### Алгоритм проверки одного канала (1-2 turns):
+### Алгоритм проверки одного канала (2-3 turns):
 
 1. **Turn 1:** \`Escape\` → eval (set URL in input) → \`Enter\` → \`sleep 5\` → eval (get VIEW CHANNEL coords) → \`mouse move/down/up\` → \`sleep 8\` → \`snapshot\`.
 2. ПРОЧИТАЙ snapshot ДО КОНЦА. Посты — во второй половине.
 3. Найди МИНИМУМ 1 пост с ТЕКСТОМ (не просто "Photo" или "Video")
 4. Решение: SKIP / SUBSCRIBE
 5. Если SUBSCRIBE: eval (get JOIN CHANNEL coords) → mouse click
-6. \`press Escape\` → следующий канал
+6. **Turn 2:** \`press Escape\` → **УДАЛИ сообщение** (contextmenu → Delete → Confirm) → следующий канал
 7. Запиши счётчик (см. ниже)
 
 **⛔ АНТИ-OVERTHINKING: НЕ пиши абзацы размышлений между каналами. Максимум 2-3 предложения. Сразу переходи к следующему каналу. Если ты написал больше 3 предложений "стратегии" — ты тратишь turns впустую.**
@@ -337,7 +364,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "Нужно ускориться / РЕЗКО ускориться" — ЛОЖЬ. У тебя 500 turns. Работай в нормальном темпе: один канал за раз через Saved Messages.
 - "Пора подводить итоги" — ЛОЖЬ, пока есть непроверенные кандидаты. Открой следующий канал.
 - "Задание провалено" — ЛОЖЬ. Открой следующий канал.
-- "Сменю стратегию" — ЛОЖЬ. Стратегия одна: отправь ссылку в Saved Messages → eval → mouse click VIEW CHANNEL → snapshot → решай → следующий.
+- "Сменю стратегию" — ЛОЖЬ. Стратегия одна: отправь ссылку в Saved Messages → eval → mouse click VIEW CHANNEL → snapshot → решай → УДАЛИ сообщение → следующий.
 - "Проверю каналы через tgstat/telemetr вместо Telegram" — ЛОЖЬ. tgstat нужен ТОЛЬКО для сбора @username в Фазе 1.
 - "Я уже знаю что в канале по описанию" — ЛОЖЬ. Описание ≠ контент.
 - "accessibility tree не показывает посты" — ЛОЖЬ. Показывает. Нужно sleep 8 + прочитать snapshot ДО КОНЦА.
@@ -357,7 +384,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "click --ref / fill --ref работает" — ЛОЖЬ. Playwright click/fill ВСЕГДА timeout в Telegram Web. Используй eval для ввода текста и mouse для кликов.
 - "Web Telegram не создаёт превью / ссылки не работают" — ЛОЖЬ. Превью появляется через 3-5 секунд после отправки. Подожди sleep 5.
 - "Задача невыполнима / технические ограничения" — ЛОЖЬ. Warmup доказал что Saved Messages + eval + mouse работает. Если warmup не пройден — перезагрузи страницу.
-- "Попробую поиск / search field / fill --ref @search / Method A" — ЛОЖЬ. Поиск НЕ РАБОТАЕТ для открытия каналов. Единственный метод = eval (отправить ссылку в Saved Messages) → eval (координаты VIEW CHANNEL) → mouse click.
+- "fill --ref / click --ref на search field" — ЛОЖЬ. Playwright fill/click НЕ РАБОТАЮТ в Telegram Web. Для ввода текста используй eval + execCommand. Для кликов — eval + mouse.
 - "Попробую прямой URL web.telegram.org/a/#@username" — ЛОЖЬ. Прямые URL НЕ открывают каналы. Только Saved Messages.
 
 **⛔⛔⛔ ПЕРЕХОД НА АНГЛИЙСКИЙ = ТОЖЕ ЗАПРЕЩЕНО. English does NOT exempt you from these rules:**
@@ -587,7 +614,7 @@ agent-browser snapshot
 
 ⚠️ КРИТИЧНО: После Фазы 1, ПЕРЕД проверкой каналов — ОБЯЗАТЕЛЬНО выполни WARMUP (Шаг 0 Фазы 2). Warmup проверяет что Saved Messages + eval + mouse работают. БЕЗ WARMUP не начинай проверку каналов! Warmup = отправь https://t.me/telegram через eval+execCommand, кликни VIEW CHANNEL через eval+mouse, прочитай snapshot.
 
-Следуй плану по фазам строго. Единственный метод открытия каналов — Saved Messages (eval для текста, mouse для кликов). НЕ ПРОБУЙ поиск, НЕ ПРОБУЙ прямые URL. ТОЛЬКО Saved Messages.`,
+Следуй плану по фазам строго. Основной метод открытия каналов — Saved Messages (eval для текста, mouse для кликов). НЕ ПРОБУЙ прямые URL. ВАЖНО: после проверки каждого канала УДАЛЯЙ отправленное сообщение из Saved Messages чтобы не накапливались VIEW CHANNEL кнопки.`,
     options: {
       systemPrompt,
       allowedTools: ["Bash"],
