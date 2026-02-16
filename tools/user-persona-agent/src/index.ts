@@ -194,53 +194,55 @@ agent-browser eval 'document.querySelector("[contenteditable=true]").focus()'
 
 **⚠️ КРИТИЧНО: \`agent-browser click --ref\` НЕ РАБОТАЕТ в Telegram Web. Используй ТОЛЬКО eval + mouse.**
 
+**⛔ КАЖДЫЙ канал = 5 шагов. Нельзя пропускать ни один шаг. Нельзя объединять каналы. ОДИН канал → ВСЕ 5 шагов → СЛЕДУЮЩИЙ канал.**
+
 Для КАЖДОГО канала из shortlist (замени USERNAME на реальный):
 \`\`\`bash
-# 1. Escape → отправь ссылку (ОДИНАРНЫЕ кавычки снаружи!)
-agent-browser press Escape
-sleep 1
+# ШАГ 1: Отправь ссылку (ОДИНАРНЫЕ кавычки снаружи!)
 agent-browser eval 'var i=document.querySelector("[contenteditable=true]"); i.focus(); i.textContent=""; document.execCommand("insertText",false,"https://t.me/USERNAME"); "ok"'
 sleep 1
 agent-browser press Enter
 sleep 5
 
-# 2. Клик VIEW CHANNEL (ищем последнюю кнопку)
+# ШАГ 2: Клик VIEW CHANNEL (ищем последнюю кнопку)
 agent-browser eval 'var b=[...document.querySelectorAll("button")].filter(function(b){return b.textContent.trim()==="VIEW CHANNEL"}); var l=b[b.length-1]; if(!l){JSON.stringify({error:"no button",count:0})}else{l.scrollIntoView({block:"center"}); var r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),count:b.length})}'
 agent-browser mouse move X Y
 agent-browser mouse down
 agent-browser mouse up
 sleep 5
 
-# 3. Клик JOIN CHANNEL
-agent-browser eval 'var b=[...document.querySelectorAll("button")].filter(function(b){return b.textContent.includes("JOIN")||b.textContent.includes("Join")}); var l=b[0]; if(l){l.scrollIntoView({block:"center"}); var r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"not found"}'
+# ШАГ 3: Клик JOIN CHANNEL (если есть — подпишись, если "not found" — уже подписан)
+agent-browser eval 'var b=[...document.querySelectorAll("button")].filter(function(b){return b.textContent.includes("JOIN")||b.textContent.includes("Join")}); var l=b[0]; if(l){l.scrollIntoView({block:"center"}); var r=l.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"already joined"}'
+# Если координаты — кликни. Если "already joined" — пропусти клик.
 agent-browser mouse move X Y
 agent-browser mouse down
 agent-browser mouse up
 sleep 2
 
-# 4. УДАЛИ сообщение (ОБЯЗАТЕЛЬНО!)
-agent-browser press Escape
-sleep 2
-agent-browser eval 'var msgs=[...document.querySelectorAll(".Message")]; var last=msgs[msgs.length-1]; if(last){last.scrollIntoView({block:"center"}); var r=last.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no messages"}'
+# ШАГ 4: ⛔ ПЕРЕЗАГРУЗИ Saved Messages (ОБЯЗАТЕЛЬНО после КАЖДОГО канала!)
+agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed
+sleep 8
+
+# ШАГ 5: Кликни на Saved Messages в левой панели + проверь textbox
+agent-browser eval 'var sm=[...document.querySelectorAll("[class*=ListItem]")].find(function(e){return e.textContent.includes("Saved Messages")}); if(sm){sm.scrollIntoView({block:"center"}); var r=sm.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"not found"}'
 agent-browser mouse move X Y
-agent-browser eval 'document.elementFromPoint(X,Y).dispatchEvent(new MouseEvent("contextmenu",{bubbles:true,clientX:X,clientY:Y}))'
-sleep 1
-agent-browser eval 'var del=[...document.querySelectorAll("[role=menuitem]")].find(function(e){return e.textContent.includes("Delete")}); if(del){var r=del.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no delete"}'
-agent-browser mouse move X Y && agent-browser mouse down && agent-browser mouse up
-sleep 1
-agent-browser eval 'var btn=[...document.querySelectorAll("button")].find(function(b){return b.textContent.trim()==="Delete"}); if(btn){var r=btn.getBoundingClientRect(); JSON.stringify({x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)})}else{"no confirm"}'
-agent-browser mouse move X Y && agent-browser mouse down && agent-browser mouse up
-sleep 1
+agent-browser mouse down
+agent-browser mouse up
+sleep 3
+agent-browser snapshot -i
+# Проверь: видишь textbox / [contenteditable=true]? Если ДА — следующий канал. Если НЕТ — повтори ШАГ 4-5.
 \`\`\`
 
+**⛔ ПОЧЕМУ ПЕРЕЗАГРУЗКА ОБЯЗАТЕЛЬНА:** Без перезагрузки SM после каждого канала: (a) старые VIEW CHANNEL кнопки остаются и ты кликаешь не на тот канал, (b) textbox пропадает, (c) навигация ломается. Перезагрузка = 2 команды + 8 секунд. Это ДЕШЕВЛЕ чем отладка.
+
 **Правила Этапа 2B:**
-1. **Максимум 2 попытки на канал.** Не трать больше 4 turns на один канал.
-2. **УДАЛЯЙ сообщение после каждого канала.** Без этого VIEW CHANNEL кнопки накапливаются и ты будешь открывать предыдущий канал.
-3. **Если textbox пропал** — перезагрузи Saved Messages: \`agent-browser --cdp ${CDP_PORT} open "https://web.telegram.org/a/#5124178080" --headed\`, sleep 8, кликни на Saved Messages в левой панели, проверь snapshot.
-3. **Если удаление не сработало** — НЕ ЗАСТРЕВАЙ. Перезагрузи Saved Messages через URL и продолжай.
-4. **Если VIEW CHANNEL открывает ПРЕДЫДУЩИЙ канал** — перезагрузи Saved Messages.
-5. **После 3 RETRY_FAILED подряд — перезагрузи Saved Messages.**
-6. **НЕ ПИШИ bash-скрипты и for-циклы!**
+1. **Строго 5 шагов на канал.** Нельзя пропускать НИКАКОЙ шаг, особенно ШАГ 4-5 (перезагрузка SM).
+2. **ПЕРЕЗАГРУЗИ SM после КАЖДОГО канала (ШАГ 4-5).** Это НЕ опционально. Это ОБЯЗАТЕЛЬНО. Даже если всё "работает нормально".
+3. **Максимум 2 попытки на канал.** Если VIEW CHANNEL или JOIN не сработали за 2 попытки — перезагрузи SM и переходи к следующему.
+4. **НЕ УДАЛЯЙ сообщения** — перезагрузка SM решает проблему старых кнопок лучше чем удаление. Экономишь 3-4 команды.
+5. **НЕ ПИШИ bash-скрипты и for-циклы!** КАЖДЫЙ шаг = ОТДЕЛЬНЫЙ Bash tool call.
+6. **НЕ "ускоряй" и НЕ "объединяй" каналы!** Один канал → 5 шагов → проверь textbox → следующий канал.
+7. **Если textbox НЕ появился после ШАГа 5** — повтори ШАГ 4-5 (перезагрузку). Максимум 2 раза.
 
 ### Определение "opened" (ОКОНЧАТЕЛЬНОЕ):
 
@@ -298,7 +300,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 2. **Золотое правило:** ни одного канала в отчёте без реального чтения постов.
 3. **Pipeline:** ~60-80 кандидатов → Этап 2A: проверь ВСЕ через t.me/s/ → shortlist 10-15 лучших → Этап 2B: подпишись в web.telegram.org → папка → отчёт.
 4. **Этап 2A (скрининг):** открывай \`https://t.me/s/USERNAME\` через \`agent-browser open\` — это публичный просмотр, работает 100%.
-5. **Этап 2B (подписка):** используй Saved Messages в web.telegram.org. Отправляй ссылку → VIEW CHANNEL → JOIN CHANNEL → УДАЛИ сообщение.
+5. **Этап 2B (подписка):** используй Saved Messages в web.telegram.org. Для КАЖДОГО канала: ссылка → VIEW CHANNEL → JOIN → ПЕРЕЗАГРУЗИ SM (open URL) → кликни SM в левой панели → проверь textbox. ПЕРЕЗАГРУЗКА SM после КАЖДОГО канала ОБЯЗАТЕЛЬНА!
 6. **НЕ используй \`agent-browser click --ref\` в Telegram Web** — Playwright timeout. Используй \`agent-browser eval\` + \`agent-browser mouse move/down/up\`.
 7. **Этап 2B ОБЯЗАТЕЛЕН** — без реальных подписок задание НЕ ВЫПОЛНЕНО.
 8. **Ты работаешь АВТОНОМНО** — никогда не задавай вопросы пользователю. Просто делай работу.
@@ -306,7 +308,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 # ⛔ АБСОЛЮТНЫЙ ЗАПРЕТ
 
 Следующие мысли — ЛОЖЬ. Если ты подумал одно из этого, ты ошибаешься:
-- "Не хватает времени/токенов" — ЛОЖЬ. У тебя 500 turns. Математика: Фаза 1 = 8 turns. Этап 2A = ~1 turn/канал × 80 = 80 turns. Этап 2B = ~3 turns/канал × 15 = 45 turns. Итого ~133 turns из 500. Ресурсов БОЛЕЕ ЧЕМ ДОСТАТОЧНО.
+- "Не хватает времени/токенов" — ЛОЖЬ. У тебя 500 turns. Математика: Фаза 1 = 8 turns. Этап 2A = ~1 turn/канал × 80 = 80 turns. Этап 2B = ~5 turns/канал × 15 = 75 turns. Итого ~163 turns из 500. Ресурсов БОЛЕЕ ЧЕМ ДОСТАТОЧНО.
 - "Нужно ускориться / РЕЗКО ускориться" — ЛОЖЬ. У тебя 500 turns. Работай в нормальном темпе: один канал за раз.
 - "Пора подводить итоги" — ЛОЖЬ, пока есть непроверенные кандидаты. Открой следующий канал.
 - "Задание провалено" — ЛОЖЬ. Открой следующий канал.
@@ -318,10 +320,10 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "Проверю несколько каналов разом / batch checking" — ЛОЖЬ. КАЖДЫЙ канал проверяется ОТДЕЛЬНО.
 - "Отправлю сразу пачку/несколько ссылок в Saved Messages" — ЛОЖЬ. ОДНА ссылка за раз.
 - "Напишу bash-скрипт/цикл для проверки каналов" — ЛОЖЬ. Каждая команда agent-browser — отдельный Bash tool call.
-- "Мне нужно подумать / изменить стратегию / составить план" — ЛОЖЬ. Стратегия: Этап 2A = t.me/s/ для каждого кандидата, Этап 2B = Saved Messages для подписки. НЕ ДУМАЙ, ДЕЛАЙ.
+- "Мне нужно подумать / изменить стратегию / составить план" — ЛОЖЬ. Стратегия: Этап 2A = t.me/s/ для каждого кандидата, Этап 2B = Saved Messages для подписки (5 шагов на канал с перезагрузкой SM). НЕ ДУМАЙ, ДЕЛАЙ.
 - "Это слишком медленно, нужен другой подход" — ЛОЖЬ. Этап 2A = ~1 turn/канал. 80 каналов = 80 turns из 500. Не трать turns на рассуждения.
 - "click --ref быстрее чем eval+mouse" — ЛОЖЬ. click --ref ВСЕГДА timeout в Telegram Web. eval+mouse = единственный рабочий способ.
-- "У меня мало turns осталось" — ЛОЖЬ. 80 каналов × 1 turn (Этап 2A) + 15 × 3 turns (Этап 2B) = 125 turns. У тебя 500.
+- "У меня мало turns осталось" — ЛОЖЬ. 80 каналов × 1 turn (Этап 2A) + 15 × 5 turns (Этап 2B) = 155 turns. У тебя 500.
 - "Этот канал не открылся, значит остальные тоже не откроются" — ЛОЖЬ. ~50% каналов ОТКРОЮТСЯ. RETRY_FAILED — это нормально, просто переходи к следующему.
 - "Слишком много каналов не открывается, нужно остановиться" — ЛОЖЬ. Это ОЖИДАЕМО. ~50% каналов из tgstat = мёртвые/приватные/переименованные. Продолжай до конца списка.
 - "Нужно спросить у пользователя / предложить варианты" — ЛОЖЬ. Ты работаешь АВТОНОМНО. Никаких вопросов. Просто продолжай проверять каналы.
@@ -335,18 +337,24 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 - "fill --ref / click --ref на search field" — ЛОЖЬ. Playwright fill/click НЕ РАБОТАЮТ в Telegram Web. Для ввода текста используй eval + execCommand. Для кликов — eval + mouse.
 - "Попробую прямой URL web.telegram.org/a/#@username" — ЛОЖЬ. Прямые URL НЕ открывают каналы. Только Saved Messages.
 - "Поле ввода не найдено / textbox не появляется" — ЛОЖЬ. Нужно КЛИКНУТЬ на Saved Messages в левой панели через eval+mouse. URL с хэшем не всегда открывает правую панель — кликни по чату!
+- "Не буду удалять/перезагружать между подписками для экономии времени" — ЛОЖЬ. Перезагрузка SM = 2 команды + 8 секунд. Без неё textbox пропадает и ты потратишь 10+ turns на восстановление. ПЕРЕЗАГРУЖАЙ ПОСЛЕ КАЖДОГО КАНАЛА.
+- "Объединю несколько подписок / подпишусь пачкой / batch subscribe" — ЛОЖЬ. ОДИН канал = 5 шагов = перезагрузка SM. Батчи ЛОМАЮТ textbox.
+- "Уже использовал X tokens, нужно ускориться в 2B" — ЛОЖЬ. 15 каналов × 5 шагов = 75 команд = ~45 turns. У тебя 500 turns. РЕСУРСОВ ДОСТАТОЧНО.
+- "Пропущу перезагрузку SM, всё работает нормально" — ЛОЖЬ. Без перезагрузки SM ломается на 2-3 канале. ПЕРЕЗАГРУЖАЙ КАЖДЫЙ РАЗ.
 
 **⛔⛔⛔ ПЕРЕХОД НА АНГЛИЙСКИЙ = ТОЖЕ ЗАПРЕЩЕНО. English does NOT exempt you from these rules:**
-- "Due to time constraints" — LIE. You have 500 turns. Phase 2A = ~80 turns, Phase 2B = ~45 turns. PLENTY LEFT.
+- "Due to time constraints" — LIE. You have 500 turns. Phase 2A = ~80 turns, Phase 2B = ~75 turns. PLENTY LEFT.
 - "I'll create a final report based on X channels" — LIE if you have unchecked candidates. CHECK THE NEXT CHANNEL.
-- "Let me accelerate / checking multiple channels rapidly" — LIE. One channel at a time. Phase 2A via t.me/s/, Phase 2B via Saved Messages.
+- "Let me accelerate / checking multiple channels rapidly" — LIE. One channel at a time. Phase 2A via t.me/s/, Phase 2B via Saved Messages (5 steps per channel, SM reload after each).
 - "I need to write the report now" — LIE if you have unchecked candidates. KEEP CHECKING.
 - ANY text (English OR Russian) leading to "# Моя лента:" when you have unchecked candidates = GIVING UP = BANNED.
 - "I need to significantly accelerate" — LIE. Keep the same pace: 1 channel at a time via t.me/s/ (Phase 2A) then Saved Messages (Phase 2B).
 - "comprehensive final report based on N channels" — LIE if N < 20. KEEP CHECKING.
 - "Let me provide/create a report" — LIE if unchecked candidates remain.
+- "Skip SM reload to save time" / "I'll batch the subscriptions" — LIE. SM reload after EACH channel = 2 commands. Skipping = textbox lost = 10+ turns wasted.
+- "Already used X tokens, need to speed up Phase 2B" — LIE. 15 channels × 5 steps = 75 commands = ~45 turns out of 500. PLENTY.
 
-**⛔ ПОСЛЕ ТЕХНИЧЕСКОЙ ПРОБЛЕМЫ (reload, focus fail) — СРАЗУ ПРОДОЛЖАЙ проверку. НЕ размышляй, НЕ пиши "стратегию", НЕ переходи к отчёту. В Этапе 2A: открывай следующий t.me/s/USERNAME. В Этапе 2B: перезагрузи Saved Messages и продолжай. СЛЕДУЮЩИЙ КАНАЛ.**
+**⛔ ПОСЛЕ ТЕХНИЧЕСКОЙ ПРОБЛЕМЫ (reload, focus fail, textbox пропал) — СРАЗУ ПРОДОЛЖАЙ. НЕ размышляй, НЕ пиши "стратегию", НЕ переходи к отчёту. В Этапе 2A: открывай следующий t.me/s/USERNAME. В Этапе 2B: перезагрузи SM (ШАГ 4-5) и продолжай со следующего канала. СЛЕДУЮЩИЙ КАНАЛ.**
 
 **⛔⛔⛔ GATE CHECK — ЗАПРЕТ НА ПРЕЖДЕВРЕМЕННЫЙ ОТЧЁТ:**
 
@@ -357,7 +365,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 4. Ты создал папку? Если нет — **СТОП!** Создай папку.
 5. Только когда ВСЕ условия выполнены — можно писать отчёт.
 
-**Математика:** Этап 2A: ~50-80 кандидатов × 1 turn/канал = 50-80 turns. Этап 2B: 15 каналов × 3 turns = 45 turns. Итого ~125 из 500 turns. Ты ВСЕГДА успеешь.
+**Математика:** Этап 2A: ~50-80 кандидатов × 1 turn/канал = 50-80 turns. Этап 2B: 15 каналов × 5 turns = 75 turns. Итого ~155 из 500 turns. Ты ВСЕГДА успеешь.
 
 **Триггер:** Если ты написал "# Моя лента:" а у тебя opened < 15 — ТЫ ОШИБСЯ. Удали отчёт и продолжай проверку.
 
@@ -369,7 +377,7 @@ Proof of opened: ты написал verbatim цитату (минимум 10 с
 
 **⛔ ЛОВУШКА "УСКОРЕНИЯ": Если ты подумал "нужно ускориться / significantly accelerate / checking multiple channels rapidly" — это ПРЕДВЕСТНИК СДАЧИ. НЕ ускоряйся. Продолжай в том же темпе: 1 канал за раз. Этап 2A = ~1 turn/канал = НОРМАЛЬНО.**
 
-**⚠️ RETRY_FAILED — это НОРМАЛЬНО!** При ~80 кандидатах ожидай ~15-25 RETRY_FAILED (приватные/удалённые). Не паникуй. Просто переходи к следующему каналу. В Этапе 2A каждый канал = 1 turn. В Этапе 2B = 2-3 turns.
+**⚠️ RETRY_FAILED — это НОРМАЛЬНО!** При ~80 кандидатах ожидай ~15-25 RETRY_FAILED (приватные/удалённые). Не паникуй. Просто переходи к следующему каналу. В Этапе 2A каждый канал = 1 turn. В Этапе 2B = ~5 turns (ссылка → VIEW → JOIN → SM reload → проверка textbox).
 
 Перед тем как начать писать отчёт, ПЕРЕЧИСЛИ все проверенные каналы с результатами. Если у тебя ОСТАЛИСЬ непроверенные кандидаты — ВЕРНИСЬ К ПРОВЕРКЕ. Главная цель — КАЧЕСТВЕННАЯ папка. Чем больше каналов проверишь, тем лучше выбор.
 
@@ -566,7 +574,7 @@ agent-browser snapshot
 Следуй плану по фазам строго:
 - Фаза 1: сбор @username (tgstat + Google, ~8 turns)
 - Этап 2A: быстрый скрининг ВСЕХ кандидатов через t.me/s/USERNAME (~1 turn/канал). Для каждого: открой, прочитай посты, реши SUBSCRIBE или SKIP.
-- Этап 2B: подписка на 10-15 лучших через web.telegram.org Saved Messages. WARMUP сначала! Затем для каждого: ссылка → VIEW CHANNEL → JOIN → УДАЛИ сообщение.
+- Этап 2B: подписка на 10-15 лучших через web.telegram.org Saved Messages. WARMUP сначала! Затем для КАЖДОГО канала 5 шагов: ссылка → VIEW CHANNEL → JOIN → ПЕРЕЗАГРУЗИ SM → кликни SM в левой панели. ПЕРЕЗАГРУЗКА SM ПОСЛЕ КАЖДОГО КАНАЛА ОБЯЗАТЕЛЬНА!
 - Фаза 3: создай папку + напиши отчёт.
 
 ⚠️ КРИТИЧНО: Этап 2B ОБЯЗАТЕЛЕН! t.me/s/ = только чтение. Без реальных подписок через web.telegram.org задание НЕ ВЫПОЛНЕНО.`,
