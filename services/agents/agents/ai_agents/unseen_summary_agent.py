@@ -102,9 +102,12 @@ class UnseenSummaryAgent(BaseJSONAgent[UnseenSummaryResponse]):
         """Optimized two-stage approach for larger post counts."""
         logger.info(f"Starting two-stage summarization for {len(posts_data)} posts")
 
-        facts = await self._extract_facts_parallel(posts_data, user_id)
-
-        synthesis = await self._synthesize_from_facts(facts, user_id)
+        try:
+            facts = await self._extract_facts_parallel(posts_data, user_id)
+            synthesis = await self._synthesize_from_facts(facts, user_id)
+        except Exception as e:
+            logger.warning(f"Two-stage failed, falling back to single-stage: {e}")
+            return await self._summarize_single_stage(posts_data, user_id)
 
         full_text = self._compose_full_text(posts_data)
 
@@ -163,7 +166,10 @@ class UnseenSummaryAgent(BaseJSONAgent[UnseenSummaryResponse]):
                 posts_content=combined,
                 user_id=user_id,
             )
-            return [{"title": pf.title, "facts": pf.facts} for pf in response.posts]
+            return [
+                {"title": pf.title, "topic": pf.topic, "facts": pf.facts}
+                for pf in response.posts
+            ]
 
         except Exception as e:
             logger.error(f"Error extracting facts from batch {batch_idx}: {e}")
@@ -178,21 +184,29 @@ class UnseenSummaryAgent(BaseJSONAgent[UnseenSummaryResponse]):
         facts_text = []
         for i, fact_item in enumerate(facts, 1):
             title = fact_item.get("title", f"Topic {i}")
+            topic = fact_item.get("topic", "")
             fact_list = fact_item.get("facts", [])
             facts_str = "\n".join(f"- {f}" for f in fact_list)
-            facts_text.append(f"**{title}**\n{facts_str}")
+            topic_label = f" [topic: {topic}]" if topic else ""
+            facts_text.append(f"**{title}**{topic_label}\n{facts_str}")
 
         combined_facts = "\n\n".join(facts_text)
 
-        try:
-            return await self._get_synthesis_agent().synthesize(
-                facts_content=combined_facts,
-                user_id=user_id,
-            )
+        last_error: Exception | None = None
+        for attempt in range(2):
+            try:
+                return await self._get_synthesis_agent().synthesize(
+                    facts_content=combined_facts,
+                    user_id=user_id,
+                )
+            except Exception as e:
+                last_error = e
+                if attempt == 0:
+                    logger.warning(f"Synthesis attempt 1 failed, retrying: {e}")
+                else:
+                    logger.error(f"Synthesis attempt 2 failed: {e}")
 
-        except Exception as e:
-            logger.error(f"Error in synthesis stage: {e}")
-            raise ValueError(f"Synthesis stage failed: {e}") from e
+        raise ValueError(f"Synthesis stage failed after 2 attempts: {last_error}") from last_error
 
     def _compose_full_text(self, posts_data: list[dict]) -> str:
         """Compose full_text programmatically without LLM."""

@@ -332,6 +332,11 @@ class PostFacts(BaseModel):
     title: str = Field(
         description="Short title (3-5 words)", min_length=1, max_length=100
     )
+    topic: str = Field(
+        description="Topic category for clustering (2-4 words)",
+        min_length=1,
+        max_length=50,
+    )
     facts: list[str] = Field(
         description="Key facts (3-5 items)", min_length=1, max_length=10
     )

@@ -5,7 +5,12 @@ from __future__ import annotations
 from loguru import logger
 
 from .base_agent import BaseJSONAgent
-from .prompts import VIEW_GENERATOR_HUMAN_PROMPT, VIEW_GENERATOR_SYSTEM_PROMPT
+from .prompts import (
+    TLDR_VIEW_PROMPT,
+    VIEW_GENERATOR_HUMAN_PROMPT,
+    VIEW_GENERATOR_SYSTEM_PROMPT,
+    is_summary_like_prompt,
+)
 from .schemas import ViewGeneratorResponse
 
 
@@ -58,6 +63,9 @@ class ViewGeneratorAgent(BaseJSONAgent[ViewGeneratorResponse]):
         Raises:
             ValueError: If validation fails or generation errors occur (after fallback).
         """
+        if is_summary_like_prompt(view_prompt):
+            view_prompt = TLDR_VIEW_PROMPT
+
         logger.debug(
             f"Generating view with prompt: '{view_prompt[:50]}...' "
             f"for content length={len(content)}"
