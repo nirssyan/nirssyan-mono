@@ -439,11 +439,12 @@ class _SlideConfigurationState extends State<SlideConfiguration>
           runSpacing: 8,
           alignment: WrapAlignment.start,
           children: presetOptions.map((option) {
-            final isSelected = selectedPresets.contains(option.id);
+            final label = option.getLabel(_isRu);
+            final isSelected = selectedPresets.contains(label);
             return _SelectableChip(
-              label: option.getLabel(_isRu),
+              label: label,
               isSelected: isSelected,
-              onTap: () => onTogglePreset(option.id),
+              onTap: () => onTogglePreset(label),
               accentColor: accentColor,
               surfaceColor: surfaceColor,
               borderColor: borderColor,
