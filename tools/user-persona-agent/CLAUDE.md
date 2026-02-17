@@ -36,7 +36,7 @@ Single entry point `src/index.ts` that:
 2. Reads `product-context.md` (Infatium feature docs embedded in system prompt)
 3. Preflight: verifies Chrome remote debugging on port 9222, ensures a page tab exists, connects agent-browser via `--cdp 9222`
 4. Builds a system prompt with persona + product context + phased browser automation instructions
-5. Calls `query()` from `@anthropic-ai/claude-agent-sdk` (model: `claude-sonnet-4-5-20250929`, max 200 turns, $20 budget, only `Bash` tool allowed)
+5. Calls `query()` from `@anthropic-ai/claude-agent-sdk` (model: `claude-sonnet-4-5-20250929`, max 500 turns, only `Bash` tool allowed)
 6. The spawned agent uses `agent-browser` via Bash — browser is already connected, no flags needed
 7. Collects ALL assistant text blocks during execution, extracts markdown report via regex
 8. Saves report to `output/{topic}-{timestamp}.md` and full log to `output/{topic}-{timestamp}.log`
@@ -51,7 +51,7 @@ Single entry point `src/index.ts` that:
 ## Agent Behavior
 
 The agent's system prompt enforces strict rules:
-- **3-phase workflow**: Phase 0 (check Telegram auth), Phase 1 (collect 60-80 candidates from tgstat + Google), Phase 2 (check 25+ channels in Telegram, subscribe to 10-15), Phase 3 (create folder + write report)
+- **3-phase workflow**: Phase 0 (check Telegram auth), Phase 1 (collect 150-200 candidates from multiple sources in multiple languages — agent finds sources independently), Phase 2 (check all candidates in Telegram, subscribe to 10-15), Phase 3 (create folder + write report)
 - **Must use `agent-browser`** for all web interaction — no other tools
 - **Must read real posts** before including any channel in the report — "golden rule"
 - Searches via Google (primary), tgstat.ru, telemetr.io, Telegram search, and snowball discovery (Similar Channels)
