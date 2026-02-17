@@ -51,7 +51,6 @@ func (h *MediaHandler) Routes() chi.Router {
 
 	// More specific route first
 	r.Get("/tg/{type}/{file_id}", h.GetTelegramMedia)
-	// Catch-all for supabase storage
 	r.Get("/*", h.GetMedia)
 
 	return r

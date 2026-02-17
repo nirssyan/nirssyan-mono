@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class BaseServiceSettings(BaseSettings):
     """Base settings shared by all microservices."""
 
-    # CRITICAL: PostgreSQL max_connections=100, shared across 8 services + Supabase
+    # CRITICAL: PostgreSQL max_connections=100, shared across all services
     # Minimal pool to prevent connection exhaustion
     database_url: str = "postgresql+asyncpg://user:password@localhost/dbname"
     database_pool_size: int = 1

@@ -25,28 +25,23 @@
       private: false
       default: "dev.{{ prod_domain | default('') }}"
 
-    - name: add_supabase
-      prompt: "\n═══ Service Selection ═══\n\n[1] Supabase - Full backend (PostgreSQL + Auth + Storage + API)\nAdd Supabase? (y/n)"
-      private: false
-      default: "n"
-
     - name: add_nats
-      prompt: "[2] NATS - Message broker (3-node HA cluster with JetStream)\nAdd NATS? (y/n)"
+      prompt: "\n═══ Service Selection ═══\n\n[1] NATS - Message broker (3-node HA cluster with JetStream)\nAdd NATS? (y/n)"
       private: false
       default: "n"
 
     - name: add_postgresql
-      prompt: "[3] PostgreSQL - Database (single replica)\nAdd PostgreSQL? (y/n)"
+      prompt: "[2] PostgreSQL - Database (single replica)\nAdd PostgreSQL? (y/n)"
       private: false
       default: "n"
 
     - name: add_redis
-      prompt: "[4] Redis - Cache/Queue\nAdd Redis? (y/n)"
+      prompt: "[3] Redis - Cache/Queue\nAdd Redis? (y/n)"
       private: false
       default: "n"
 
     - name: add_rabbitmq
-      prompt: "[5] RabbitMQ - Message broker\nAdd RabbitMQ? (y/n)"
+      prompt: "[4] RabbitMQ - Message broker\nAdd RabbitMQ? (y/n)"
       private: false
       default: "n"
 
@@ -75,7 +70,6 @@
       ansible.builtin.set_fact:
         selected_services: >-
           {{
-            (add_supabase | lower == 'y' or add_supabase | lower == 'yes') | ternary(['supabase'], []) +
             (add_nats | lower == 'y' or add_nats | lower == 'yes') | ternary(['nats'], []) +
             (add_postgresql | lower == 'y' or add_postgresql | lower == 'yes') | ternary(['postgresql'], []) +
             (add_redis | lower == 'y' or add_redis | lower == 'yes') | ternary(['redis'], []) +
@@ -366,29 +360,6 @@
           - "     kubectl get pods -n {{ project_name }}-dev"
           - "     kubectl get ingress -n {{ project_name }}-dev"
           - ""
-
-    - name: Supabase specific instructions
-      ansible.builtin.debug:
-        msg:
-          - ""
-          - "═══ Supabase Configuration ═══"
-          - ""
-          - "Access points:"
-          - "  - Studio UI:  https://supabase-{{ project_name }}-dev.{{ dev_domain }}"
-          - "  - REST API:   https://{{ project_name }}-dev.{{ dev_domain }}/rest/v1/"
-          - "  - Auth API:   https://{{ project_name }}-dev.{{ dev_domain }}/auth/v1/"
-          - ""
-          - "Configure secrets:"
-          - "  kubectl edit secret supabase-secrets -n {{ project_name }}-dev"
-          - ""
-          - "Required secrets:"
-          - "  - POSTGRES_PASSWORD (auto-generated)"
-          - "  - JWT_SECRET (auto-generated)"
-          - "  - ANON_KEY (auto-generated)"
-          - "  - SERVICE_ROLE_KEY (auto-generated)"
-          - "  - DASHBOARD_USERNAME/PASSWORD"
-          - ""
-      when: "'supabase' in selected_services"
 
     - name: NATS specific instructions
       ansible.builtin.debug:

@@ -331,7 +331,7 @@ class WarmMediaCacheRequest(BaseModel):
         - makefeed-processor: Before publishing PostCreatedEvent
 
     Handled by:
-        - makefeed-telegram: Downloads and uploads media to Supabase
+        - makefeed-telegram: Downloads and caches media
     """
 
     request_id: UUID = Field(default_factory=uuid4)

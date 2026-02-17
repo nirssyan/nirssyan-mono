@@ -129,30 +129,6 @@ data:
               "legendFormat": "postgres",
               "refId": "B"
             },
-            {
-              "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "expr": "sum(bytes_over_time({namespace=\"infatium-dev\", app=\"supabase-kong\"} [$__range]))",
-              "legendFormat": "supabase-kong",
-              "refId": "C"
-            },
-            {
-              "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "expr": "sum(bytes_over_time({namespace=\"infatium-dev\", app=\"supabase-auth\"} [$__range]))",
-              "legendFormat": "supabase-auth",
-              "refId": "D"
-            },
-            {
-              "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "expr": "sum(bytes_over_time({namespace=\"infatium-dev\", app=\"supabase-realtime\"} [$__range]))",
-              "legendFormat": "supabase-realtime",
-              "refId": "E"
-            },
-            {
-              "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "expr": "sum(bytes_over_time({namespace=\"infatium-dev\", app=\"supabase-storage\"} [$__range]))",
-              "legendFormat": "supabase-storage",
-              "refId": "F"
-            }
           ],
           "title": "Log Size by App (selected period)",
           "type": "piechart"
@@ -198,7 +174,7 @@ data:
           "targets": [
             {
               "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "expr": "sum by (app) (bytes_over_time({namespace=\"infatium-dev\", app=~\"service|supabase-.*\"} [$__interval]))",
+              "expr": "sum by (app) (bytes_over_time({namespace=\"infatium-dev\"} [$__interval]))",
               "legendFormat": "{{app}}",
               "refId": "A"
             }
@@ -239,171 +215,6 @@ data:
           "title": "Service Logs",
           "type": "logs"
         },
-        {
-          "collapsed": true,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
-          "id": 20,
-          "panels": [
-            {
-              "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "gridPos": { "h": 10, "w": 24, "x": 0, "y": 25 },
-              "id": 21,
-              "options": {
-                "dedupStrategy": "none",
-                "enableLogDetails": true,
-                "prettifyLogMessage": false,
-                "showCommonLabels": false,
-                "showLabels": false,
-                "showTime": true,
-                "sortOrder": "Descending",
-                "wrapLogMessage": true
-              },
-              "targets": [
-                {
-                  "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-                  "expr": "{namespace=\"infatium-dev\", app=\"postgres\"} |~ \"$search\" | regexp \"^\\\\S+ \\\\S+ F (?P<content>.*)$\" | line_format \"{{.content}}\"",
-                  "refId": "A"
-                }
-              ],
-              "title": "PostgreSQL Logs",
-              "type": "logs"
-            }
-          ],
-          "title": "Supabase PostgreSQL",
-          "type": "row"
-        },
-        {
-          "collapsed": true,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
-          "id": 30,
-          "panels": [
-            {
-              "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "gridPos": { "h": 10, "w": 24, "x": 0, "y": 26 },
-              "id": 31,
-              "options": {
-                "dedupStrategy": "none",
-                "enableLogDetails": true,
-                "prettifyLogMessage": false,
-                "showCommonLabels": false,
-                "showLabels": false,
-                "showTime": true,
-                "sortOrder": "Descending",
-                "wrapLogMessage": true
-              },
-              "targets": [
-                {
-                  "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-                  "expr": "{namespace=\"infatium-dev\", app=\"supabase-auth\"} |~ \"$search\" | regexp \"^\\\\S+ \\\\S+ F (?P<content>.*)$\" | line_format \"{{.content}}\"",
-                  "refId": "A"
-                }
-              ],
-              "title": "Auth Logs",
-              "type": "logs"
-            }
-          ],
-          "title": "Supabase Auth",
-          "type": "row"
-        },
-        {
-          "collapsed": true,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 },
-          "id": 40,
-          "panels": [
-            {
-              "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "gridPos": { "h": 10, "w": 24, "x": 0, "y": 27 },
-              "id": 41,
-              "options": {
-                "dedupStrategy": "none",
-                "enableLogDetails": true,
-                "prettifyLogMessage": false,
-                "showCommonLabels": false,
-                "showLabels": false,
-                "showTime": true,
-                "sortOrder": "Descending",
-                "wrapLogMessage": true
-              },
-              "targets": [
-                {
-                  "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-                  "expr": "{namespace=\"infatium-dev\", app=\"supabase-kong\"} |~ \"$search\" | regexp \"^\\\\S+ \\\\S+ F (?P<content>.*)$\" | line_format \"{{.content}}\"",
-                  "refId": "A"
-                }
-              ],
-              "title": "Kong API Gateway Logs",
-              "type": "logs"
-            }
-          ],
-          "title": "Supabase Kong",
-          "type": "row"
-        },
-        {
-          "collapsed": true,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 },
-          "id": 50,
-          "panels": [
-            {
-              "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "gridPos": { "h": 10, "w": 24, "x": 0, "y": 28 },
-              "id": 51,
-              "options": {
-                "dedupStrategy": "none",
-                "enableLogDetails": true,
-                "prettifyLogMessage": false,
-                "showCommonLabels": false,
-                "showLabels": false,
-                "showTime": true,
-                "sortOrder": "Descending",
-                "wrapLogMessage": true
-              },
-              "targets": [
-                {
-                  "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-                  "expr": "{namespace=\"infatium-dev\", app=\"supabase-realtime\"} |~ \"$search\" | regexp \"^\\\\S+ \\\\S+ F (?P<content>.*)$\" | line_format \"{{.content}}\"",
-                  "refId": "A"
-                }
-              ],
-              "title": "Realtime Logs",
-              "type": "logs"
-            }
-          ],
-          "title": "Supabase Realtime",
-          "type": "row"
-        },
-        {
-          "collapsed": true,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
-          "id": 60,
-          "panels": [
-            {
-              "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-              "gridPos": { "h": 10, "w": 24, "x": 0, "y": 29 },
-              "id": 61,
-              "options": {
-                "dedupStrategy": "none",
-                "enableLogDetails": true,
-                "prettifyLogMessage": false,
-                "showCommonLabels": false,
-                "showLabels": false,
-                "showTime": true,
-                "sortOrder": "Descending",
-                "wrapLogMessage": true
-              },
-              "targets": [
-                {
-                  "datasource": { "type": "loki", "uid": "P8E80F9AEF21F6940" },
-                  "expr": "{namespace=\"infatium-dev\", app=\"supabase-storage\"} |~ \"$search\" | regexp \"^\\\\S+ \\\\S+ F (?P<content>.*)$\" | line_format \"{{.content}}\"",
-                  "refId": "A"
-                }
-              ],
-              "title": "Storage Logs",
-              "type": "logs"
-            }
-          ],
-          "title": "Supabase Storage",
-          "type": "row"
-        }
       ],
       "refresh": "30s",
       "schemaVersion": 39,

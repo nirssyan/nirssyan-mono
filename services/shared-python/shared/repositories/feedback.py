@@ -23,7 +23,7 @@ class FeedbackRepository:
             conn: Database connection
             user_id: User UUID
             message: Feedback message text (optional)
-            image_urls: List of image URLs from Supabase Storage (optional)
+            image_urls: List of image URLs (optional)
 
         Returns:
             Created feedback as dict

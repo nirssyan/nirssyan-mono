@@ -806,33 +806,6 @@
             KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
           failed_when: false
 
-        - name: Apply postgres-init-grafana-user job
-          kubernetes.core.k8s:
-            state: present
-            src: "{{ playbook_dir }}/../../projects/infatium/base/supabase/postgres-init-grafana-user-job.yml"
-            namespace: infatium-dev
-          delegate_to: localhost
-          become: false
-          environment:
-            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
-
-        - name: Wait for postgres-init-grafana-user job completion
-          kubernetes.core.k8s_info:
-            kind: Job
-            name: postgres-init-grafana-user
-            namespace: infatium-dev
-          register: grafana_user_job
-          delegate_to: localhost
-          become: false
-          environment:
-            KUBECONFIG: "{{ lookup('env', 'HOME') }}/.kube/nirssyan_config"
-          until: >-
-            grafana_user_job.resources | length > 0 and
-            (grafana_user_job.resources[0].status.succeeded | default(0) > 0 or
-             grafana_user_job.resources[0].status.failed | default(0) > 0)
-          retries: 30
-          delay: 5
-
         # Deploy kube-prometheus-stack (Prometheus + Grafana + Alertmanager + exporters)
         - name: Deploy kube-prometheus-stack Helm chart
           kubernetes.core.helm:
@@ -870,23 +843,6 @@
                       maxIdleConns: 2
                       connMaxLifetime: 14400
                       postgresVersion: 1700
-                      timescaledb: false
-                    secureJsonData:
-                      password: "{{ grafana_postgres_password | default('') }}"
-                  - name: PostgreSQL-Infatium-Prod
-                    type: postgres
-                    uid: postgres-infatium-prod
-                    access: proxy
-                    url: supabase-postgres.infatium-prod.svc.cluster.local:5432
-                    user: grafana_reader
-                    editable: false
-                    jsonData:
-                      database: postgres
-                      sslmode: disable
-                      maxOpenConns: 5
-                      maxIdleConns: 2
-                      connMaxLifetime: 14400
-                      postgresVersion: 1500
                       timescaledb: false
                     secureJsonData:
                       password: "{{ grafana_postgres_password | default('') }}"
