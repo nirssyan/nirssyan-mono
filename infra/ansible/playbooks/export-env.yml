@@ -31,14 +31,6 @@
       failed_when: namespace_check.rc != 0
       changed_when: false
 
-    - name: Get Supabase secrets as JSON
-      ansible.builtin.shell: |
-        export KUBECONFIG=~/.kube/nirssyan_config
-        kubectl get secret supabase-secrets -n {{ k8s_namespace }} -o json 2>/dev/null || echo '{}'
-      register: supabase_secrets_raw
-      changed_when: false
-      failed_when: false
-
     - name: Get Redis secrets as JSON
       ansible.builtin.shell: |
         export KUBECONFIG=~/.kube/nirssyan_config
@@ -47,22 +39,10 @@
       changed_when: false
       failed_when: false
 
-    - name: Parse Supabase secrets
-      ansible.builtin.set_fact:
-        supabase_secrets_json: "{{ supabase_secrets_raw.stdout | from_json }}"
-      when: not ansible_check_mode
-
     - name: Parse Redis secrets
       ansible.builtin.set_fact:
         redis_secrets_json: "{{ redis_secrets_raw.stdout | from_json }}"
       when: not ansible_check_mode
-
-    - name: Decode Supabase secrets
-      ansible.builtin.set_fact:
-        supabase_env: "{{ supabase_env | default({}) | combine({item.key: item.value | b64decode}) }}"
-      loop: "{{ supabase_secrets_json.data | default({}) | dict2items }}"
-      when: supabase_secrets_json.data is defined
-      no_log: true
 
     - name: Decode Redis secrets
       ansible.builtin.set_fact:
@@ -73,7 +53,6 @@
 
     - name: Set default empty dicts
       ansible.builtin.set_fact:
-        supabase_env: "{{ supabase_env | default({}) }}"
         redis_env: "{{ redis_env | default({}) }}"
 
     - name: Generate .env file from template
@@ -87,4 +66,4 @@
         msg:
           - "✅ Environment file generated successfully!"
           - "Location: {{ output_file }}"
-          - "Services: Supabase ({{ supabase_env.keys() | length }} vars), Redis ({{ redis_env.keys() | length }} vars)"
+          - "Services: Redis ({{ redis_env.keys() | length }} vars)"

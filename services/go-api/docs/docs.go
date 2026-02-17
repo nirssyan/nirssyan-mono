@@ -268,7 +268,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user": {
-                    "$ref": "#/definitions/internal_handlers.SupabaseUser"
+                    "$ref": "#/definitions/internal_handlers.JWTUser"
                 },
                 "user_id": {
                     "type": "string"
@@ -318,7 +318,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handlers.SupabaseUser": {
+        "internal_handlers.JWTUser": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -396,7 +396,7 @@ const docTemplate = `{
     },
     "securityDefinitions": {
         "BearerAuth": {
-            "description": "JWT token from Supabase Auth (format: \"Bearer {token}\")",
+            "description": "JWT token (format: \"Bearer {token}\")",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"

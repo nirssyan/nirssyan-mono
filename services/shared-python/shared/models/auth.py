@@ -7,7 +7,7 @@ class DemoLoginRequest(BaseModel):
     email: str
 
 
-class SupabaseUser(BaseModel):
+class JWTUser(BaseModel):
     id: str
     aud: str
     role: str
@@ -30,4 +30,4 @@ class DemoLoginResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int
     expires_at: int
-    user: SupabaseUser
+    user: JWTUser

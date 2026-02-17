@@ -303,24 +303,6 @@ grafana:
       secureJsonData:
         password: "{{ grafana_postgres_password }}"
 
-    - name: PostgreSQL-Infatium-Prod
-      type: postgres
-      uid: postgres-infatium-prod
-      access: proxy
-      url: supabase-postgres.infatium-prod.svc.cluster.local:5432
-      user: grafana_reader
-      editable: false
-      jsonData:
-        database: postgres
-        sslmode: disable
-        maxOpenConns: 5
-        maxIdleConns: 2
-        connMaxLifetime: 14400
-        postgresVersion: 1500
-        timescaledb: false
-      secureJsonData:
-        password: "{{ grafana_postgres_password }}"
-
   # Ingress
   ingress:
     enabled: true

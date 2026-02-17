@@ -221,7 +221,7 @@ class TelegramOperationsClient:
     ) -> WarmMediaCacheResponse:
         """Warm media cache for a list of media objects.
 
-        Pre-caches media to Supabase Storage before sending WebSocket notifications.
+        Pre-caches media to S3 before sending WebSocket notifications.
         This ensures media URLs are ready when frontend fetches post details.
 
         Args:

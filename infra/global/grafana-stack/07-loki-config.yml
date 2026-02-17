@@ -70,21 +70,17 @@ data:
         - selector: '{namespace="infatium-dev", app="service"}'
           priority: 1
           period: 336h
-        # Supabase components - 24 hours
-        - selector: '{app=~"supabase-.*"}'
-          priority: 2
-          period: 24h
         # Other infatium-dev services - 24 hours
         - selector: '{namespace="infatium-dev"}'
-          priority: 3
+          priority: 2
           period: 24h
         # Infrastructure namespace - 24 hours
         - selector: '{namespace="infrastructure"}'
-          priority: 4
+          priority: 3
           period: 24h
         # Kube-system, cert-manager, metallb, traefik - 12 hours
         - selector: '{namespace=~"kube-system|cert-manager|metallb-system|traefik"}'
-          priority: 5
+          priority: 4
           period: 12h
 
     chunk_store_config:

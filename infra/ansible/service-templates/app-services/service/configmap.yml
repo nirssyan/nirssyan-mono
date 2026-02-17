@@ -33,9 +33,6 @@ data:
   FEED_PROCESSING_BACKGROUND_DELAY: "0.15"
   FEED_PROCESSING_TYPE_COOLDOWN_SECONDS: "30"
 
-  SUPABASE_URL: "http://supabase-kong.infatium-dev.svc.cluster.local:8000"
-  SUPABASE_STORAGE_BUCKET: "telegram-media"
-  SUPABASE_SESSION_BUCKET: "telegram-sessions"
   MEDIA_BASE_URL: "https://dev.api.infatium.ru"
 
   OTEL_ENABLED: "true"

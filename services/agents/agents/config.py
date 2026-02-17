@@ -10,7 +10,7 @@ class AgentsSettings(BaseSettings):
     # NATS settings
     nats_url: str = "nats://nats:4222"
 
-    # CRITICAL: PostgreSQL max_connections=100, shared across 8 services + Supabase
+    # CRITICAL: PostgreSQL max_connections=100, shared across all services
     database_url: str = Field(default="", description="PostgreSQL database URL")
     database_pool_size: int = Field(default=1, description="Connection pool size")
     database_max_overflow: int = Field(

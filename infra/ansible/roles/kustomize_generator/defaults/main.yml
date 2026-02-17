@@ -28,7 +28,6 @@ available_service_types:
   - redis
   - nats
   - rabbitmq
-  - supabase
 
 # Service type aliases (for convenience)
 service_type_aliases:
