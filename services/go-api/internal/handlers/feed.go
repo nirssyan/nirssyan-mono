@@ -227,11 +227,22 @@ func (h *FeedHandler) UpdateFeed(w http.ResponseWriter, r *http.Request) {
 				DigestIntervalHours: req.DigestIntervalHours,
 			}
 
-			if len(req.ViewsRaw) > 0 {
-				updateParams.ViewsConfig, _ = json.Marshal(req.ViewsRaw)
+			resolvedViews := req.ViewsRaw
+			resolvedFilters := req.FiltersRaw
+			if h.suggestionRepo != nil {
+				if len(req.ViewsRaw) > 0 {
+					resolvedViews = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.ViewsRaw)
+				}
+				if len(req.FiltersRaw) > 0 {
+					resolvedFilters = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.FiltersRaw)
+				}
 			}
-			if len(req.FiltersRaw) > 0 {
-				updateParams.FiltersConfig, _ = json.Marshal(req.FiltersRaw)
+
+			if len(resolvedViews) > 0 {
+				updateParams.ViewsConfig, _ = json.Marshal(resolvedViews)
+			}
+			if len(resolvedFilters) > 0 {
+				updateParams.FiltersConfig, _ = json.Marshal(resolvedFilters)
 			}
 
 			h.promptRepo.Update(r.Context(), prompt.ID, updateParams)
@@ -242,8 +253,8 @@ func (h *FeedHandler) UpdateFeed(w http.ResponseWriter, r *http.Request) {
 					"feed_id":     feedID.String(),
 					"prompt_id":   prompt.ID.String(),
 					"user_id":     userID.String(),
-					"views_raw":   convertToMaps(req.ViewsRaw),
-					"filters_raw": convertToMaps(req.FiltersRaw),
+					"views_raw":   convertToMaps(resolvedViews),
+					"filters_raw": convertToMaps(resolvedFilters),
 				}
 				data, _ := json.Marshal(feedUpdatedEvent)
 				if err := h.nc.Publish("feed.updated", data); err != nil {
@@ -753,8 +764,14 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	viewsConfig, _ := json.Marshal(req.ViewsRaw)
-	filtersConfig, _ := json.Marshal(req.FiltersRaw)
+	resolvedViewsForDB := req.ViewsRaw
+	resolvedFiltersForDB := req.FiltersRaw
+	if h.suggestionRepo != nil {
+		resolvedViewsForDB = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.ViewsRaw)
+		resolvedFiltersForDB = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.FiltersRaw)
+	}
+	viewsConfig, _ := json.Marshal(resolvedViewsForDB)
+	filtersConfig, _ := json.Marshal(resolvedFiltersForDB)
 
 	promptID := uuid.New()
 	_, err = h.promptRepo.Create(r.Context(), repository.CreatePromptParams{
@@ -795,13 +812,6 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resolvedViews := req.ViewsRaw
-	resolvedFilters := req.FiltersRaw
-	if h.suggestionRepo != nil {
-		resolvedViews = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.ViewsRaw)
-		resolvedFilters = h.suggestionRepo.ResolveSuggestionNames(r.Context(), req.FiltersRaw)
-	}
-
 	if h.nc != nil {
 		feedCreatedEvent := map[string]interface{}{
 			"event_type":   "feed.created",
@@ -812,8 +822,8 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 			"source_types": sourceTypes,
 			"prompt_text":  req.RawPrompt,
 			"feed_type":    req.FeedType,
-			"views_raw":    convertToMaps(resolvedViews),
-			"filters_raw":  convertToMaps(resolvedFilters),
+			"views_raw":    convertToMaps(resolvedViewsForDB),
+			"filters_raw":  convertToMaps(resolvedFiltersForDB),
 		}
 		feedCreatedData, _ := json.Marshal(feedCreatedEvent)
 		if err := h.nc.Publish("feed.created", feedCreatedData); err != nil {
@@ -846,8 +856,8 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 				FeedName:     feedName,
 				FeedType:     req.FeedType,
 				Sources:      sourceURLs,
-				Filters:      resolvedFilters,
-				Views:        resolvedViews,
+				Filters:      resolvedFiltersForDB,
+				Views:        resolvedViewsForDB,
 				CurrentCount: currentFeeds,
 				Limit:        maxFeeds,
 			})

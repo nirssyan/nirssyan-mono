@@ -30,6 +30,20 @@ const (
 	SubjectBuildFilterPrompt   = "agents.util.build_filter_prompt"
 )
 
+// agentErrorResponse matches Python AgentErrorResponse schema
+type agentErrorResponse struct {
+	Error   string `json:"error"`
+	Success *bool  `json:"success,omitempty"`
+}
+
+func checkAgentError(data []byte) error {
+	var errResp agentErrorResponse
+	if err := json.Unmarshal(data, &errResp); err == nil && errResp.Error != "" {
+		return fmt.Errorf("agent error: %s", errResp.Error)
+	}
+	return nil
+}
+
 // AgentsClient calls AI agents via NATS RPC
 type AgentsClient struct {
 	requester      *nats.Requester
@@ -88,6 +102,9 @@ func (c *AgentsClient) EvaluatePost(ctx context.Context, filterPrompt, postConte
 	if err != nil {
 		return nil, fmt.Errorf("evaluate post: %w", err)
 	}
+	if err := checkAgentError(resp); err != nil {
+		return nil, fmt.Errorf("evaluate post: %w", err)
+	}
 
 	var result FeedFilterResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
@@ -134,6 +151,9 @@ func (c *AgentsClient) GenerateTags(ctx context.Context, rawPostsContent []strin
 
 	resp, err := c.requester.RequestWithRetry(ctx, SubjectFeedTags, req, c.timeout, headers, c.maxRetries, c.retryBaseDelay)
 	if err != nil {
+		return nil, fmt.Errorf("generate tags: %w", err)
+	}
+	if err := checkAgentError(resp); err != nil {
 		return nil, fmt.Errorf("generate tags: %w", err)
 	}
 
@@ -183,6 +203,9 @@ func (c *AgentsClient) SummarizePosts(ctx context.Context, userPrompt string, po
 	timeout := 90 * time.Second
 	resp, err := c.requester.RequestWithRetry(ctx, SubjectFeedSummary, req, timeout, headers, c.maxRetries, c.retryBaseDelay)
 	if err != nil {
+		return nil, fmt.Errorf("summarize posts: %w", err)
+	}
+	if err := checkAgentError(resp); err != nil {
 		return nil, fmt.Errorf("summarize posts: %w", err)
 	}
 
@@ -253,6 +276,9 @@ func (c *AgentsClient) GenerateView(ctx context.Context, content, viewPrompt str
 	if err != nil {
 		return nil, fmt.Errorf("generate view: %w", err)
 	}
+	if err := checkAgentError(resp); err != nil {
+		return nil, fmt.Errorf("generate view: %w", err)
+	}
 
 	var result ViewGeneratorResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
@@ -312,6 +338,9 @@ func (c *AgentsClient) GeneratePostTitle(ctx context.Context, postContent string
 	if err != nil {
 		return nil, fmt.Errorf("generate post title: %w", err)
 	}
+	if err := checkAgentError(resp); err != nil {
+		return nil, fmt.Errorf("generate post title: %w", err)
+	}
 
 	var result PostTitleResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
@@ -363,6 +392,9 @@ func (c *AgentsClient) GenerateFeedDescription(ctx context.Context, prompt *stri
 
 	resp, err := c.requester.RequestWithRetry(ctx, SubjectFeedDescription, req, c.timeout, headers, c.maxRetries, c.retryBaseDelay)
 	if err != nil {
+		return nil, fmt.Errorf("generate feed description: %w", err)
+	}
+	if err := checkAgentError(resp); err != nil {
 		return nil, fmt.Errorf("generate feed description: %w", err)
 	}
 
@@ -431,6 +463,10 @@ func (c *AgentsClient) TransformViewsAndFilters(ctx context.Context, views, filt
 		return nil, fmt.Errorf("transform views and filters: %w", err)
 	}
 
+	if err := checkAgentError(resp); err != nil {
+		return nil, fmt.Errorf("transform views and filters: %w", err)
+	}
+
 	var result ViewPromptTransformerResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return nil, fmt.Errorf("unmarshal transformer response: %w", err)
@@ -470,6 +506,9 @@ func (c *AgentsClient) BuildFilterPrompt(ctx context.Context, userInstruction *s
 
 	resp, err := c.requester.RequestWithRetry(ctx, SubjectBuildFilterPrompt, req, c.timeout, headers, c.maxRetries, c.retryBaseDelay)
 	if err != nil {
+		return nil, fmt.Errorf("build filter prompt: %w", err)
+	}
+	if err := checkAgentError(resp); err != nil {
 		return nil, fmt.Errorf("build filter prompt: %w", err)
 	}
 
