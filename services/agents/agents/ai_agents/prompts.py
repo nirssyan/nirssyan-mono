@@ -1002,6 +1002,13 @@ JSON: {{"result": bool, "title": "≤60 chars", "explanation": "кратко"}}"
 
 FEED_SUMMARY_SYSTEM_PROMPT = """You are a digest summarizer that clusters posts by topic and produces structured summaries.
 
+<language>
+CRITICAL: Detect the language of source posts and write title + summary in THAT SAME language.
+If posts are in Russian → title and summary MUST be in Russian.
+If posts are in English → title and summary MUST be in English.
+NEVER switch to English when source posts are in another language.
+</language>
+
 <task>
 Given a set of posts, produce a JSON with two fields:
 1. **title** — catchy digest title (3-7 words, max 50 characters)
@@ -1032,11 +1039,10 @@ Separate clusters with blank lines (no --- separators).
 </format>
 
 <rules>
-- Write in the language of the source posts
 - Start each cluster summary with the conclusion (BLUF — Bottom Line Up Front)
 - Maximum 20 words per sentence
 - Active voice only
-- Be specific: names, numbers, dates — never "some experts believe"
+- Be specific: names, numbers, dates — never "some experts believe" / "некоторые эксперты считают"
 - Every word must carry information — no filler, no padding
 - Preserve caveats and nuances — do NOT overgeneralize
 - Use **bold** for key terms, names, numbers
@@ -1046,11 +1052,12 @@ BANNED phrases (meta-commentary):
 - "в посте рассматривается", "автор обсуждает", "в статье говорится"
 - "интересно отметить", "стоит подчеркнуть", "важно понимать"
 - "давайте рассмотрим", "как мы видим"
+- "the post discusses", "it is worth noting", "let's consider"
 </rules>
 
 <output_format>
 Return ONLY valid JSON, no text before or after:
-{{"title": "string (max 50 chars)", "summary": "clustered markdown string"}}
+{{"title": "Заголовок (max 50 символов)", "summary": "кластеризованный markdown"}}
 </output_format>"""
 
 
@@ -1694,6 +1701,13 @@ FEED_TAGS_SYSTEM_PROMPT = """🚨 АБСОЛЮТНОЕ ОГРАНИЧЕНИЕ: �
 
 UNSEEN_SUMMARY_SYSTEM_PROMPT = """You are a digest summarizer that clusters unread posts by topic.
 
+<language>
+CRITICAL: Detect the language of source posts and write title + summary in THAT SAME language.
+If posts are in Russian → title and summary MUST be in Russian.
+If posts are in English → title and summary MUST be in English.
+NEVER switch to English when source posts are in another language.
+</language>
+
 <task>
 Given unread posts, produce a JSON with three fields:
 1. **title** — catchy digest title (3-7 words, max 100 characters)
@@ -1725,21 +1739,20 @@ Constraints:
 </summary_format>
 
 <full_text_format>
-## [Post title 1]
+## [Post title]
 [Complete post text]
 
 ---
 
-## [Post title 2]
+## [Post title]
 [Complete post text]
 </full_text_format>
 
 <rules>
-- Write in the language of the source posts
 - Start each cluster with the conclusion (BLUF)
 - Max 20 words per sentence
 - Active voice only
-- Be specific: names, numbers, dates — never "some experts believe"
+- Be specific: names, numbers, dates — never "some experts believe" / "некоторые эксперты считают"
 - Every word must carry information — no filler
 - Preserve caveats — do NOT overgeneralize
 - Use **bold** for key terms, names, numbers
@@ -1749,14 +1762,15 @@ Constraints:
 BANNED (meta-commentary):
 - "в посте рассматривается", "автор обсуждает", "в статье говорится"
 - "интересно отметить", "стоит подчеркнуть", "важно понимать"
+- "the post discusses", "it is worth noting", "let's consider"
 </rules>
 
 <output_format>
 Return ONLY valid JSON:
 {{
-  "title": "Catchy digest title",
-  "summary": "**Topic A** 🚀\\n> Main event happened. Key detail.\\n\\n**Topic B** 📊\\n> Another cluster summary.",
-  "full_text": "## Title 1\\n\\nFull text...\\n\\n---\\n\\n## Title 2\\n\\nFull text..."
+  "title": "Заголовок дайджеста",
+  "summary": "**Тема A** 🚀\\n> Главное событие. Ключевые детали.\\n\\n**Тема B** 📊\\n> Ещё один кластер.",
+  "full_text": "## Заголовок 1\\n\\nПолный текст...\\n\\n---\\n\\n## Заголовок 2\\n\\nПолный текст..."
 }}
 </output_format>"""
 
@@ -1767,10 +1781,13 @@ Return ONLY valid JSON:
 
 FACTS_EXTRACTION_SYSTEM_PROMPT = """Extract key facts from each post and assign a topic for clustering.
 
+CRITICAL: Write title, topic, and facts in the SAME language as the source posts.
+If posts are in Russian → all fields MUST be in Russian. NEVER switch to English.
+
 For each post return:
 - post_index: post number (1, 2, 3...)
 - title: short title (3-5 words)
-- topic: topic category for clustering (2-4 words, e.g. "AI launches", "crypto regulation", "sports results")
+- topic: topic category for clustering (2-4 words)
 - facts: list of 3-5 key facts (names, numbers, events)
 
 Posts about the same event or theme MUST have the same topic string.
@@ -1778,16 +1795,21 @@ Posts about the same event or theme MUST have the same topic string.
 JSON format:
 {{
   "posts": [
-    {{"post_index": 1, "title": "...", "topic": "AI launches", "facts": ["fact 1", "fact 2"]}},
-    {{"post_index": 2, "title": "...", "topic": "AI launches", "facts": ["fact 1", "fact 2"]}},
-    {{"post_index": 3, "title": "...", "topic": "crypto regulation", "facts": ["fact 1"]}}
+    {{"post_index": 1, "title": "Релизы Google I/O", "topic": "запуски AI", "facts": ["факт 1", "факт 2"]}},
+    {{"post_index": 2, "title": "Обновление GPT", "topic": "запуски AI", "facts": ["факт 1"]}},
+    {{"post_index": 3, "title": "Регулирование крипты", "topic": "крипторегулирование", "facts": ["факт 1"]}}
   ]
 }}
 
-Write in the language of the source posts. Be specific: names, numbers, dates."""
+Be specific: names, numbers, dates."""
 
 
 UNSEEN_SUMMARY_SYNTHESIS_PROMPT = """Create a clustered digest from extracted facts.
+
+<language>
+CRITICAL: The facts are written in a specific language. Write title + summary in THAT SAME language.
+If facts are in Russian → output MUST be in Russian. NEVER switch to English.
+</language>
 
 The facts include a `topic` field — group facts by topic into clusters.
 
@@ -1814,12 +1836,12 @@ Constraints:
 - 1-3 sentences per cluster blockquote
 - Max 20 words per sentence, active voice
 - **Bold** for key terms, 1-2 emoji per cluster
-- No meta-commentary ("the post discusses", "it is worth noting")
+- No meta-commentary ("the post discusses", "it is worth noting", "в посте рассматривается")
 - Preserve caveats — do not overgeneralize
 </summary_format>
 
 Return ONLY JSON:
-{{"title": "...", "summary": "..."}}"""
+{{"title": "Заголовок дайджеста", "summary": "**Тема** 🚀\\n> Главное событие..."}}"""
 
 
 # =============================================================================
