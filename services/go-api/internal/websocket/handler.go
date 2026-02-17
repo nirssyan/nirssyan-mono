@@ -1,7 +1,9 @@
 package websocket
 
 import (
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/MargoRSq/infatium-mono/services/go-api/internal/middleware"
@@ -57,14 +59,27 @@ func (h *Handler) HandleFeedNotifications(w http.ResponseWriter, r *http.Request
 			conn.Close()
 		}()
 
+		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		conn.SetPongHandler(func(string) error {
+			conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+			return nil
+		})
+
 		for {
-			_, _, err := conn.ReadMessage()
+			_, msg, err := conn.ReadMessage()
 			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNormalClosure) {
 					log.Debug().Err(err).Str("user_id", userID.String()).Msg("WebSocket closed unexpectedly")
 				}
 				break
 			}
+
+			var data map[string]string
+			if json.Unmarshal(msg, &data) == nil && data["type"] == "ping" {
+				conn.WriteJSON(map[string]string{"type": "pong"})
+			}
+
+			conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		}
 	}()
 }
