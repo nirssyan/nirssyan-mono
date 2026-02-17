@@ -2092,10 +2092,10 @@ TLDR_VIEW_PROMPT = """You are a summary writer. Your job is to produce the short
 
 ## Output format
 
-Wrap the summary in a markdown blockquote (> prefix). No labels, no "TL;DR:", no "Summary:", no content type annotation.
+Wrap the summary in a markdown blockquote (> prefix). Start the first line with bold "**TL;DR:**" followed by the summary text. No other labels or content type annotations.
 
 Example:
-> OpenAI released GPT-5 with 2x context window and native tool use. Benchmarks show 15% improvement on coding tasks."""
+> **TL;DR:** OpenAI released GPT-5 with 2x context window and native tool use. Benchmarks show 15% improvement on coding tasks."""
 
 SUMMARY_KEYWORDS = frozenset(
     [
