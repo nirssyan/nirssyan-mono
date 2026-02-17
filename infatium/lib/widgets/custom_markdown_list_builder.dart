@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:url_launcher/url_launcher.dart';
 
 /// Custom markdown element builder for beautiful bullet and numbered lists
 /// with minimal dividers and custom styling (Perplexity/Particle.news-like)
@@ -23,11 +25,11 @@ class CustomMarkdownListBuilder extends MarkdownElementBuilder {
 
     for (final child in element.children ?? []) {
       if (child is md.Element && child.tag == 'li') {
-        final itemContent = _extractTextContent(child);
-        if (itemContent.isNotEmpty) {
+        final spans = _buildInlineSpans(child, preferredStyle);
+        if (spans.isNotEmpty) {
           items.add(
             _CustomListItemWidget(
-              content: itemContent,
+              spans: spans,
               isDarkMode: isDarkMode,
               isOrdered: isOrdered,
               index: index,
@@ -53,26 +55,77 @@ class CustomMarkdownListBuilder extends MarkdownElementBuilder {
     );
   }
 
-  String _extractTextContent(md.Element element) {
-    final buffer = StringBuffer();
+  List<InlineSpan> _buildInlineSpans(md.Node node, TextStyle? baseStyle) {
+    final spans = <InlineSpan>[];
 
-    void visit(md.Node node) {
+    void visit(md.Node node, TextStyle? currentStyle) {
       if (node is md.Text) {
-        buffer.write(node.text);
+        final text = node.text;
+        if (text.isNotEmpty) {
+          spans.add(TextSpan(text: text, style: currentStyle));
+        }
       } else if (node is md.Element) {
-        for (final child in node.children ?? []) {
-          visit(child);
+        switch (node.tag) {
+          case 'a':
+            final href = node.attributes['href'] ?? '';
+            final recognizer = TapGestureRecognizer()
+              ..onTap = () async {
+                if (href.isNotEmpty) {
+                  final uri = Uri.parse(href);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                }
+              };
+            final linkStyle = (currentStyle ?? const TextStyle()).copyWith(
+              color: isDarkMode ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
+              decoration: TextDecoration.underline,
+              decorationColor: isDarkMode
+                  ? const Color(0x66FFFFFF)
+                  : const Color(0x59000000),
+              decorationThickness: 1.0,
+              fontWeight: FontWeight.w600,
+            );
+            for (final child in node.children ?? []) {
+              if (child is md.Text) {
+                spans.add(TextSpan(
+                  text: child.text,
+                  style: linkStyle,
+                  recognizer: recognizer,
+                ));
+              } else {
+                visit(child, linkStyle);
+              }
+            }
+          case 'strong':
+            final boldStyle = (currentStyle ?? const TextStyle()).copyWith(
+              fontWeight: FontWeight.bold,
+            );
+            for (final child in node.children ?? []) {
+              visit(child, boldStyle);
+            }
+          case 'em':
+            final italicStyle = (currentStyle ?? const TextStyle()).copyWith(
+              fontStyle: FontStyle.italic,
+            );
+            for (final child in node.children ?? []) {
+              visit(child, italicStyle);
+            }
+          default:
+            for (final child in node.children ?? []) {
+              visit(child, currentStyle);
+            }
         }
       }
     }
 
-    visit(element);
-    return buffer.toString().trim();
+    visit(node, baseStyle);
+    return spans;
   }
 }
 
 class _CustomListItemWidget extends StatelessWidget {
-  final String content;
+  final List<InlineSpan> spans;
   final bool isDarkMode;
   final bool isOrdered;
   final int index;
@@ -80,7 +133,7 @@ class _CustomListItemWidget extends StatelessWidget {
   final TextStyle? textStyle;
 
   const _CustomListItemWidget({
-    required this.content,
+    required this.spans,
     required this.isDarkMode,
     required this.isOrdered,
     required this.index,
@@ -127,9 +180,8 @@ class _CustomListItemWidget extends StatelessWidget {
           const SizedBox(width: 6),
           // Content
           Expanded(
-            child: Text(
-              content,
-              style: effectiveTextStyle,
+            child: Text.rich(
+              TextSpan(children: spans, style: effectiveTextStyle),
             ),
           ),
         ],

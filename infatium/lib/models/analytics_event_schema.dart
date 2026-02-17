@@ -169,6 +169,10 @@ class EventSchema {
   /// Properties: (none)
   static const String analyticsDisabled = 'Analytics Disabled';
 
+  /// ATT (App Tracking Transparency) status changed
+  /// Properties: status (authorized/denied/restricted/not_determined), platform
+  static const String attStatusChanged = 'ATT Status Changed';
+
   // ========================================
   // SESSION & PERFORMANCE EVENTS
   // ========================================
@@ -341,6 +345,7 @@ class EventSchema {
     appIconChanged: {'icon_name'},
     analyticsEnabled: <String>{}, // No properties
     analyticsDisabled: <String>{}, // No properties
+    attStatusChanged: {'status', 'platform'},
 
     // Session & Performance events
     sessionEnded: {'duration_seconds', 'screens_viewed', 'posts_viewed'},

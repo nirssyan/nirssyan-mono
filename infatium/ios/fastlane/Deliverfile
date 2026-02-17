@@ -1,0 +1,12 @@
+# Deliverfile — fastlane deliver configuration
+# https://docs.fastlane.tools/actions/deliver/
+
+# App metadata
+app_identifier "com.nirssyan.makefeed"
+
+# Screenshots and metadata paths (relative to fastlane/ directory)
+screenshots_path "./screenshots"
+metadata_path "./metadata"
+
+# Pricing (free app)
+price_tier 0

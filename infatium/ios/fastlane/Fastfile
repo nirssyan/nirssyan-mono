@@ -1,0 +1,27 @@
+default_platform(:ios)
+
+# Path to API key JSON (relative to fastlane/ directory where Fastfile lives)
+API_KEY_PATH = File.expand_path("keys/api_key.json", __dir__)
+
+platform :ios do
+  desc "Download current screenshots from App Store Connect"
+  lane :download_screenshots do
+    sh("fastlane deliver download_screenshots --api_key_path '#{API_KEY_PATH}'")
+  end
+
+  desc "Upload screenshots to App Store Connect"
+  lane :upload_screenshots do
+    deliver(
+      api_key_path: API_KEY_PATH,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      overwrite_screenshots: true,
+      force: true
+    )
+  end
+
+  desc "Download metadata from App Store Connect"
+  lane :download_metadata do
+    sh("fastlane deliver download_metadata --api_key_path '#{API_KEY_PATH}'")
+  end
+end
