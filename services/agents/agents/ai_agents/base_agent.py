@@ -10,6 +10,7 @@ from typing import Any, Generic, TypeVar
 
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+import httpx
 from langchain_openai import ChatOpenAI
 from loguru import logger
 from pydantic import BaseModel, SecretStr, ValidationError
@@ -63,13 +64,23 @@ class BaseJSONAgent(Generic[T]):
         if not self.base_url:
             raise ValueError("AI base URL must be provided in config or as parameter")
 
-        self.llm = ChatOpenAI(
-            api_key=SecretStr(self.api_key),
-            base_url=self.base_url,
-            model=self.model,
-            temperature=self.temperature,
-            timeout=settings.llm_request_timeout,
-        )
+        llm_kwargs: dict[str, Any] = {
+            "api_key": SecretStr(self.api_key),
+            "base_url": self.base_url,
+            "model": self.model,
+            "temperature": self.temperature,
+            "timeout": settings.llm_request_timeout,
+        }
+
+        if settings.proxy_url:
+            proxy = settings.proxy_url
+            if settings.proxy_username and settings.proxy_password:
+                scheme, rest = proxy.split("://", 1)
+                proxy = f"{scheme}://{settings.proxy_username}:{settings.proxy_password}@{rest}"
+            llm_kwargs["http_async_client"] = httpx.AsyncClient(proxy=proxy)
+            llm_kwargs["http_client"] = httpx.Client(proxy=proxy)
+
+        self.llm = ChatOpenAI(**llm_kwargs)
 
         # Bind tools to LLM if provided
         llm_with_tools = self.llm.bind_tools(tools) if tools else self.llm
