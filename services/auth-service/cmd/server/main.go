@@ -33,8 +33,17 @@ func main() {
 		zerolog.SetGlobalLevel(level)
 	}
 
+	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to parse database config")
+	}
+	poolCfg.MinConns = 2
+	poolCfg.MaxConns = 10
+	poolCfg.HealthCheckPeriod = 30 * time.Second
+	poolCfg.ConnConfig.ConnectTimeout = 5 * time.Second
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	cancel()
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to connect to database")
@@ -72,7 +81,7 @@ func main() {
 		logger,
 	)
 
-	healthHandler := handler.NewHealthHandler(pool)
+	healthHandler := handler.NewHealthHandler(pool, logger)
 	staticHandler := handler.NewStaticHandler()
 	authHandler := handler.NewAuthHandler(authService, cfg.DemoModeEnabled, cfg.DemoAccountEmail, cfg.DemoAccountPassword, logger)
 
