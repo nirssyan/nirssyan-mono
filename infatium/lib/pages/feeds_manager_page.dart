@@ -354,7 +354,7 @@ class FeedsManagerPageState extends State<FeedsManagerPage>
             onRefresh: _loadFeeds,
           ),
           SliverPadding(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 100),
+            padding: EdgeInsets.only(left: 16, right: 16, top: 8, bottom: MediaQuery.of(context).padding.bottom + 84),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {

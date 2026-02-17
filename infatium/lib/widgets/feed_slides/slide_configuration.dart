@@ -229,10 +229,9 @@ class _SlideConfigurationState extends State<SlideConfiguration>
         ? CupertinoColors.white.withOpacity(0.1)
         : CupertinoColors.black.withOpacity(0.1);
 
-    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
-    // GlassTabBar: 88px from screen bottom. Target: button at 100px from screen.
-    // SafeArea adds bottomInset, so subtract it from target.
-    final buttonBottom = (100.0 - bottomInset).clamp(12.0, 100.0);
+    // GlassTabBar occupies 72px from SafeArea bottom (64 height + 8 margin).
+    // 12px gap above tab bar.
+    const buttonBottom = 84.0;
 
     return SafeArea(
       child: Column(
