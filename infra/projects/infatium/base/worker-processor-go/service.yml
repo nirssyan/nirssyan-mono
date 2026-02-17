@@ -11,9 +11,5 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
-    - port: 9464
-      targetPort: metrics
-      protocol: TCP
-      name: metrics
   selector:
     app: worker-processor-go

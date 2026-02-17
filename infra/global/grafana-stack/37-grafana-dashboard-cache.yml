@@ -1,0 +1,244 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-cache
+  namespace: infrastructure
+  labels:
+    custom_dashboard: "enabled"
+    app: grafana
+data:
+  cache-dashboard.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "orange", "value": 50 },
+                  { "color": "green", "value": 80 }
+                ]
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+          "id": 1,
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "none"
+          },
+          "title": "Cache Hit Rate %",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "100 * sum(rate(cache_hits_total{namespace=\"$namespace\"}[$__rate_interval])) / (sum(rate(cache_hits_total{namespace=\"$namespace\"}[$__rate_interval])) + sum(rate(cache_misses_total{namespace=\"$namespace\"}[$__rate_interval])))",
+              "legendFormat": "Hit Rate",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+          "id": 4,
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "horizontal",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "none"
+          },
+          "title": "Total Hits vs Misses",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(cache_hits_total{namespace=\"$namespace\"})",
+              "legendFormat": "Hits",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(cache_misses_total{namespace=\"$namespace\"})",
+              "legendFormat": "Misses",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "blue", "value": null }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+          "id": 5,
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area"
+          },
+          "title": "LLM Requests Saved",
+          "type": "stat",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(cache_hits_total{namespace=\"$namespace\"})",
+              "legendFormat": "Saved Calls",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineWidth": 2,
+                "pointSize": 5,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "unit": "percent",
+              "min": 0,
+              "max": 100
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "id": 2,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "title": "Hit Rate by Cache",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "100 * sum by (cache) (rate(cache_hits_total{namespace=\"$namespace\"}[$__rate_interval])) / (sum by (cache) (rate(cache_hits_total{namespace=\"$namespace\"}[$__rate_interval])) + sum by (cache) (rate(cache_misses_total{namespace=\"$namespace\"}[$__rate_interval])))",
+              "legendFormat": "{{cache}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisLabel": "",
+                "drawStyle": "bars",
+                "fillOpacity": 50,
+                "lineWidth": 1,
+                "pointSize": 5,
+                "showPoints": "never",
+                "stacking": { "group": "A", "mode": "normal" },
+                "spanNulls": false
+              },
+              "unit": "ops"
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byRegexp", "options": ".*misses.*" },
+                "properties": [
+                  { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+                ]
+              },
+              {
+                "matcher": { "id": "byRegexp", "options": ".*hits.*" },
+                "properties": [
+                  { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+                ]
+              }
+            ]
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "id": 3,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+          "title": "Hits / Misses Rate",
+          "type": "timeseries",
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (cache) (rate(cache_hits_total{namespace=\"$namespace\"}[$__rate_interval]))",
+              "legendFormat": "{{cache}} hits",
+              "refId": "A"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum by (cache) (rate(cache_misses_total{namespace=\"$namespace\"}[$__rate_interval]))",
+              "legendFormat": "{{cache}} misses",
+              "refId": "B"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["cache", "makefeed"],
+      "templating": {
+        "list": [
+          {
+            "current": { "selected": false, "text": "infatium-dev", "value": "infatium-dev" },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Namespace",
+            "name": "namespace",
+            "options": [
+              { "selected": true, "text": "infatium-dev", "value": "infatium-dev" },
+              { "selected": false, "text": "infatium-prod", "value": "infatium-prod" }
+            ],
+            "query": "infatium-dev,infatium-prod",
+            "type": "custom"
+          }
+        ]
+      },
+      "time": { "from": "now-6h", "to": "now" },
+      "title": "Cache",
+      "uid": "cache-dashboard"
+    }
