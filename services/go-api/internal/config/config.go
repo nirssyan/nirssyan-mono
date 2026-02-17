@@ -21,7 +21,7 @@ type Config struct {
 
 	TelegramBotToken        string `envconfig:"TELEGRAM_BOT_TOKEN"`
 	TelegramBotURL          string `envconfig:"TELEGRAM_BOT_URL"`
-	TelegramBotUsername     string `envconfig:"TELEGRAM_BOT_USERNAME"`
+	TelegramBotUsername     string `envconfig:"TELEGRAM_BOT_USERNAME" default:"infatiumbot"`
 	TelegramLinkExpiryMins  int    `envconfig:"TELEGRAM_LINK_EXPIRY_MINS" default:"15"`
 
 	FeedbackTelegramBotToken  string `envconfig:"FEEDBACK_TELEGRAM_BOT_TOKEN"`
