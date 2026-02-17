@@ -81,3 +81,4 @@ data:
   ADMIN_TELEGRAM_USER_THREAD_ID: "2128"
   AUTH_SERVICE_URL: "http://app-auth-go:8080"
   ALLOWED_ORIGINS: "https://infatium.ru,https://api.infatium.ru,capacitor://localhost,http://localhost"
+  TELEGRAM_BOT_USERNAME: "infatiumbot"
