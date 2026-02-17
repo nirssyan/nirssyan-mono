@@ -4,18 +4,18 @@ metadata:
   name: makefeed-processor
   namespace: infrastructure
   labels:
-    app: makefeed-processor
+    app: worker-processor-go
     release: kube-prometheus-stack
 spec:
   selector:
     matchLabels:
-      app: makefeed-processor
+      app: worker-processor-go
   namespaceSelector:
     matchNames:
       - infatium-dev
       - infatium-prod
   endpoints:
-    - port: metrics
+    - port: http
       path: /metrics
       interval: 30s
       scrapeTimeout: 10s
