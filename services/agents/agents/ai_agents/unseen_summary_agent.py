@@ -192,15 +192,21 @@ class UnseenSummaryAgent(BaseJSONAgent[UnseenSummaryResponse]):
 
         combined_facts = "\n\n".join(facts_text)
 
-        try:
-            return await self._get_synthesis_agent().synthesize(
-                facts_content=combined_facts,
-                user_id=user_id,
-            )
+        last_error: Exception | None = None
+        for attempt in range(2):
+            try:
+                return await self._get_synthesis_agent().synthesize(
+                    facts_content=combined_facts,
+                    user_id=user_id,
+                )
+            except Exception as e:
+                last_error = e
+                if attempt == 0:
+                    logger.warning(f"Synthesis attempt 1 failed, retrying: {e}")
+                else:
+                    logger.error(f"Synthesis attempt 2 failed: {e}")
 
-        except Exception as e:
-            logger.error(f"Error in synthesis stage: {e}")
-            raise ValueError(f"Synthesis stage failed: {e}") from e
+        raise ValueError(f"Synthesis stage failed after 2 attempts: {last_error}") from last_error
 
     def _compose_full_text(self, posts_data: list[dict]) -> str:
         """Compose full_text programmatically without LLM."""
