@@ -1109,10 +1109,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get slideConfigSubtitle => 'How to process and what to filter';
 
   @override
-  String get slideConfigProcessingStyle => 'Processing style';
+  String get slideConfigProcessingStyle => 'Post views';
 
   @override
-  String get slideConfigProcessingHint => 'How AI will process the news';
+  String get slideConfigProcessingHint => 'How to display the news';
 
   @override
   String get slideConfigCustomStyle => 'Custom style...';
@@ -1121,7 +1121,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get slideConfigFilters => 'Filters';
 
   @override
-  String get slideConfigFiltersHint => 'What to remove from the feed';
+  String get slideConfigFiltersHint =>
+      'What would you like or not like to see in your feed?';
 
   @override
   String get slideConfigCustomFilter => 'Custom filter...';

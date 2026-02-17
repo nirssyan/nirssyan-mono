@@ -1118,10 +1118,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get slideConfigSubtitle => 'Как обрабатывать и что фильтровать';
 
   @override
-  String get slideConfigProcessingStyle => 'Стиль обработки';
+  String get slideConfigProcessingStyle => 'Представления поста';
 
   @override
-  String get slideConfigProcessingHint => 'Как AI будет обрабатывать новости';
+  String get slideConfigProcessingHint => 'В каком формате показывать новости';
 
   @override
   String get slideConfigCustomStyle => 'Свой стиль...';
@@ -1130,7 +1130,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get slideConfigFilters => 'Фильтры';
 
   @override
-  String get slideConfigFiltersHint => 'Что убирать из ленты';
+  String get slideConfigFiltersHint =>
+      'Что бы вы хотели или не хотели видеть в вашей ленте?';
 
   @override
   String get slideConfigCustomFilter => 'Свой фильтр...';
