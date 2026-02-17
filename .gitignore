@@ -43,6 +43,11 @@ htmlcov/
 
 # Go
 vendor/
+services/go-*/processor
+services/go-*/api
+services/go-*/poller
+services/go-*/registry
+services/go-*/integrations
 
 # Python
 *.egg-info/
