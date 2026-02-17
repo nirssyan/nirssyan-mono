@@ -158,7 +158,7 @@ func (h *FeedbackHandler) SubmitFeedback(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if h.telegramBotToken != "" && h.telegramChatID != "" {
+	if h.telegramBotToken != "" && h.telegramChatID != "" && !middleware.IsDryRunNotify(r.Context()) {
 		go h.sendTelegramNotification(userID, message, imageURLs)
 	}
 
