@@ -2954,7 +2954,7 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
         ),
 
         // Bottom padding for tab bar
-        const SliverToBoxAdapter(child: SizedBox(height: 120)),
+        SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.bottom + 84)),
       ],
     );
   }
@@ -3085,7 +3085,7 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     final accentColor = isDark ? AppColors.accent : AppColors.lightAccent;
 
     return Positioned(
-      bottom: 100,
+      bottom: MediaQuery.of(context).padding.bottom + 84,
       right: 24,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 300),
@@ -3687,7 +3687,7 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
               ),
             ),
           ),
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.bottom + 84)),
       ],
     );
   }
@@ -3816,7 +3816,7 @@ class MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   Widget _buildSkeletonList(bool isDark, {double topPadding = 8}) {
     return ListView.builder(
       itemCount: 4,
-      padding: EdgeInsets.only(top: topPadding, bottom: 100),
+      padding: EdgeInsets.only(top: topPadding, bottom: MediaQuery.of(context).padding.bottom + 84),
       physics: const NeverScrollableScrollPhysics(),
       itemBuilder: (context, index) => _buildPulseSkeletonCard(isDark, index),
     );

@@ -485,10 +485,19 @@ func (s *FeedProcessingService) ProcessFeedCreatedEvent(ctx context.Context, eve
 		}
 
 		if len(viewsRaw) > 0 || len(filtersRaw) > 0 {
-			transformResp, err := s.agentsClient.TransformViewsAndFilters(ctx, viewsRaw, filtersRaw, nil, nil, "")
-			if err != nil {
-				logger.Warn().Err(err).Msg("Failed to transform views/filters")
-			} else {
+			const maxTransformRetries = 3
+			var transformErr error
+			for attempt := 1; attempt <= maxTransformRetries; attempt++ {
+				transformResp, err := s.agentsClient.TransformViewsAndFilters(ctx, viewsRaw, filtersRaw, nil, nil, "")
+				if err != nil {
+					transformErr = err
+					logger.Warn().Err(err).Int("attempt", attempt).Int("max", maxTransformRetries).
+						Msg("Failed to transform views/filters, retrying")
+					if attempt < maxTransformRetries {
+						time.Sleep(time.Duration(attempt) * 2 * time.Second)
+					}
+					continue
+				}
 				if len(transformResp.Views) > 0 {
 					viewsConfig, _ := json.Marshal(transformResp.Views)
 					s.promptRepo.UpdateViewsConfig(ctx, event.PromptID, viewsConfig)
@@ -497,7 +506,15 @@ func (s *FeedProcessingService) ProcessFeedCreatedEvent(ctx context.Context, eve
 					filtersConfig, _ := json.Marshal(transformResp.Filters)
 					s.promptRepo.UpdateFiltersConfig(ctx, event.PromptID, filtersConfig)
 				}
-				logger.Info().Msg("Views/filters transformed successfully")
+				logger.Info().
+					Int("views", len(transformResp.Views)).
+					Int("filters", len(transformResp.Filters)).
+					Msg("Views/filters transformed")
+				transformErr = nil
+				break
+			}
+			if transformErr != nil {
+				logger.Error().Err(transformErr).Msg("Failed to transform views/filters after all retries")
 			}
 		}
 	}
@@ -552,26 +569,38 @@ func (s *FeedProcessingService) ProcessFeedUpdatedEvent(ctx context.Context, eve
 		return nil
 	}
 
-	transformResp, err := s.agentsClient.TransformViewsAndFilters(ctx, viewsRaw, filtersRaw, nil, nil, "")
-	if err != nil {
-		return fmt.Errorf("transform views/filters: %w", err)
-	}
-
-	if len(transformResp.Views) > 0 {
-		viewsConfig, _ := json.Marshal(transformResp.Views)
-		if err := s.promptRepo.UpdateViewsConfig(ctx, event.PromptID, viewsConfig); err != nil {
-			return fmt.Errorf("update views config: %w", err)
+	const maxTransformRetries = 3
+	var transformErr error
+	for attempt := 1; attempt <= maxTransformRetries; attempt++ {
+		transformResp, err := s.agentsClient.TransformViewsAndFilters(ctx, viewsRaw, filtersRaw, nil, nil, "")
+		if err != nil {
+			transformErr = err
+			logger.Warn().Err(err).Int("attempt", attempt).Int("max", maxTransformRetries).
+				Msg("Failed to transform views/filters, retrying")
+			if attempt < maxTransformRetries {
+				time.Sleep(time.Duration(attempt) * 2 * time.Second)
+			}
+			continue
 		}
-	}
-	if len(transformResp.Filters) > 0 {
-		filtersConfig, _ := json.Marshal(transformResp.Filters)
-		if err := s.promptRepo.UpdateFiltersConfig(ctx, event.PromptID, filtersConfig); err != nil {
-			return fmt.Errorf("update filters config: %w", err)
+		if len(transformResp.Views) > 0 {
+			viewsConfig, _ := json.Marshal(transformResp.Views)
+			if err := s.promptRepo.UpdateViewsConfig(ctx, event.PromptID, viewsConfig); err != nil {
+				return fmt.Errorf("update views config: %w", err)
+			}
 		}
+		if len(transformResp.Filters) > 0 {
+			filtersConfig, _ := json.Marshal(transformResp.Filters)
+			if err := s.promptRepo.UpdateFiltersConfig(ctx, event.PromptID, filtersConfig); err != nil {
+				return fmt.Errorf("update filters config: %w", err)
+			}
+		}
+		logger.Info().
+			Int("views", len(transformResp.Views)).
+			Int("filters", len(transformResp.Filters)).
+			Msg("Views/filters transformed")
+		return nil
 	}
-
-	logger.Info().Msg("Views/filters transformed successfully")
-	return nil
+	return fmt.Errorf("transform views/filters after %d retries: %w", maxTransformRetries, transformErr)
 }
 
 // ProcessFeedInitialSyncEvent handles initial sync events

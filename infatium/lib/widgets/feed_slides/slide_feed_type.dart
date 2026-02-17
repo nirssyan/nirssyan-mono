@@ -70,10 +70,9 @@ class _SlideFeedTypeState extends State<SlideFeedType>
     final accentColor = _isDark ? AppColors.accent : AppColors.lightAccent;
     final backgroundColor = _isDark ? AppColors.background : AppColors.lightBackground;
 
-    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
-    // GlassTabBar: 88px from screen bottom. Target: button at 100px from screen.
-    // SafeArea adds bottomInset, so subtract it from target.
-    final buttonBottom = (100.0 - bottomInset).clamp(12.0, 100.0);
+    // GlassTabBar occupies 72px from SafeArea bottom (64 height + 8 margin).
+    // 12px gap above tab bar.
+    const buttonBottom = 84.0;
 
     return SafeArea(
       child: Column(

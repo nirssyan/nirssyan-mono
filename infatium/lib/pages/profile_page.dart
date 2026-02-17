@@ -627,7 +627,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.only(top: 20, bottom: 100),
+          padding: EdgeInsets.only(top: 20, bottom: MediaQuery.of(context).padding.bottom + 84),
           children: [
             // User info section (clickable)
             CupertinoButton(

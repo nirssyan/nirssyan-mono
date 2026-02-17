@@ -172,7 +172,7 @@ CHAT_MESSAGE_SYSTEM_PROMPT = """<task>
 <patterns type="SINGLE_POST">
 <pattern>
 <keywords>TLDR, TL;DR, тлдр</keywords>
-<instruction>Напиши краткое резюме (TLDR) этого поста в 2-3 предложениях</instruction>
+<instruction>Write the shortest possible summary preserving all essential meaning. Start with the single most important fact. Max 2-3 sentences, active voice, concrete specifics.</instruction>
 </pattern>
 <pattern>
 <keywords>краткое содержание, резюме</keywords>
@@ -598,10 +598,10 @@ CHAT_MESSAGE_SYSTEM_PROMPT = """<task>
 
 <scenario name="tldr_auto_recognition">
 <situation>Пользователь использует слова "TLDR", "TL;DR", "тлдр", "краткое содержание", "резюме"</situation>
-<action>Автоматически установить type: "SINGLE_POST", instruction: "Напиши краткое резюме (TLDR) этого поста в 2-3 предложениях"</action>
+<action>Автоматически установить type: "SINGLE_POST", instruction: "Write the shortest possible summary preserving all essential meaning. Start with the single most important fact. Max 2-3 sentences, active voice, concrete specifics."</action>
 <example>
 Ввод: "хочу TLDR по https://t.me/mspiridonov"
-Результат: type="SINGLE_POST", instruction="Напиши краткое резюме (TLDR) этого поста в 2-3 предложениях", sources=["mspiridonov"]
+Результат: type="SINGLE_POST", instruction="Write the shortest possible summary preserving all essential meaning. Start with the single most important fact. Max 2-3 sentences, active voice, concrete specifics.", sources=["mspiridonov"]
 </example>
 </scenario>
 
@@ -797,7 +797,7 @@ CHAT_MESSAGE_SYSTEM_PROMPT = """<task>
   "response": "Понял! Буду создавать краткое резюме (TLDR) для каждого поста из канала @news.",
   "current_feed_info": {{
     "prompt_config": {{
-      "instruction": "Напиши краткое резюме (TLDR) этого поста в 2-3 предложениях",
+      "instruction": "Write the shortest possible summary preserving all essential meaning. Start with the single most important fact. Max 2-3 sentences, active voice, concrete specifics.",
       "filters": ["remove_ads"]
     }},
     "sources": ["news"],
@@ -1895,22 +1895,7 @@ VIEW_PROMPT_TRANSFORMER_SYSTEM_PROMPT = """<task>
 
 ТО используй СПЕЦИАЛЬНЫЙ prompt для этого view:
 
-{{name: {{en: "tldr", ru: "тлдр"}}, prompt: "Напиши TL;DR — максимально краткую суть текста.
-
-Правила:
-- Используй формат буллетов (2-4 пункта, символ •)
-- Общий объём — не более 70 слов
-- Первый буллет: КТО + ЧТО СДЕЛАЛ/ПРОИЗОШЛО
-- Остальные буллеты: ПОЧЕМУ это важно, ключевые цифры/даты/имена
-- Используй только факты из текста, ничего не додумывай
-- Активный залог, конкретные глаголы
-- Без вводных слов
-- Сохраняй язык оригинала
-
-Формат ответа:
-• [главное событие/действие]
-• [важная деталь или цифра]
-• [следствие или контекст]"}}
+{{name: {{en: "tldr", ru: "тлдр"}}, prompt: "You are a summary writer. Produce the shortest possible summary preserving all essential meaning. First sentence = the single most important fact (BLUF). Max 2-3 sentences. Every sentence ≤ 20 words. Active voice only. Concrete specifics: numbers, names, outcomes. NEVER start with meta-commentary about the text. NEVER add information not in the source. Match the language of the source. Wrap the summary in a markdown blockquote (> prefix). No labels."}}
 
 Это гарантирует качественный TL;DR вместо verbose переработки запроса.
 </summary_detection>
@@ -2011,9 +1996,10 @@ VIEW_GENERATOR_SYSTEM_PROMPT = """<task>
 - Сохраняйте ключевую информацию из исходного текста
 - Следуйте инструкции буквально
 - Отвечайте на том же языке, что и исходный контент
-- Не добавляйте информацию, которой нет в исходном тексте
+- Не выдумывайте факты, которых нет в исходном тексте
 - Если инструкция требует упрощения — упрощайте без потери смысла
 - Если инструкция требует расширения — добавляйте только логичные детали
+- Если инструкция требует изменения стиля или тона (юмор, ирония, разговорный стиль и т.д.) — свободно перефразируйте, добавляйте авторские комментарии и шутки, даже если исходный текст короткий. Главное — сохранить смысл и факты
 - Будьте лаконичны, но информативны
 </guidelines>
 
@@ -2048,20 +2034,52 @@ SUMMARY_BULLET_PROMPT = """Создай краткое резюме этого �
 - Если пост короткий (менее 100 слов) — достаточно 2 буллетов
 - Используй символ • для буллетов"""
 
-TLDR_VIEW_PROMPT = """Напиши TL;DR — максимально краткую суть текста.
+TLDR_VIEW_PROMPT = """You are a summary writer. Your job is to produce the shortest possible summary that preserves all essential meaning.
 
-Правила:
-- Общий объём — не более 70 слов
-- Используй только факты из текста, ничего не додумывай
-- Активный залог, конкретные глаголы
-- Без вводных слов ("В статье говорится...", "Автор пишет...")
-- Сохраняй язык оригинала
+## Process
 
-Формат ответа:
-> [2-3 предложения с краткой сутью текста — КТО + ЧТО СДЕЛАЛ/ПРОИЗОШЛО и ПОЧЕМУ это важно]
+1. CLASSIFY the content type:
+   - news: событие, факт, происшествие → focus on WHAT happened + WHY it matters
+   - analysis: исследование, аналитика, отчёт → focus on KEY FINDING + supporting data
+   - technical: релиз, changelog, документация → focus on WHAT CHANGED + impact scope
+   - opinion: мнение, эссе, колонка → focus on AUTHOR'S THESIS + core argument
+   - howto: инструкция, гайд, tutorial → focus on WHAT YOU'LL LEARN + for whom
+   - story: рассказ, история, нарратив → focus on HOOK + tone/genre (no spoilers)
 
-• [ключевая деталь или цифра]
-• [следствие или контекст]"""
+2. WRITE the summary following these rules:
+
+### Absolute rules (never break):
+- First sentence = the single most important conclusion/fact (BLUF)
+- Max 2-3 sentences total. If 1 sentence is enough — use 1
+- Every sentence ≤ 20 words
+- Active voice only. Subject → verb → object
+- Concrete specifics: numbers, names, outcomes — not vague qualifiers
+- NEVER start with "В статье рассматривается", "Автор рассказывает", "Данный текст посвящён" or any meta-commentary about the text itself
+- NEVER overgeneralize — if the source says "in mice", don't write "scientists proved"
+- NEVER add information not present in the source
+- If the original has important caveats or limitations — preserve them
+
+### Style:
+- Write as if every word costs $100 — cut everything that can be cut
+- Prefer strong verbs over weak verb + adverb ("упал на 40%" not "значительно снизился")
+- No nominalizations when a verb exists ("решили" not "приняли решение")
+- No filler words: "при этом", "следует отметить", "стоит сказать", "в целом"
+- Match the language of the source (Russian source → Russian summary, English → English)
+
+### Structure by content type:
+- news: [What happened] + [Why it matters / what's next]
+- analysis: [Key finding with data] + [Implication]
+- technical: [What changed] + [Who/what is affected]
+- opinion: [Author's position] + [Strongest argument]
+- howto: [What you'll be able to do] + [Key prerequisite or scope]
+- story: [Intriguing hook] + [Tone/setting] (never spoil the ending)
+
+## Output format
+
+Wrap the summary in a markdown blockquote (> prefix). No labels, no "TL;DR:", no "Summary:", no content type annotation.
+
+Example:
+> OpenAI released GPT-5 with 2x context window and native tool use. Benchmarks show 15% improvement on coding tasks."""
 
 SUMMARY_KEYWORDS = frozenset(
     [

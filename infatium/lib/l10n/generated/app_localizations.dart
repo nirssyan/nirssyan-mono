@@ -2165,13 +2165,13 @@ abstract class AppLocalizations {
   /// No description provided for @slideConfigProcessingStyle.
   ///
   /// In en, this message translates to:
-  /// **'Processing style'**
+  /// **'Post views'**
   String get slideConfigProcessingStyle;
 
   /// No description provided for @slideConfigProcessingHint.
   ///
   /// In en, this message translates to:
-  /// **'How AI will process the news'**
+  /// **'How to display the news'**
   String get slideConfigProcessingHint;
 
   /// No description provided for @slideConfigCustomStyle.
@@ -2189,7 +2189,7 @@ abstract class AppLocalizations {
   /// No description provided for @slideConfigFiltersHint.
   ///
   /// In en, this message translates to:
-  /// **'What to remove from the feed'**
+  /// **'What would you like or not like to see in your feed?'**
   String get slideConfigFiltersHint;
 
   /// No description provided for @slideConfigCustomFilter.

@@ -219,63 +219,67 @@ func (a *App) Run(ctx context.Context) error {
 	router.Get("/readyz", healthHandler.Readyz)
 	router.Handle("/metrics", observability.MetricsHandler())
 
-	router.Post("/debug/echo", func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Error().Err(err).Msg("debug/echo: failed to read body")
-			http.Error(w, "failed to read body", http.StatusBadRequest)
-			return
-		}
-		log.Info().
-			Str("method", r.Method).
-			Str("path", r.URL.Path).
-			Str("content_type", r.Header.Get("Content-Type")).
-			Str("body", string(body)).
-			Msg("debug/echo: received request")
-		w.WriteHeader(http.StatusOK)
-		w.Write(body)
-	})
-
 	router.Get("/ws/feeds", wsHandler.HandleFeedNotifications)
-
-	router.Mount("/marketplace", marketplaceHandler.Routes(authMiddleware.Authenticate))
-	router.Mount("/suggestions", suggestionsHandler.Routes())
-	router.Mount("/tags", tagsHandler.Routes())
-	router.Mount("/media", mediaHandler.Routes())
-	router.Mount("/sources", sourceValidationHandler.Routes())
-	router.Get("/share/posts/{post_id}", postHandler.GetPostPublic)
 
 	adminMiddleware := middleware.NewAdminMiddleware(userRepo)
 	adminHandler := handlers.NewAdminHandler(suggestionRepo, tagRepo, marketplaceRepo)
 
 	router.Group(func(r chi.Router) {
-		r.Use(authMiddleware.Authenticate)
+		r.Use(func(next http.Handler) http.Handler {
+			return http.TimeoutHandler(next, 30*time.Second, `{"error":"request timeout"}`)
+		})
 
-		r.Mount("/feeds", feedHandler.Routes())
-		r.Mount("/modal", feedViewHandler.Routes())
-		r.Mount("/posts", postHandler.Routes())
-		r.Mount("/users", userHandler.Routes())
-		r.Mount("/subscriptions", subscriptionHandler.Routes())
-		r.Mount("/device-tokens", deviceTokenHandler.Routes())
-		r.Mount("/users_feeds", usersFeedHandler.Routes())
-		r.Mount("/feedback", feedbackHandler.Routes())
-		r.Mount("/users/tags", tagsHandler.AuthenticatedRoutes())
-		r.Mount("/telegram", telegramLinkHandler.AuthenticatedRoutes())
-		r.Mount("/sync", telegramSyncHandler.Routes())
+		r.Post("/debug/echo", func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				log.Error().Err(err).Msg("debug/echo: failed to read body")
+				http.Error(w, "failed to read body", http.StatusBadRequest)
+				return
+			}
+			log.Info().
+				Str("method", r.Method).
+				Str("path", r.URL.Path).
+				Str("content_type", r.Header.Get("Content-Type")).
+				Str("body", string(body)).
+				Msg("debug/echo: received request")
+			w.WriteHeader(http.StatusOK)
+			w.Write(body)
+		})
 
-		r.Route("/admin", func(r chi.Router) {
-			r.Use(adminMiddleware.RequireAdmin)
-			r.Mount("/users", userHandler.AdminRoutes())
-			r.Mount("/", adminHandler.Routes())
+		r.Mount("/marketplace", marketplaceHandler.Routes(authMiddleware.Authenticate))
+		r.Mount("/suggestions", suggestionsHandler.Routes())
+		r.Mount("/tags", tagsHandler.Routes())
+		r.Mount("/media", mediaHandler.Routes())
+		r.Mount("/sources", sourceValidationHandler.Routes())
+		r.Get("/share/posts/{post_id}", postHandler.GetPostPublic)
+
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.Authenticate)
+
+			r.Mount("/feeds", feedHandler.Routes())
+			r.Mount("/modal", feedViewHandler.Routes())
+			r.Mount("/posts", postHandler.Routes())
+			r.Mount("/users", userHandler.Routes())
+			r.Mount("/subscriptions", subscriptionHandler.Routes())
+			r.Mount("/device-tokens", deviceTokenHandler.Routes())
+			r.Mount("/users_feeds", usersFeedHandler.Routes())
+			r.Mount("/feedback", feedbackHandler.Routes())
+			r.Mount("/users/tags", tagsHandler.AuthenticatedRoutes())
+			r.Mount("/telegram", telegramLinkHandler.AuthenticatedRoutes())
+			r.Mount("/sync", telegramSyncHandler.Routes())
+
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(adminMiddleware.RequireAdmin)
+				r.Mount("/users", userHandler.AdminRoutes())
+				r.Mount("/", adminHandler.Routes())
+			})
 		})
 	})
 
 	a.httpServer = &http.Server{
-		Addr:         fmt.Sprintf(":%d", a.cfg.HTTPPort),
-		Handler:      router,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		Addr:        fmt.Sprintf(":%d", a.cfg.HTTPPort),
+		Handler:     router,
+		IdleTimeout: 120 * time.Second,
 	}
 
 	go func() {
