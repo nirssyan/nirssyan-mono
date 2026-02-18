@@ -30,7 +30,7 @@ export default function PrivacyPage() {
             Политика конфиденциальности
           </h1>
           <div className="inline-block px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white/60">
-            Дата последнего обновления: 3 января 2026
+            Дата последнего обновления: 18 февраля 2026
           </div>
         </header>
 
@@ -87,10 +87,15 @@ export default function PrivacyPage() {
                       <td className="py-3 pr-4">Адрес электронной почты (email)</td>
                       <td className="py-3 text-green-400">Обязательно</td>
                     </tr>
-                    <tr>
+                    <tr className="border-b border-white/5">
                       <td className="py-3 pr-4">Идентификаторы</td>
                       <td className="py-3 pr-4">Telegram ID (числовой идентификатор)</td>
                       <td className="py-3 text-white/50">Опционально</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4">Рекламные идентификаторы</td>
+                      <td className="py-3 pr-4">IDFA (Identifier for Advertisers) на устройствах Apple</td>
+                      <td className="py-3 text-white/50">С вашего согласия</td>
                     </tr>
                   </tbody>
                 </table>
@@ -154,9 +159,13 @@ export default function PrivacyPage() {
                       <td className="py-3 pr-4">Интеграция с Telegram-ботом</td>
                       <td className="py-3">Согласие пользователя</td>
                     </tr>
-                    <tr>
+                    <tr className="border-b border-white/5">
                       <td className="py-3 pr-4">Техническая поддержка пользователей</td>
                       <td className="py-3">Законный интерес оператора</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 pr-4">Анализ эффективности рекламных кампаний (IDFA)</td>
+                      <td className="py-3">Явное согласие пользователя (ATT)</td>
                     </tr>
                   </tbody>
                 </table>
@@ -309,7 +318,54 @@ export default function PrivacyPage() {
           {/* Section 10 */}
           <section className="bg-white/[0.02] backdrop-blur-sm border border-white/5 rounded-2xl p-6 sm:p-8">
             <h2 className="text-2xl sm:text-3xl font-semibold mb-4 text-white">
-              10. Изменения в Политике
+              10. Отслеживание и рекламные идентификаторы (App Tracking Transparency)
+            </h2>
+            <div className="space-y-4 text-white/70 leading-relaxed">
+              <p>
+                На устройствах Apple (iOS/iPadOS) Приложение может запрашивать доступ к рекламному идентификатору вашего устройства (IDFA) в соответствии с политикой Apple App Tracking Transparency (ATT).
+              </p>
+              <p>
+                <strong className="text-white/90">При первом запуске Приложение отображает системный запрос на разрешение отслеживания.</strong> Вы можете разрешить или запретить доступ к IDFA.
+              </p>
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold text-white/90 mb-3">
+                  Для чего используется IDFA:
+                </h3>
+                <ul className="space-y-2 pl-6">
+                  <li className="relative before:content-['•'] before:absolute before:-left-4 before:text-white/50">
+                    Измерение эффективности рекламных кампаний
+                  </li>
+                  <li className="relative before:content-['•'] before:absolute before:-left-4 before:text-white/50">
+                    Анализ привлечения пользователей (атрибуция)
+                  </li>
+                </ul>
+              </div>
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold text-white/90 mb-3">
+                  Ваш контроль:
+                </h3>
+                <ul className="space-y-2 pl-6">
+                  <li className="relative before:content-['•'] before:absolute before:-left-4 before:text-white/50">
+                    Вы можете отказать в доступе при появлении системного запроса
+                  </li>
+                  <li className="relative before:content-['•'] before:absolute before:-left-4 before:text-white/50">
+                    Вы можете изменить решение в любой момент: <strong className="text-white/90">Настройки → Конфиденциальность и безопасность → Отслеживание</strong>
+                  </li>
+                  <li className="relative before:content-['•'] before:absolute before:-left-4 before:text-white/50">
+                    Отказ от отслеживания не влияет на функциональность Приложения
+                  </li>
+                </ul>
+              </div>
+              <p className="mt-4">
+                <strong className="text-white/90">Без вашего явного согласия мы не получаем доступ к IDFA и не отслеживаем вашу активность в других приложениях и на сайтах.</strong>
+              </p>
+            </div>
+          </section>
+
+          {/* Section 11 */}
+          <section className="bg-white/[0.02] backdrop-blur-sm border border-white/5 rounded-2xl p-6 sm:p-8">
+            <h2 className="text-2xl sm:text-3xl font-semibold mb-4 text-white">
+              11. Изменения в Политике
             </h2>
             <div className="space-y-4 text-white/70 leading-relaxed">
               <p>
@@ -324,10 +380,10 @@ export default function PrivacyPage() {
             </div>
           </section>
 
-          {/* Section 11 */}
+          {/* Section 12 */}
           <section className="bg-white/[0.02] backdrop-blur-sm border border-white/5 rounded-2xl p-6 sm:p-8">
             <h2 className="text-2xl sm:text-3xl font-semibold mb-4 text-white">
-              11. Контактная информация
+              12. Контактная информация
             </h2>
             <div className="space-y-4 text-white/70 leading-relaxed">
               <p>
