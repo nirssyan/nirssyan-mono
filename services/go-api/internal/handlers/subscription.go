@@ -94,7 +94,7 @@ func (h *SubscriptionHandler) GetCurrentSubscription(w http.ResponseWriter, r *h
 				Plan: PlanResponse{
 					ID:                  uuid.Nil,
 					PlanType:            "FREE",
-					FeedsLimit:          3,
+					FeedsLimit:          10,
 					SourcesPerFeedLimit: 5,
 					IsActive:            true,
 					CreatedAt:           time.Now().Format(time.RFC3339),
@@ -228,7 +228,7 @@ func (h *SubscriptionHandler) GetLimits(w http.ResponseWriter, r *http.Request) 
 
 	writeJSON(w, http.StatusOK, LimitsResponse{
 		PlanType:              "FREE",
-		FeedsLimit:            3,
+		FeedsLimit:            10,
 		SourcesPerFeedLimit:   5,
 		HasActiveSubscription: false,
 		ExpiryDate:            nil,

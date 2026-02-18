@@ -657,7 +657,7 @@ func (h *FeedHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
 		if freePlan != nil {
 			maxFeeds = freePlan.FeedsLimit
 		} else {
-			maxFeeds = 3
+			maxFeeds = 10
 		}
 	}
 
