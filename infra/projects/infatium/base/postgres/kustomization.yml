@@ -7,3 +7,4 @@ resources:
   - postgres-init-user-job.yml
   - postgres-init-grafana-user-job.yml
   - grafana-postgres-sealed-secret.yml
+  - telegram-media-cleanup-cronjob.yml

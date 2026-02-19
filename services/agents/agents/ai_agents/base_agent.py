@@ -8,9 +8,9 @@ import re
 import time
 from typing import Any, Generic, TypeVar
 
+import httpx
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-import httpx
 from langchain_openai import ChatOpenAI
 from loguru import logger
 from pydantic import BaseModel, SecretStr, ValidationError

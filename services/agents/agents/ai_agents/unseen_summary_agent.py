@@ -206,7 +206,9 @@ class UnseenSummaryAgent(BaseJSONAgent[UnseenSummaryResponse]):
                 else:
                     logger.error(f"Synthesis attempt 2 failed: {e}")
 
-        raise ValueError(f"Synthesis stage failed after 2 attempts: {last_error}") from last_error
+        raise ValueError(
+            f"Synthesis stage failed after 2 attempts: {last_error}"
+        ) from last_error
 
     def _compose_full_text(self, posts_data: list[dict]) -> str:
         """Compose full_text programmatically without LLM."""

@@ -272,3 +272,22 @@ spec:
       ports:
         - protocol: TCP
           port: 8080
+---
+# Allow egress to external proxy (gost-proxy sidecar → upstream SOCKS5/HTTP proxy)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-proxy-egress
+  namespace: infatium-prod
+spec:
+  podSelector:
+    matchLabels:
+      proxy-sidecar: enabled
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 1080
+        - protocol: TCP
+          port: 3128

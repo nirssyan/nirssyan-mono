@@ -467,4 +467,6 @@ spec:
   egress:
     - ports:
         - protocol: TCP
-          port: 31280
+          port: 1080
+        - protocol: TCP
+          port: 3128

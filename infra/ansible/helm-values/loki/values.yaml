@@ -81,15 +81,16 @@ monitoring:
 test:
   enabled: false
 
-# Cache settings (reduced for small cluster)
+# Cache settings
 chunksCache:
   enabled: true
   replicas: 1
+  allocatedMemory: 2048
   resources:
     requests:
-      memory: 256Mi
+      memory: 2Gi
     limits:
-      memory: 512Mi
+      memory: 2Gi
 
 resultsCache:
   enabled: true

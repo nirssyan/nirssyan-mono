@@ -15,7 +15,6 @@ from contextlib import asynccontextmanager
 from faststream.nats import NatsBroker
 from faststream.nats.opentelemetry import NatsTelemetryMiddleware
 from loguru import logger
-
 from shared.database.connection import create_db_engine
 from shared.setup_sentry import setup_sentry
 from shared.utils.llm_pricing import load_pricing_from_db
@@ -36,7 +35,9 @@ from .utils.db import get_db_engine, set_db_engine
 def create_agents_broker() -> NatsBroker:
     middlewares = (NatsTelemetryMiddleware(),) if settings.otel_enabled else ()
     faststream_logger = logging.getLogger("faststream")
-    return NatsBroker(settings.nats_url, logger=faststream_logger, middlewares=middlewares)
+    return NatsBroker(
+        settings.nats_url, logger=faststream_logger, middlewares=middlewares
+    )
 
 
 class AgentsApp:

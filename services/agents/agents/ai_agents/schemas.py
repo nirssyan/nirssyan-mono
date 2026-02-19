@@ -4,7 +4,6 @@ import logging
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
-
 from shared.models.common import LocalizedName
 
 logger = logging.getLogger(__name__)

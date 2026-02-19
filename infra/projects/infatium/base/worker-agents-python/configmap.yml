@@ -40,4 +40,4 @@ data:
   FEED_TAGS_BASE_URL: "https://openrouter.ai/api/v1"
   FEED_COMMENT_MODEL: "meta-llama/llama-3.1-8b-instruct"
   FEED_COMMENT_BASE_URL: "https://openrouter.ai/api/v1"
-  PROXY_URL: "http://onlyhide.svyatovibe.ru:31280"
+  PROXY_URL: ""
