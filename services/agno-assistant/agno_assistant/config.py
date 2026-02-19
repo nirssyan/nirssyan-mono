@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     def agno_database_url(self) -> str:
         if not self.database_url:
             return ""
-        return re.sub(r"^postgres(ql)?://", "postgresql+psycopg://", self.database_url)
+        return re.sub(r"^postgres(ql)?(\+\w+)?://", "postgresql+psycopg://", self.database_url)
 
 
 settings = Settings()
