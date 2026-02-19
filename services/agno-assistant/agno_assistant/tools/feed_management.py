@@ -82,7 +82,7 @@ def delete_feed(run_context: RunContext, feed_id: str) -> str:
         "DELETE",
         "/internal/users_feeds",
         run_context.user_id,
-        json={"feed_id": feed_id},
+        params={"feed_id": feed_id},
     )
 
 
