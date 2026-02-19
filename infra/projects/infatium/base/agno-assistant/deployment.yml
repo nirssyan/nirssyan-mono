@@ -25,7 +25,7 @@ spec:
             - name: API_BASE_URL
               value: "http://app-api-go:8080"
             - name: LLM_MODEL
-              value: "anthropic/claude-haiku-4.5"
+              value: "google/gemini-3-flash-preview"
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
