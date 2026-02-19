@@ -69,13 +69,8 @@ spec:
                 secretKeyRef:
                   name: redis-secrets
                   key: REDIS_PASSWORD
-            - name: OPENCLAW_URL
-              value: "http://openclaw:18789"
-            - name: OPENCLAW_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: service-secrets
-                  key: OPENCLAW_GATEWAY_TOKEN
+            - name: AGNO_URL
+              value: "http://agno-assistant:7777"
             - name: INTERNAL_SERVICE_TOKEN
               valueFrom:
                 secretKeyRef:

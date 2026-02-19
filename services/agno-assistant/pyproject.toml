@@ -1,0 +1,56 @@
+[project]
+name = "agno-assistant"
+version = "0.1.0"
+description = "AI assistant for Infatium platform"
+authors = [
+    { name = "margosq", email = "slava1kvartovkin@gmail.com" }
+]
+dependencies = [
+    "agno[os]>=1.0.0",
+    "httpx>=0.28.0",
+    "pydantic-settings>=2.11.0",
+    "psycopg2-binary>=2.9.0",
+    "uvicorn>=0.34.0",
+]
+requires-python = ">= 3.12"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agno_assistant"]
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.6",
+]
+
+[tool.rye.scripts]
+lint = { chain = ["lint:ruff-check", "lint:ruff-format"] }
+"lint:ruff-check" = "ruff check --fix agno_assistant/"
+"lint:ruff-format" = "ruff format agno_assistant/"
+test = "pytest tests/ -v"
+
+[project.scripts]
+agno-assistant = "agno_assistant.main:main"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["."]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"

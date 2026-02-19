@@ -11,11 +11,11 @@ import (
 )
 
 type ChatHandler struct {
-	openclawClient *clients.OpenClawClient
+	agnoClient *clients.AgnoClient
 }
 
-func NewChatHandler(openclawClient *clients.OpenClawClient) *ChatHandler {
-	return &ChatHandler{openclawClient: openclawClient}
+func NewChatHandler(agnoClient *clients.AgnoClient) *ChatHandler {
+	return &ChatHandler{agnoClient: agnoClient}
 }
 
 func (h *ChatHandler) Routes() chi.Router {
@@ -33,7 +33,7 @@ type chatMessageResponse struct {
 }
 
 func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
-	if h.openclawClient == nil {
+	if h.agnoClient == nil {
 		http.Error(w, "chat service not configured", http.StatusNotImplemented)
 		return
 	}
@@ -55,9 +55,9 @@ func (h *ChatHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.openclawClient.SendMessage(r.Context(), userID.String(), req.Message)
+	resp, err := h.agnoClient.SendMessage(r.Context(), userID.String(), req.Message)
 	if err != nil {
-		log.Error().Err(err).Str("user_id", userID.String()).Msg("Failed to send message to OpenClaw")
+		log.Error().Err(err).Str("user_id", userID.String()).Msg("Failed to send message to Agno assistant")
 		http.Error(w, "chat service unavailable", http.StatusBadGateway)
 		return
 	}

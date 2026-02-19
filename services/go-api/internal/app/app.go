@@ -140,10 +140,10 @@ func (a *App) Run(ctx context.Context) error {
 		a.cfg.Environment,
 	)
 
-	var openclawClient *clients.OpenClawClient
-	if a.cfg.OpenClawURL != "" {
-		openclawClient = clients.NewOpenClawClient(a.cfg.OpenClawURL, a.cfg.OpenClawToken)
-		log.Info().Str("url", a.cfg.OpenClawURL).Msg("OpenClaw client initialized")
+	var agnoClient *clients.AgnoClient
+	if a.cfg.AgnoURL != "" {
+		agnoClient = clients.NewAgnoClient(a.cfg.AgnoURL)
+		log.Info().Str("url", a.cfg.AgnoURL).Msg("Agno assistant client initialized")
 	}
 
 	var ruStoreClient *clients.RuStoreClient
@@ -175,6 +175,7 @@ func (a *App) Run(ctx context.Context) error {
 	prePromptRepo := repository.NewPrePromptRepository(pool.Pool)
 	rawFeedRepo := repository.NewRawFeedRepository(pool.Pool)
 	rawPostRepo := repository.NewRawPostRepository(pool.Pool)
+	promptExampleRepo := repository.NewPromptExampleRepository(pool.Pool)
 
 	feedHandler := handlers.NewFeedHandler(
 		feedRepo, postRepo, postSeenRepo, usersFeedRepo,
@@ -200,7 +201,8 @@ func (a *App) Run(ctx context.Context) error {
 	sourceValidationHandler := handlers.NewSourceValidationHandler(validationClient)
 	telegramLinkHandler := handlers.NewTelegramLinkHandler(telegramUserRepo, telegramLinkCodeRepo, a.cfg.TelegramBotUsername, a.cfg.TelegramLinkExpiryMins)
 	telegramSyncHandler := handlers.NewTelegramSyncHandler(telegramClient)
-	chatHandler := handlers.NewChatHandler(openclawClient)
+	chatHandler := handlers.NewChatHandler(agnoClient)
+	promptExamplesHandler := handlers.NewPromptExamplesHandler(promptExampleRepo)
 	healthHandler := handlers.NewHealthHandler(pool.Pool)
 	wsHandler := websocket.NewHandler(a.wsManager, a.cfg.JWTSecret)
 
@@ -274,6 +276,7 @@ func (a *App) Run(ctx context.Context) error {
 			r.Mount("/users/tags", tagsHandler.AuthenticatedRoutes())
 			r.Mount("/telegram", telegramLinkHandler.AuthenticatedRoutes())
 			r.Mount("/sync", telegramSyncHandler.Routes())
+			r.Mount("/prompt_examples", promptExamplesHandler.Routes())
 
 
 			r.Route("/admin", func(r chi.Router) {
