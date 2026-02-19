@@ -1,0 +1,92 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: telegram-media-cleanup
+  labels:
+    app: telegram-media-cleanup
+    component: storage-cleanup
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 3600
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            app: telegram-media-cleanup
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            node-role: infra
+          tolerations:
+            - key: node-role
+              operator: Equal
+              value: infra
+              effect: NoSchedule
+          containers:
+            - name: cleanup
+              image: postgres:15-alpine
+              resources:
+                requests:
+                  memory: "64Mi"
+                  cpu: "50m"
+                limits:
+                  memory: "128Mi"
+                  cpu: "200m"
+              env:
+                - name: PGHOST
+                  value: postgres
+                - name: PGPORT
+                  value: "5432"
+                - name: PGDATABASE
+                  value: postgres
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secrets
+                      key: POSTGRES_USER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secrets
+                      key: POSTGRES_PASSWORD
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+
+                  echo "Starting telegram-media cleanup (files older than 3 days)..."
+
+                  BEFORE_COUNT=$(psql -t -c "
+                    SELECT COUNT(*)
+                    FROM storage.objects
+                    WHERE bucket_id = 'telegram-media'
+                      AND created_at < NOW() - INTERVAL '3 days';
+                  " | tr -d ' ')
+
+                  echo "Found $BEFORE_COUNT files to delete"
+
+                  if [ "$BEFORE_COUNT" -gt 0 ]; then
+                    psql -c "
+                      DELETE FROM storage.objects
+                      WHERE bucket_id = 'telegram-media'
+                        AND created_at < NOW() - INTERVAL '3 days';
+                    "
+                    echo "Deleted $BEFORE_COUNT old media files from telegram-media bucket"
+                  else
+                    echo "No old files to delete"
+                  fi
+
+                  REMAINING=$(psql -t -c "
+                    SELECT COUNT(*)
+                    FROM storage.objects
+                    WHERE bucket_id = 'telegram-media';
+                  " | tr -d ' ')
+
+                  echo "Remaining files in telegram-media: $REMAINING"
+                  echo "Cleanup completed successfully"

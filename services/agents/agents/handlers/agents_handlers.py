@@ -3,7 +3,6 @@
 from faststream import Context
 from faststream.nats import NatsBroker
 from loguru import logger
-
 from shared.context import set_request_id
 from shared.events.agent_requests import (
     AGENT_SUBJECTS,

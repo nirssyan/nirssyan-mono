@@ -38,13 +38,13 @@ patches:
           image: gogost/gost:3.0
           command: ["/bin/sh", "-c"]
           args:
-            - "exec /bin/gost -L=tcp://:12345/openrouter.ai:443 -F=$PROXY_URL >/dev/null 2>&1"
+            - "exec /bin/gost -L=tcp://:12345/openrouter.ai:443 -F=$SOCKS5_PROXY_URL >/dev/null 2>&1"
           env:
-            - name: PROXY_URL
+            - name: SOCKS5_PROXY_URL
               valueFrom:
                 secretKeyRef:
                   name: proxy-credentials
-                  key: HTTPS_PROXY
+                  key: SOCKS5_PROXY
           resources:
             requests:
               cpu: 50m
