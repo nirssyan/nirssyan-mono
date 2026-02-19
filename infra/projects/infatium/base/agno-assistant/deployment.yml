@@ -39,7 +39,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: service-secrets
-                  key: OPENROUTER_API_KEY
+                  key: AI_API_KEY
           resources:
             requests:
               memory: "256Mi"

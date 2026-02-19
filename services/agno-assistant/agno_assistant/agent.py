@@ -1,6 +1,6 @@
 from agno.agent import Agent
 from agno.db.postgres import PostgresDb
-from agno.models.openrouter import OpenRouterChat
+from agno.models.openrouter import OpenRouter
 
 from agno_assistant.config import settings
 from agno_assistant.instructions import INSTRUCTIONS
@@ -24,7 +24,7 @@ from agno_assistant.tools.feed_management import (
 
 
 def create_agent() -> Agent:
-    model = OpenRouterChat(
+    model = OpenRouter(
         id=settings.llm_model,
         api_key=settings.openrouter_api_key,
     )
