@@ -17,6 +17,7 @@ spec:
       containers:
         - name: agno-assistant
           image: docker-registry.infrastructure:5000/agno-assistant:dev
+          imagePullPolicy: Always
           ports:
             - containerPort: 7777
               name: http
