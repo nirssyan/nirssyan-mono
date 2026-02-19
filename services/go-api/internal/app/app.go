@@ -274,7 +274,7 @@ func (a *App) Run(ctx context.Context) error {
 			r.Mount("/users/tags", tagsHandler.AuthenticatedRoutes())
 			r.Mount("/telegram", telegramLinkHandler.AuthenticatedRoutes())
 			r.Mount("/sync", telegramSyncHandler.Routes())
-			r.Mount("/chat", chatHandler.Routes())
+
 
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(adminMiddleware.RequireAdmin)
@@ -294,6 +294,14 @@ func (a *App) Run(ctx context.Context) error {
 				r.Mount("/suggestions", suggestionsHandler.Routes())
 			})
 		}
+	})
+
+	router.Group(func(r chi.Router) {
+		r.Use(func(next http.Handler) http.Handler {
+			return http.TimeoutHandler(next, 120*time.Second, `{"error":"request timeout"}`)
+		})
+		r.Use(authMiddleware.Authenticate)
+		r.Mount("/chat", chatHandler.Routes())
 	})
 
 	a.httpServer = &http.Server{
