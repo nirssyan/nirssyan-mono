@@ -16,7 +16,7 @@ resources:
   - app-integrations-go
   - app-auth-go
   # AI assistant
-  - openclaw
+  - agno-assistant
   # TypeScript services
   - app-landing-typescript
   # Disabled Python services (replaced by Go)

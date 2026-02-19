@@ -59,8 +59,7 @@ type Config struct {
 	RuStorePrivateKey     string `envconfig:"RUSTORE_PRIVATE_KEY"`
 	RuStorePrivateKeyPath string `envconfig:"RUSTORE_PRIVATE_KEY_PATH"`
 
-	OpenClawURL          string `envconfig:"OPENCLAW_URL"`
-	OpenClawToken        string `envconfig:"OPENCLAW_TOKEN"`
+	AgnoURL              string `envconfig:"AGNO_URL"`
 	InternalServiceToken string `envconfig:"INTERNAL_SERVICE_TOKEN"`
 }
 

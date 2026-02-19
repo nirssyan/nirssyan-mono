@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agno-assistant
+  labels:
+    app: agno-assistant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agno-assistant
+  template:
+    metadata:
+      labels:
+        app: agno-assistant
+    spec:
+      containers:
+        - name: agno-assistant
+          image: docker-registry.infrastructure:5000/agno-assistant:dev
+          ports:
+            - containerPort: 7777
+              name: http
+          env:
+            - name: API_BASE_URL
+              value: "http://app-api-go:8080"
+            - name: LLM_MODEL
+              value: "anthropic/claude-haiku-4.5"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: DATABASE_URL
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: INTERNAL_SERVICE_TOKEN
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: OPENROUTER_API_KEY
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
