@@ -140,6 +140,12 @@ func (a *App) Run(ctx context.Context) error {
 		a.cfg.Environment,
 	)
 
+	var openclawClient *clients.OpenClawClient
+	if a.cfg.OpenClawURL != "" {
+		openclawClient = clients.NewOpenClawClient(a.cfg.OpenClawURL, a.cfg.OpenClawToken)
+		log.Info().Str("url", a.cfg.OpenClawURL).Msg("OpenClaw client initialized")
+	}
+
 	var ruStoreClient *clients.RuStoreClient
 	if a.cfg.RuStoreKeyID != "" {
 		var err error
@@ -194,6 +200,7 @@ func (a *App) Run(ctx context.Context) error {
 	sourceValidationHandler := handlers.NewSourceValidationHandler(validationClient)
 	telegramLinkHandler := handlers.NewTelegramLinkHandler(telegramUserRepo, telegramLinkCodeRepo, a.cfg.TelegramBotUsername, a.cfg.TelegramLinkExpiryMins)
 	telegramSyncHandler := handlers.NewTelegramSyncHandler(telegramClient)
+	chatHandler := handlers.NewChatHandler(openclawClient)
 	healthHandler := handlers.NewHealthHandler(pool.Pool)
 	wsHandler := websocket.NewHandler(a.wsManager, a.cfg.JWTSecret)
 
@@ -267,6 +274,7 @@ func (a *App) Run(ctx context.Context) error {
 			r.Mount("/users/tags", tagsHandler.AuthenticatedRoutes())
 			r.Mount("/telegram", telegramLinkHandler.AuthenticatedRoutes())
 			r.Mount("/sync", telegramSyncHandler.Routes())
+			r.Mount("/chat", chatHandler.Routes())
 
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(adminMiddleware.RequireAdmin)
@@ -274,6 +282,18 @@ func (a *App) Run(ctx context.Context) error {
 				r.Mount("/", adminHandler.Routes())
 			})
 		})
+
+		if a.cfg.InternalServiceToken != "" {
+			internalAuth := middleware.NewInternalAuthMiddleware(a.cfg.InternalServiceToken)
+			r.Route("/internal", func(r chi.Router) {
+				r.Use(internalAuth.Authenticate)
+				r.Mount("/feeds", feedHandler.Routes())
+				r.Mount("/posts", postHandler.Routes())
+				r.Mount("/users_feeds", usersFeedHandler.Routes())
+				r.Mount("/sources", sourceValidationHandler.Routes())
+				r.Mount("/suggestions", suggestionsHandler.Routes())
+			})
+		}
 	})
 
 	a.httpServer = &http.Server{

@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  labels:
+    app: openclaw
+    proxy-sidecar: enabled
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openclaw
+  template:
+    metadata:
+      labels:
+        app: openclaw
+        proxy-sidecar: enabled
+    spec:
+      initContainers:
+        - name: copy-skills
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              mkdir -p /data/.openclaw/skills/manage-feeds
+              mkdir -p /data/.openclaw/skills/feed-discovery
+              cp /skills/manage-feeds.md /data/.openclaw/skills/manage-feeds/SKILL.md
+              cp /skills/feed-discovery.md /data/.openclaw/skills/feed-discovery/SKILL.md
+              cp /config/openclaw.json /data/.openclaw/openclaw.json
+              echo "Skills and config copied"
+          volumeMounts:
+            - name: openclaw-data
+              mountPath: /data
+            - name: openclaw-skills
+              mountPath: /skills
+            - name: openclaw-config
+              mountPath: /config
+      containers:
+        - name: openclaw
+          image: node:22-bookworm
+          command: ["sh", "-c"]
+          args:
+            - |
+              mkdir -p /home/node/.openclaw/skills/manage-feeds
+              mkdir -p /home/node/.openclaw/skills/feed-discovery
+              cp /skills/manage-feeds.md /home/node/.openclaw/skills/manage-feeds/SKILL.md
+              cp /skills/feed-discovery.md /home/node/.openclaw/skills/feed-discovery/SKILL.md
+              cp /config/openclaw.json /home/node/.openclaw/openclaw.json
+              if [ -x /home/node/node_modules/.bin/openclaw ]; then
+                echo "OpenClaw cached, starting..."
+              else
+                echo "Installing OpenClaw..."
+                cd /home/node && npm install openclaw@latest
+              fi
+              exec /home/node/node_modules/.bin/openclaw gateway --port 18789
+          ports:
+            - containerPort: 18789
+              name: http
+          env:
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: AI_API_KEY
+            - name: OPENCLAW_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: OPENCLAW_GATEWAY_TOKEN
+            - name: OPENCLAW_INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: service-secrets
+                  key: INTERNAL_SERVICE_TOKEN
+            - name: HOME
+              value: /home/node
+          volumeMounts:
+            - name: openclaw-data
+              mountPath: /home/node
+            - name: openclaw-skills
+              mountPath: /skills
+            - name: openclaw-config
+              mountPath: /config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: openclaw-data
+          persistentVolumeClaim:
+            claimName: openclaw-data
+        - name: openclaw-skills
+          configMap:
+            name: openclaw-skills
+        - name: openclaw-config
+          configMap:
+            name: openclaw-config
