@@ -28,11 +28,22 @@ func NewOpenClawClient(baseURL, token string) *OpenClawClient {
 	}
 }
 
-type openClawRequest struct {
-	Message    string `json:"message"`
-	AgentID    string `json:"agentId"`
-	SessionKey string `json:"sessionKey"`
-	Deliver    bool   `json:"deliver"`
+type chatCompletionMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type chatCompletionRequest struct {
+	Model    string                  `json:"model"`
+	Messages []chatCompletionMessage `json:"messages"`
+}
+
+type chatCompletionChoice struct {
+	Message chatCompletionMessage `json:"message"`
+}
+
+type chatCompletionResponse struct {
+	Choices []chatCompletionChoice `json:"choices"`
 }
 
 type ChatResponse struct {
@@ -40,11 +51,11 @@ type ChatResponse struct {
 }
 
 func (c *OpenClawClient) SendMessage(ctx context.Context, userID string, message string) (*ChatResponse, error) {
-	reqBody := openClawRequest{
-		Message:    message,
-		AgentID:    "main",
-		SessionKey: "user:" + userID,
-		Deliver:    false,
+	reqBody := chatCompletionRequest{
+		Model: "openclaw",
+		Messages: []chatCompletionMessage{
+			{Role: "user", Content: message},
+		},
 	}
 
 	data, err := json.Marshal(reqBody)
@@ -52,17 +63,18 @@ func (c *OpenClawClient) SendMessage(ctx context.Context, userID string, message
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	url := c.baseURL + "/hooks/agent"
+	url := c.baseURL + "/v1/chat/completions"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("x-openclaw-session-key", "user:"+userID)
 
 	log.Debug().
 		Str("url", url).
-		Str("session_key", reqBody.SessionKey).
+		Str("session_key", "user:"+userID).
 		Msg("Sending message to OpenClaw")
 
 	resp, err := c.httpClient.Do(req)
@@ -80,10 +92,14 @@ func (c *OpenClawClient) SendMessage(ctx context.Context, userID string, message
 		return nil, fmt.Errorf("openclaw returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	var chatResp ChatResponse
-	if err := json.Unmarshal(body, &chatResp); err != nil {
+	var completionResp chatCompletionResponse
+	if err := json.Unmarshal(body, &completionResp); err != nil {
 		return &ChatResponse{Response: string(body)}, nil
 	}
 
-	return &chatResp, nil
+	if len(completionResp.Choices) == 0 {
+		return &ChatResponse{Response: ""}, nil
+	}
+
+	return &ChatResponse{Response: completionResp.Choices[0].Message.Content}, nil
 }
