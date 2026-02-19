@@ -1,0 +1,216 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-config
+  labels:
+    app: openclaw
+data:
+  openclaw.json: |
+    {
+      "models": {
+        "providers": {
+          "openrouter": {
+            "baseUrl": "https://openrouter.ai/api/v1",
+            "apiKey": "${OPENROUTER_API_KEY}",
+            "api": "openai-completions",
+            "models": [
+              {
+                "id": "z-ai/glm-5",
+                "name": "GLM-5",
+                "reasoning": false,
+                "input": ["text"],
+                "contextWindow": 131072,
+                "maxTokens": 16000
+              }
+            ]
+          }
+        }
+      },
+      "agents": {
+        "defaults": {
+          "model": {
+            "primary": "openrouter/z-ai/glm-5"
+          }
+        }
+      },
+      "gateway": {
+        "mode": "local",
+        "bind": "lan",
+        "auth": {
+          "mode": "token",
+          "token": "${OPENCLAW_GATEWAY_TOKEN}"
+        }
+      },
+      "session": {
+        "scope": "per-sender"
+      },
+      "tools": {
+        "deny": ["exec", "browser", "write", "edit", "apply_patch"]
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-skills
+  labels:
+    app: openclaw
+data:
+  manage-feeds.md: |
+    ---
+    name: manage-feeds
+    description: Manage user feeds - create, update, delete, list feeds and view posts. Use this skill for any feed management request.
+    ---
+
+    # Feed Management
+
+    You are an AI assistant that helps users manage their news feeds on Infatium platform.
+
+    ## Authentication
+
+    All requests must include these headers:
+    - `Authorization: Bearer {OPENCLAW_INTERNAL_TOKEN}` (from environment)
+    - `X-On-Behalf-Of: {user_id}` (extract from sessionKey, format: "user:{UUID}" → use the UUID part)
+
+    Base URL: `http://app-api-go:8080/internal`
+
+    ## Endpoints
+
+    ### List User Feeds
+    ```
+    GET /internal/feeds
+    ```
+    Returns array of user feeds with id, name, type, description, tags, sources, unread_count.
+
+    ### Create Feed
+    ```
+    POST /internal/feeds/create
+    Content-Type: application/json
+
+    {
+      "name": "Feed Name",
+      "feed_type": "SINGLE_POST",
+      "sources": [
+        {"url": "https://t.me/channel_name", "type": "telegram"},
+        {"url": "https://example.com/rss.xml", "type": "rss"},
+        {"url": "https://example.com", "type": "website"}
+      ],
+      "views_config": [
+        {"name": "summary", "params": {}}
+      ],
+      "filters_config": [
+        {"name": "relevant", "params": {"description": "Only tech news"}}
+      ]
+    }
+    ```
+
+    **feed_type options:**
+    - `SINGLE_POST` — each source post becomes an individual feed post (default, most common)
+    - `DIGEST` — periodically combines multiple posts into a digest summary
+
+    **Source types:**
+    - `telegram` — Telegram channel (URL: `https://t.me/channel` or `@channel`)
+    - `rss` — RSS/Atom feed URL
+    - `website` — Any website URL (scraped)
+
+    **views_config** — how posts are presented. Common views:
+    - `summary` — concise summary of the post
+    - `tldr` — very short TL;DR format
+    - `original` — original content preserved
+
+    **filters_config** — what posts to include. Use description to specify criteria.
+
+    ### Update Feed
+    ```
+    PATCH /internal/feeds/{feed_id}
+    Content-Type: application/json
+
+    {
+      "name": "New Name",
+      "sources": [...],
+      "views_config": [...],
+      "filters_config": [...]
+    }
+    ```
+    All fields are optional - only provided fields are updated.
+
+    ### Delete Feed
+    ```
+    DELETE /internal/users_feeds
+    Content-Type: application/json
+
+    {"feed_id": "uuid-here"}
+    ```
+
+    ### Get Feed Posts
+    ```
+    GET /internal/posts/feed/{feed_id}?limit=20&offset=0
+    ```
+    Returns paginated posts for a feed.
+
+    ## Guidelines
+
+    1. Before creating a feed, validate sources using the feed-discovery skill
+    2. Default to `SINGLE_POST` feed type unless user explicitly asks for digest
+    3. Always explain what you did after performing an action
+    4. Format responses nicely — use feed names, post counts, etc.
+    5. If a user says "@channel" for Telegram, convert to "https://t.me/channel"
+    6. When listing feeds, show name, source count, unread count
+    7. Ask for clarification if the user's request is ambiguous
+
+  feed-discovery.md: |
+    ---
+    name: feed-discovery
+    description: Discover and validate feed sources, get suggestions for views and filters. Use before creating feeds to validate sources.
+    ---
+
+    # Feed Discovery
+
+    Helper skill for discovering and validating feed sources.
+
+    ## Authentication
+
+    Same as manage-feeds:
+    - `Authorization: Bearer {OPENCLAW_INTERNAL_TOKEN}`
+    - `X-On-Behalf-Of: {user_id}`
+
+    Base URL: `http://app-api-go:8080/internal`
+
+    ## Endpoints
+
+    ### Validate Source
+    ```
+    POST /internal/sources/validate
+    Content-Type: application/json
+
+    {"url": "https://t.me/channel_name", "type": "telegram"}
+    ```
+    Returns validation result with source info (title, description, post count).
+
+    ### Get View Suggestions
+    ```
+    GET /internal/suggestions/views
+    ```
+    Returns available view types with names in English and Russian.
+
+    ### Get Filter Suggestions
+    ```
+    GET /internal/suggestions/filters
+    ```
+    Returns available filter presets.
+
+    ### Get Source Suggestions
+    ```
+    GET /internal/suggestions/sources
+    ```
+    Returns popular source suggestions.
+
+    ## Source Types Explained
+
+    - **Telegram** (`telegram`): Public Telegram channels. URL format: `https://t.me/channel` or `@channel`. Most popular source type.
+    - **RSS** (`rss`): Standard RSS/Atom feeds. Provide direct feed URL.
+    - **Website** (`website`): Any public webpage. Content is extracted automatically.
+
+    ## Usage
+
+    Always validate sources before creating a feed to ensure they are accessible and contain content.
