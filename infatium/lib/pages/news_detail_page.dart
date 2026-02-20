@@ -1463,10 +1463,11 @@ class _NewsDetailPageState extends State<NewsDetailPage>
         
         // Ссылки
         a: TextStyle(
-          color: _isDarkMode ? const Color(0xFF4FC3F7) : const Color(0xFF1976D2),
+          color: _primaryTextColor,
           decoration: TextDecoration.underline,
-          decorationColor: (_isDarkMode ? const Color(0xFF4FC3F7) : const Color(0xFF1976D2)).withValues(alpha:0.3),
-          fontWeight: FontWeight.w500,
+          decorationColor: _primaryTextColor.withValues(alpha: _isDarkMode ? 0.4 : 0.35),
+          decorationThickness: 1.0,
+          fontWeight: FontWeight.w600,
         ),
         
         // Код
@@ -1474,7 +1475,7 @@ class _NewsDetailPageState extends State<NewsDetailPage>
           backgroundColor: _isDarkMode 
             ? Colors.white.withValues(alpha:0.1) 
             : Colors.black.withValues(alpha:0.05),
-          color: _isDarkMode ? const Color(0xFFE91E63) : const Color(0xFFD32F2F),
+          color: _primaryTextColor.withValues(alpha: _isDarkMode ? 0.9 : 0.85),
           fontSize: 14,
           fontFamily: 'monospace',
           fontWeight: FontWeight.w500,
@@ -1509,15 +1510,15 @@ class _NewsDetailPageState extends State<NewsDetailPage>
           borderRadius: BorderRadius.circular(8),
           border: Border(
             left: BorderSide(
-              color: _isDarkMode ? const Color(0xFF4FC3F7) : const Color(0xFF1976D2),
-              width: 4,
+              color: _primaryTextColor.withValues(alpha: _isDarkMode ? 0.25 : 0.20),
+              width: 3,
             ),
           ),
         ),
         
         // Списки
         listBullet: TextStyle(
-          color: _isDarkMode ? const Color(0xFF4FC3F7) : const Color(0xFF1976D2),
+          color: _secondaryTextColor,
           fontSize: 16,
           fontWeight: FontWeight.bold,
         ),
@@ -1543,7 +1544,7 @@ class _NewsDetailPageState extends State<NewsDetailPage>
       // Custom markdown extensions for ==highlight== syntax
       extensionSet: md.ExtensionSet(
         [],
-        [HighlightSyntax()],
+        [HighlightSyntax(), md.AutolinkExtensionSyntax()],
       ),
 
       // Обработчики ссылок

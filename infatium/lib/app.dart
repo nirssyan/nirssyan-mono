@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'models/custom_auth_state.dart';
 import 'l10n/generated/app_localizations.dart';
@@ -21,6 +22,7 @@ import 'services/subscription_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/session_tracker_service.dart';
 import 'services/error_logging_service.dart';
+import 'services/att_service.dart';
 
 class MyApp extends StatefulWidget {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -136,6 +138,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           if (DeepLinkService().hasPendingFeedLink) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               DeepLinkService().processPendingFeedLink();
+            });
+          }
+
+          // Request ATT permission on iOS (after splash, with delay)
+          if (Platform.isIOS) {
+            Future.delayed(const Duration(seconds: 2), () {
+              AttService().requestTrackingIfNeeded();
             });
           }
         }

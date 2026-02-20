@@ -1,0 +1,10 @@
+app_identifier("com.nirssyan.makefeed") # The bundle identifier of your app
+apple_id("kivadanila@icloud.com") # Your Apple Developer Portal email
+team_id("WJL5673TCJ") # Developer Portal Team ID
+
+# App Store Connect API Key for authentication (no 2FA needed)
+# Key file: keys/AuthKey_N24GJY63UW.p8
+# Generate new keys at: https://appstoreconnect.apple.com/access/integrations/api
+
+# For more information about the Appfile, see:
+#     https://docs.fastlane.tools/advanced/#appfile
