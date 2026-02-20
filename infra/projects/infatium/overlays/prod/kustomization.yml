@@ -30,6 +30,7 @@ resources:
   - dockerhub-registry-sealed.yml
   - integrations-secrets-sealed.yml
   - minio-secrets-sealed.yml
+  - proxy-credentials-sealed.yml
 
 commonLabels:
   product: infatium
