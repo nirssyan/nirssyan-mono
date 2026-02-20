@@ -59,6 +59,7 @@ images:
     newTag: prod
 
 patches:
+  - path: worker-agents-python-patch.yml
   - path: worker-processor-go-patch.yml
   - path: worker-poller-go-patch.yml
   - path: app-registry-go-patch.yml
