@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "WXQ3Y749PL.com.nirssyan.makefeed",
+        "paths": ["/feed/*", "/marketplace/*"]
+      }
+    ]
+  }
+}

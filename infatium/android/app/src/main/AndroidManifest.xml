@@ -69,6 +69,15 @@
                     android:host="accounts.google.com"
                     android:pathPrefix="/signin" />
             </intent-filter>
+
+            <!-- App Links для infatium.ru -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="infatium.ru" android:pathPrefix="/feed" />
+                <data android:scheme="https" android:host="infatium.ru" android:pathPrefix="/marketplace" />
+            </intent-filter>
         </activity>
 
         <!-- Dynamic app icon aliases for android_dynamic_icon -->

@@ -8,6 +8,8 @@
 	</array>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
+		<string>applinks:infatium.ru</string>
+		<string>applinks:dev.infatium.ru</string>
 		<string>applinks:makefeed.nirssyan.ru</string>
 		<string>applinks:dev.api.infatium.ru</string>
 	</array>
